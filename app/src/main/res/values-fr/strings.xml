@@ -833,8 +833,6 @@
     <string name="group_member_declined">Refusé</string>
     <string name="group_invite_explainer">Vous ne faites partie de ce groupe que si vous acceptez. Votre réponse part sous forme de petite transaction chiffrée, pour que le groupe et vos autres appareils soient informés.</string>
     <string name="group_invite_notification">Vous êtes invité à « %1$s »</string>
-    <string name="where_is_this_seed_phrase_from">D\'où viennent vos 12 ou 24 mots ?</string>
-    <string name="different_wallets_store_your_kaspa">Selon les portefeuilles, votre Kaspa est stocké sur des chemins d\'adresses différents. Choisissez d\'où viennent ces mots pour que KaChat retrouve vos fonds et vos domaines.</string>
     <string name="could_not_derive_addresses">Impossible de dériver des adresses à partir de ces mots. Veuillez réessayer.</string>
     <string name="this_seed_already_has_conversations">Ces mots ont déjà des conversations sur l\'adresse de discussion actuelle. Changer repart de zéro avec la nouvelle adresse. Vos conversations existantes restent avec l\'ancienne adresse et ne sont pas supprimées.</string>
     <string name="wallet_title">Portefeuille</string>
@@ -982,7 +980,6 @@
     <string name="checking">Vérification...</string>
     <string name="this_address_holds_funds_so_this_looks">Cette adresse contient des fonds, c\'est donc sans doute le bon compte.</string>
     <string name="no_funds_on_this_address_if_you">Aucun fonds sur cette adresse. Si vous en attendiez, vérifiez votre phrase secrète.</string>
-    <string name="we_picked_the_first_address_with_funds">Nous avons choisi la première adresse avec des fonds. Touchez-en une autre si ce n\'est pas celle depuis laquelle vous discutez.</string>
     <string name="this_is_the_account_your_12_or">C\'est le compte que vos 12 ou 24 mots ouvrent à eux seuls.</string>
     <string name="a_different_passphrase_gives_a_different_address">Une phrase secrète différente donne une adresse différente, et un compte différent.</string>
     <string name="if_you_are_not_sure_the_answer">Si vous n\'êtes pas sûr(e), la réponse est presque certainement non. Une phrase secrète, vous l\'auriez saisie volontairement.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">L\'ouvre ici même, dans l\'app.</string>
     <string name="opens_the_post_in_the_kapost_app">Ouvre la publication dans l\'app KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Échec de l\'envoi vers Nextcloud : envoi sur la chaîne à la place</string>
+    <string name="standard_kaspa_wallet">Portefeuille Kaspa standard</string>
+    <string name="has_history">A un historique</string>
+    <string name="see_every_wallet_type">Voir tous les types de portefeuille</string>
+    <string name="kachat_checks_your_words_against_every">KaChat compare vos mots à tous les types de portefeuilles Kaspa : vous n\'avez pas besoin de savoir d\'où ils viennent.</string>
+    <string name="this_address_has_history_so_this_looks">Cette adresse a un historique, il semble donc que ce soit le bon compte.</string>
+    <string name="no_funds_or_history_on_this_address">Aucun fonds ni historique sur cette adresse.</string>
+    <string name="we_picked_the_most_likely_account">Nous avons choisi le compte le plus probable. Touchez-en un autre si ce n\'est pas celui que vous utilisez.</string>
+    <string name="your_account">Votre compte</string>
+    <string name="checking_this_wallets_address">Vérification de l\'adresse de ce portefeuille...</string>
+    <string name="this_wallet_type_has_a_single_address">Ce type de portefeuille n\'a qu\'une seule adresse, il n\'y a donc rien de plus à scanner.</string>
 </resources>

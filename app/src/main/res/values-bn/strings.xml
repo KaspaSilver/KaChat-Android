@@ -833,8 +833,6 @@
     <string name="group_member_declined">প্রত্যাখ্যাত</string>
     <string name="group_invite_explainer">আপনি গ্রহণ না করলে এই গ্রুপে থাকবেন না। আপনার উত্তর একটি ছোট এনক্রিপ্টেড লেনদেন হিসেবে যায়, যাতে গ্রুপ ও আপনার অন্য ডিভাইসগুলো জানতে পারে।</string>
     <string name="group_invite_notification">আপনাকে \"%1$s\"-এ আমন্ত্রণ জানানো হয়েছে</string>
-    <string name="where_is_this_seed_phrase_from">আপনার ১২ বা ২৪টি শব্দ কোথা থেকে এসেছে?</string>
-    <string name="different_wallets_store_your_kaspa">বিভিন্ন ওয়ালেট আপনার Kaspa আলাদা আলাদা ঠিকানা পাথে রাখে। এই শব্দগুলো কোথা থেকে এসেছে তা বেছে নিন, যাতে KaChat আপনার ফান্ড ও ডোমেইন খুঁজে পায়।</string>
     <string name="could_not_derive_addresses">এই শব্দগুলো থেকে ঠিকানা বের করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।</string>
     <string name="this_seed_already_has_conversations">এই শব্দগুলোর সাথে বর্তমান চ্যাট ঠিকানায় আগে থেকেই কথোপকথন আছে। বদলালে নতুন ঠিকানা দিয়ে নতুনভাবে শুরু হয়। আপনার বিদ্যমান কথোপকথন পুরোনো ঠিকানার সাথেই থাকে এবং মোছা হয় না।</string>
     <string name="wallet_title">ওয়ালেট</string>
@@ -982,7 +980,6 @@
     <string name="checking">যাচাই করা হচ্ছে...</string>
     <string name="this_address_holds_funds_so_this_looks">এই ঠিকানায় ফান্ড আছে, তাই এটিই সঠিক অ্যাকাউন্ট মনে হচ্ছে।</string>
     <string name="no_funds_on_this_address_if_you">এই ঠিকানায় কোনো ফান্ড নেই। এখানে ফান্ড থাকার কথা থাকলে আপনার পাসফ্রেজ দেখে নিন।</string>
-    <string name="we_picked_the_first_address_with_funds">আমরা ফান্ড আছে এমন প্রথম ঠিকানাটি বেছে নিয়েছি। আপনি যেটি থেকে চ্যাট করেন সেটি না হলে অন্যটিতে ট্যাপ করুন।</string>
     <string name="this_is_the_account_your_12_or">আপনার ১২ বা ২৪টি শব্দ নিজে থেকে যে অ্যাকাউন্টটি খোলে, এটি সেটিই।</string>
     <string name="a_different_passphrase_gives_a_different_address">আলাদা পাসফ্রেজ মানে আলাদা ঠিকানা, আর আলাদা অ্যাকাউন্ট।</string>
     <string name="if_you_are_not_sure_the_answer">আপনি নিশ্চিত না হলে উত্তর প্রায় নিশ্চিতভাবেই না। পাসফ্রেজ এমন কিছু যা আপনি ইচ্ছা করে লিখেছিলেন।</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">এখানেই অ্যাপের মধ্যে খোলে।</string>
     <string name="opens_the_post_in_the_kapost_app">পোস্টটি KaPost অ্যাপে খোলে।</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Nextcloud আপলোড ব্যর্থ — তার বদলে অন-চেইনে পাঠানো হচ্ছে</string>
+    <string name="standard_kaspa_wallet">স্ট্যান্ডার্ড Kaspa ওয়ালেট</string>
+    <string name="has_history">ইতিহাস আছে</string>
+    <string name="see_every_wallet_type">সব ধরনের ওয়ালেট দেখুন</string>
+    <string name="kachat_checks_your_words_against_every">KaChat আপনার শব্দগুলো সব ধরনের Kaspa ওয়ালেটের সাথে মিলিয়ে দেখে, তাই সেগুলো কোন ওয়ালেট থেকে এসেছে তা আপনাকে জানতে হবে না।</string>
+    <string name="this_address_has_history_so_this_looks">এই ঠিকানার ইতিহাস আছে, তাই এটিই সঠিক অ্যাকাউন্ট বলে মনে হচ্ছে।</string>
+    <string name="no_funds_or_history_on_this_address">এই ঠিকানায় কোনো তহবিল বা ইতিহাস নেই।</string>
+    <string name="we_picked_the_most_likely_account">আমরা সবচেয়ে সম্ভাব্য অ্যাকাউন্টটি বেছে নিয়েছি। এটি আপনার না হলে অন্যটিতে ট্যাপ করুন।</string>
+    <string name="your_account">আপনার অ্যাকাউন্ট</string>
+    <string name="checking_this_wallets_address">এই ওয়ালেটের ঠিকানা যাচাই করা হচ্ছে...</string>
+    <string name="this_wallet_type_has_a_single_address">এই ওয়ালেট ধরনে একটিই ঠিকানা থাকে, তাই আর স্ক্যান করার কিছু নেই।</string>
 </resources>

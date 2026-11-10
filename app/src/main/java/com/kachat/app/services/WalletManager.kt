@@ -890,10 +890,11 @@ class WalletManager @Inject constructor(
      * re-imported, matching a bug found and fixed on iOS (`WalletManager.importWallet` there had
      * the same "reconstruct a bare wallet, overwrite the real record" shape).
      *
-     * [family] is the source-wallet derivation family chosen on the import chooser (see
-     * [WalletSourceFamily]); [chattingAddressIndex] is the identity-chain index, nonzero only when
-     * the import wizard's "Change Chatting Address" step picked a different one. Both are
-     * persisted on the account and honored by every later re-derivation.
+     * [family] is the source-wallet derivation family found by import's auto-detect (see
+     * [WalletSourceFamily], iOS da467165 `findImportAccounts`); [chattingAddressIndex] is the
+     * identity-chain index, nonzero when that search or the import wizard's "Change Chatting
+     * Address" step picked a different one. Both are persisted on the account and honored by
+     * every later re-derivation.
      */
     fun importWallet(
         mnemonic: List<String>,
@@ -1024,7 +1025,12 @@ class WalletManager @Inject constructor(
         family: WalletSourceFamily,
         form: PassphraseForm = PassphraseForm.NFKD
     ): DeterministicKey {
-        val seed = seedFor(mnemonic, passphrase, form)
+        return identityBaseNode(seedFor(mnemonic, passphrase, form), family)
+    }
+
+    /** [identityBaseNode] from an already-made [seed], so one PBKDF2 serves every family import
+     *  checks (iOS da467165 `importCandidates`). */
+    private fun identityBaseNode(seed: ByteArray, family: WalletSourceFamily): DeterministicKey {
         val master = HDKeyDerivation.createMasterPrivateKey(seed)
         val purpose = HDKeyDerivation.deriveChildKey(master, ChildNumber(44, true))
         return when (family) {
@@ -1042,11 +1048,17 @@ class WalletManager @Inject constructor(
                 val account = HDKeyDerivation.deriveChildKey(coinType, ChildNumber(0, true))
                 HDKeyDerivation.deriveChildKey(account, ChildNumber(0, true))
             }
+            // m/44'/111111'/0' — Chainge's single 0' leaf is applied as the "index 0" step in
+            // [identityPrivateKeyBytes] (iOS da467165).
+            WalletSourceFamily.CHAINGE -> {
+                val coinType = HDKeyDerivation.deriveChildKey(purpose, ChildNumber(111111, true))
+                HDKeyDerivation.deriveChildKey(coinType, ChildNumber(0, true))
+            }
         }
     }
 
-    /** Applies the family's index rule to [baseNode]. Null when the key is unusable (only
-     *  reachable via a failed OneKey tweak). */
+    /** Applies the family's index rule to [baseNode]. Null for indexes the family does not have
+     *  (Chainge has exactly one address) or when the key is unusable (a failed OneKey tweak). */
     private fun identityPrivateKeyBytes(
         baseNode: DeterministicKey,
         index: Int,
@@ -1056,6 +1068,8 @@ class WalletManager @Inject constructor(
             HDKeyDerivation.deriveChildKey(baseNode, ChildNumber(index, false)).privKeyBytes
         WalletSourceFamily.KASPA_LEGACY_972 ->
             HDKeyDerivation.deriveChildKey(baseNode, ChildNumber(index, true)).privKeyBytes
+        WalletSourceFamily.CHAINGE ->
+            if (index == 0) HDKeyDerivation.deriveChildKey(baseNode, ChildNumber(0, true)).privKeyBytes else null
         WalletSourceFamily.ONE_KEY ->
             oneKeyTweakedPrivateKey(HDKeyDerivation.deriveChildKey(baseNode, ChildNumber(index, false)).privKeyBytes)
     }
@@ -1183,7 +1197,7 @@ class WalletManager @Inject constructor(
         getActiveAccount()?.let { passphraseFormOf(it) } ?: PassphraseForm.NFKD
 
     /** The active account's identity derivation family (KASPA_STANDARD for every account that
-     *  predates the import source-wallet chooser). */
+     *  was saved before families were stored). */
     fun activeSourceFamily(): WalletSourceFamily =
         WalletSourceFamily.fromRaw(getActiveAccount()?.sourceFamily)
 
@@ -1963,6 +1977,42 @@ class WalletManager @Inject constructor(
             index to addressFromPrivateKeyBytes(privateKey)
         }
     }
+
+    /**
+     * Every wallet type's addresses for these words, before there's an account: each family over
+     * the indices [indicesFor] gives it, families in [WalletSourceFamily] order and each family's
+     * addresses in index order. One seed serves them all. Empty when the words aren't usable
+     * (iOS da467165 `importCandidates`).
+     */
+    fun importCandidates(
+        mnemonic: List<String>,
+        passphrase: String,
+        indicesFor: (WalletSourceFamily) -> IntRange,
+    ): List<com.kachat.app.models.ImportAccountCandidate> {
+        val seed = try {
+            seedFor(mnemonic, passphrase, PassphraseForm.NFKD)
+        } catch (e: Exception) {
+            return emptyList()
+        }
+        return try {
+            WalletSourceFamily.entries.flatMap { family ->
+                val baseNode = identityBaseNode(seed, family)
+                indicesFor(family).mapNotNull { index ->
+                    val privateKey = identityPrivateKeyBytes(baseNode, index, family) ?: return@mapNotNull null
+                    com.kachat.app.models.ImportAccountCandidate(family, index, addressFromPrivateKeyBytes(privateKey))
+                }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        } finally {
+            seed.fill(0)
+        }
+    }
+
+    /** Address #0 of every wallet type these words could be: the rows "See Every Wallet Type"
+     *  offers. Needs no network (iOS da467165 `importAddressesAtZero`). */
+    fun importAddressesAtZero(mnemonic: List<String>, passphrase: String): List<com.kachat.app.models.ImportAccountCandidate> =
+        importCandidates(mnemonic, passphrase) { 0..0 }
 
     fun deriveChattingAddresses(indices: IntRange): List<Pair<Int, String>> {
         val account = getActiveAccount() ?: return emptyList()

@@ -558,30 +558,43 @@ class WalletService @Inject constructor(
         }
     }
 
-    /** An address the import's passphrase step found on the identity chain (iOS 836b62bc). */
-    data class FoundChattingAddress(val index: Int, val address: String, val balanceSompi: Long)
-
     /**
-     * For an import's passphrase step, before there's an account: address #0 plus every other
-     * address on the identity chain holding funds, in index order. Null when the words are invalid
-     * or the balances couldn't be checked.
+     * Import's auto-detect: every wallet type's addresses, keeping the ones with funds, plus any
+     * address #0 with transaction history (a chat identity or an emptied wallet holds no coins).
+     * The wallet type holding the most comes first and each type's addresses are in index order,
+     * so the first entry is the likeliest account ([ImportAccountCandidate.ranked]). Empty when
+     * nothing has any activity; null when the words are invalid or the balances couldn't be
+     * checked (iOS da467165).
      */
-    suspend fun findChattingAddresses(
+    suspend fun findImportAccounts(
         words: List<String>,
         passphrase: String,
-        family: com.kachat.app.models.WalletSourceFamily,
-        indices: IntRange,
-    ): List<FoundChattingAddress>? {
-        val derived = withContext(kotlinx.coroutines.Dispatchers.Default) {
-            walletManager.previewIdentityAddresses(words, passphrase, family, indices)
+    ): List<com.kachat.app.models.ImportAccountCandidate>? = coroutineScope {
+        val candidates = withContext(kotlinx.coroutines.Dispatchers.Default) {
+            walletManager.importCandidates(words, passphrase) { it.importSearchDepth }
         }
-        if (derived.isEmpty()) return null
-        val balances = fetchBalancesBatched(derived.map { it.second })
-        if (balances.isEmpty()) return null
-        return derived.mapNotNull { (index, address) ->
-            val balance = balances[address] ?: 0L
-            if (index == 0 || balance > 0L) FoundChattingAddress(index, address, balance) else null
+        if (candidates.isEmpty()) return@coroutineScope null
+        val used = async { addressesWithHistory(candidates.filter { it.index == 0 }.map { it.address }) }
+        val balances = fetchBalancesBatched(candidates.map { it.address })
+        if (balances.isEmpty()) {
+            used.cancel()
+            return@coroutineScope null
         }
+        com.kachat.app.models.ImportAccountCandidate.ranked(candidates, balances, used.await())
+    }
+
+    /** The addresses with at least one transaction. A failed probe counts as no history: this only
+     *  ranks what import shows first, and every wallet type stays one tap away (iOS da467165). */
+    private suspend fun addressesWithHistory(addresses: List<String>): Set<String> = coroutineScope {
+        val api = readyApi() ?: return@coroutineScope emptySet()
+        addresses.map { address ->
+            async {
+                val total = withTimeoutOrNull(HISTORY_PROBE_TIMEOUT_MS) {
+                    try { api.getTransactionsCount(address).total } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+                }
+                address.takeIf { (total ?: 0) > 0 }
+            }
+        }.awaitAll().filterNotNull().toSet()
     }
 
     /** One batched balances call, degrading to a chunked-concurrent sweep when the configured REST
@@ -1149,6 +1162,9 @@ class WalletService @Inject constructor(
     companion object {
         private const val KNS_RESUME_TRIES = 3
         private const val KNS_RESUME_RETRY_MS = 20_000L
+
+        /** How long import's history probe waits for one address (iOS da467165 `timeoutInterval`). */
+        private const val HISTORY_PROBE_TIMEOUT_MS = 8_000L
 
         /** The shield probe's page size and how many pages it reads at most (iOS da2c8e2: 200 x
          *  50 = 10,000 transactions). */

@@ -833,8 +833,6 @@
     <string name="group_member_declined">דחה</string>
     <string name="group_invite_explainer">לא תהיו בקבוצה הזו אלא אם תאשרו. התשובה נשלחת כעסקה מוצפנת קטנה, כדי שהקבוצה והמכשירים האחרים שלכם יידעו.</string>
     <string name="group_invite_notification">התקבלה הזמנה אל \"%1$s\"</string>
-    <string name="where_is_this_seed_phrase_from">מאיפה 12 או 24 המילים שלכם?</string>
-    <string name="different_wallets_store_your_kaspa">ארנקים שונים שומרים את ה-Kaspa שלכם בנתיבי כתובות שונים. בחרו מאיפה המילים האלה מגיעות כדי ש-KaChat ימצא את הכספים והדומיינים שלכם.</string>
     <string name="could_not_derive_addresses">לא ניתן היה לגזור כתובות מהמילים האלה. נסו שוב.</string>
     <string name="this_seed_already_has_conversations">למילים האלה כבר יש שיחות בכתובת הצ\'אט הנוכחית. ההחלפה מתחילה מחדש עם הכתובת החדשה. השיחות הקיימות שלכם נשארות עם הכתובת הישנה ולא נמחקות.</string>
     <string name="wallet_title">ארנק</string>
@@ -982,7 +980,6 @@
     <string name="checking">בודק...</string>
     <string name="this_address_holds_funds_so_this_looks">בכתובת הזו יש כספים, ולכן נראה שזה החשבון הנכון.</string>
     <string name="no_funds_on_this_address_if_you">אין כספים בכתובת הזו. אם ציפיתם לכספים כאן, בדקו את ביטוי הסיסמה שלכם.</string>
-    <string name="we_picked_the_first_address_with_funds">בחרנו את הכתובת הראשונה שיש בה כספים. הקישו על אחרת אם זו לא זו שממנה אתם משוחחים.</string>
     <string name="this_is_the_account_your_12_or">זה החשבון ש-12 או 24 המילים שלכם פותחות בפני עצמן.</string>
     <string name="a_different_passphrase_gives_a_different_address">ביטוי סיסמה שונה יוצר כתובת שונה, וחשבון שונה.</string>
     <string name="if_you_are_not_sure_the_answer">אם אינכם בטוחים, כמעט בוודאות התשובה היא לא. ביטוי סיסמה הוא משהו שהייתם מקלידים בכוונה.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">פותח את זה כאן באפליקציה.</string>
     <string name="opens_the_post_in_the_kapost_app">פותח את הפוסט באפליקציית KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">ההעלאה ל-Nextcloud נכשלה, שולח על השרשרת במקום זאת</string>
+    <string name="standard_kaspa_wallet">ארנק Kaspa רגיל</string>
+    <string name="has_history">יש היסטוריה</string>
+    <string name="see_every_wallet_type">הצגת כל סוגי הארנקים</string>
+    <string name="kachat_checks_your_words_against_every">KaChat בודק את המילים שלך מול כל סוגי ארנקי Kaspa, כך שלא צריך לדעת מאיזה ארנק הן הגיעו.</string>
+    <string name="this_address_has_history_so_this_looks">לכתובת הזו יש היסטוריה, כך שנראה שזה החשבון הנכון.</string>
+    <string name="no_funds_or_history_on_this_address">אין כספים או היסטוריה בכתובת הזו.</string>
+    <string name="we_picked_the_most_likely_account">בחרנו את החשבון הסביר ביותר. אם זה לא החשבון שבו משתמשים, אפשר להקיש על אחר.</string>
+    <string name="your_account">החשבון שלך</string>
+    <string name="checking_this_wallets_address">בודק את כתובת הארנק הזה...</string>
+    <string name="this_wallet_type_has_a_single_address">לסוג הארנק הזה יש כתובת אחת, ולכן אין מה לסרוק מעבר לה.</string>
 </resources>

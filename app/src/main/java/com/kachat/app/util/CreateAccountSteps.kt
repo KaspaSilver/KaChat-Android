@@ -1,9 +1,9 @@
 package com.kachat.app.util
 
 /**
- * The rules of Import Account's steps (iOS dd0aab1): the source wallet, a name for the wallet
- * (stored only on this device), the length, the words, then the passphrase. Creating an account
- * has no steps of its own any more (iOS d063b897).
+ * The rules of Import Account's steps (iOS dd0aab1): a name for the wallet (stored only on this
+ * device), the length, the words, then the passphrase, which finds the wallet type the words
+ * belong to (iOS da467165). Creating an account has no steps of its own any more (iOS d063b897).
  */
 object CreateAccountSteps {
     /** The seed lengths import takes, in the order shown: 12 first, neither one "recommended". */

@@ -859,8 +859,6 @@
     <string name="group_member_declined">رد کرد</string>
     <string name="group_invite_explainer">تا نپذیرید عضو این گروه نیستید. پاسخ شما به‌صورت یک تراکنش کوچک رمزگذاری‌شده ارسال می‌شود تا گروه و دستگاه‌های دیگرتان مطلع شوند.</string>
     <string name="group_invite_notification">به «%1$s» دعوت شدید</string>
-    <string name="where_is_this_seed_phrase_from">۱۲ یا ۲۴ کلمه شما از کجا آمده است؟</string>
-    <string name="different_wallets_store_your_kaspa">کیف پول‌های مختلف Kaspa شما را روی مسیرهای آدرس متفاوتی نگه می‌دارند. انتخاب کنید این کلمات از کجا آمده‌اند تا KaChat دارایی و دامنه‌های شما را پیدا کند.</string>
     <string name="could_not_derive_addresses">از این کلمات نمی‌توان آدرسی به دست آورد. لطفاً دوباره امتحان کنید.</string>
     <string name="this_seed_already_has_conversations">این کلمات از قبل روی آدرس گفتگوی فعلی گفتگو دارند. با تعویض، با آدرس جدید از نو شروع می‌شود. گفتگوهای فعلی شما نزد آدرس قبلی می‌مانند و حذف نمی‌شوند.</string>
     <string name="wallet_title">کیف پول</string>
@@ -1008,7 +1006,6 @@
     <string name="checking">در حال بررسی...</string>
     <string name="this_address_holds_funds_so_this_looks">این آدرس موجودی دارد، پس به نظر حساب درست همین است.</string>
     <string name="no_funds_on_this_address_if_you">این آدرس موجودی ندارد. اگر انتظار داشتید اینجا موجودی باشد، عبارت عبور خود را بررسی کنید.</string>
-    <string name="we_picked_the_first_address_with_funds">اولین آدرسی را که موجودی دارد انتخاب کردیم. اگر آدرسی که با آن گفتگو می‌کنید این نیست، روی آدرس دیگری ضربه بزنید.</string>
     <string name="this_is_the_account_your_12_or">این حسابی است که ۱۲ یا ۲۴ کلمه شما به تنهایی آن را باز می‌کنند.</string>
     <string name="a_different_passphrase_gives_a_different_address">عبارت عبور متفاوت، آدرس متفاوت و حساب متفاوتی می‌دهد.</string>
     <string name="if_you_are_not_sure_the_answer">اگر مطمئن نیستید، تقریباً قطعاً جواب منفی است. عبارت عبور چیزی است که خودتان عمداً وارد کرده‌اید.</string>
@@ -1439,4 +1436,14 @@
     <string name="opens_it_right_here_in_the_app">آن را همین‌جا در برنامه باز می‌کند.</string>
     <string name="opens_the_post_in_the_kapost_app">پست را در برنامه KaPost باز می‌کند.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">بارگذاری در Nextcloud ناموفق بود؛ به‌جای آن روی زنجیره ارسال می‌شود</string>
+    <string name="standard_kaspa_wallet">کیف پول استاندارد Kaspa</string>
+    <string name="has_history">دارای سابقه</string>
+    <string name="see_every_wallet_type">دیدن همهٔ انواع کیف پول</string>
+    <string name="kachat_checks_your_words_against_every">KaChat کلمات شما را با همهٔ انواع کیف پول Kaspa بررسی می‌کند، پس لازم نیست بدانید از کدام کیف پول آمده‌اند.</string>
+    <string name="this_address_has_history_so_this_looks">این آدرس سابقه دارد، پس به نظر می‌رسد حساب درست همین است.</string>
+    <string name="no_funds_or_history_on_this_address">این آدرس موجودی یا سابقه‌ای ندارد.</string>
+    <string name="we_picked_the_most_likely_account">محتمل‌ترین حساب را انتخاب کردیم. اگر از این حساب استفاده نمی‌کنید، روی حساب دیگری بزنید.</string>
+    <string name="your_account">حساب شما</string>
+    <string name="checking_this_wallets_address">در حال بررسی آدرس این کیف پول...</string>
+    <string name="this_wallet_type_has_a_single_address">این نوع کیف پول فقط یک آدرس دارد، پس چیزی برای اسکن بیشتر نیست.</string>
 </resources>

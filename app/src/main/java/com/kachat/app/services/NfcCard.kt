@@ -221,7 +221,7 @@ data class NfcCardBackupPayload(
     val chattingAddressIndex: Int,
     val alias: String,
 ) {
-    /** Null for a family this app doesn't have (iOS's Chainge). */
+    /** Null for a family this app doesn't know. */
     val sourceFamily: WalletSourceFamily?
         get() = WalletSourceFamily.entries.firstOrNull { it.wireName == family }
 }
@@ -231,6 +231,8 @@ val WalletSourceFamily.wireName: String
     get() = when (this) {
         WalletSourceFamily.KASPA_STANDARD -> "kaspaStandard"
         WalletSourceFamily.KASPA_LEGACY_972 -> "kaspaLegacy972"
+        // import finds Chainge accounts now (iOS da467165)
+        WalletSourceFamily.CHAINGE -> "chainge"
         WalletSourceFamily.ONE_KEY -> "oneKey"
     }
 

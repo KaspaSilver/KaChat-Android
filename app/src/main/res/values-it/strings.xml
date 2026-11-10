@@ -833,8 +833,6 @@
     <string name="group_member_declined">Rifiutato</string>
     <string name="group_invite_explainer">Non fai parte di questo gruppo finché non accetti. La tua risposta viene inviata come piccola transazione cifrata, così il gruppo e gli altri tuoi dispositivi ne sono informati.</string>
     <string name="group_invite_notification">Hai ricevuto un invito a «%1$s»</string>
-    <string name="where_is_this_seed_phrase_from">Da dove vengono le tue 12 o 24 parole?</string>
-    <string name="different_wallets_store_your_kaspa">Wallet diversi conservano i tuoi Kaspa su percorsi di indirizzi diversi. Scegli da dove provengono queste parole, così KaChat trova i tuoi fondi e i tuoi domini.</string>
     <string name="could_not_derive_addresses">Impossibile ricavare gli indirizzi da queste parole. Riprova.</string>
     <string name="this_seed_already_has_conversations">Queste parole hanno già conversazioni sull\'indirizzo di chat attuale. Cambiando, si riparte da zero con il nuovo indirizzo. Le tue conversazioni esistenti restano con il vecchio indirizzo e non vengono eliminate.</string>
     <string name="wallet_total_balance">Saldo totale</string>
@@ -981,7 +979,6 @@
     <string name="checking">Controllo...</string>
     <string name="this_address_holds_funds_so_this_looks">Questo indirizzo ha dei fondi, quindi sembra l\'account giusto.</string>
     <string name="no_funds_on_this_address_if_you">Nessun fondo su questo indirizzo. Se te li aspettavi qui, controlla la tua passphrase.</string>
-    <string name="we_picked_the_first_address_with_funds">Abbiamo scelto il primo indirizzo con fondi. Tocca un altro se non è quello da cui chatti.</string>
     <string name="this_is_the_account_your_12_or">Questo è l\'account che le tue 12 o 24 parole aprono da sole.</string>
     <string name="a_different_passphrase_gives_a_different_address">Una passphrase diversa dà un indirizzo diverso e un account diverso.</string>
     <string name="if_you_are_not_sure_the_answer">Se non sei sicuro, la risposta è quasi certamente no. Una passphrase è qualcosa che avresti digitato di proposito.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">Lo apre qui, nell\'app.</string>
     <string name="opens_the_post_in_the_kapost_app">Apre il post nell\'app KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Caricamento su Nextcloud non riuscito: invio sulla catena</string>
+    <string name="standard_kaspa_wallet">Wallet Kaspa standard</string>
+    <string name="has_history">Ha una cronologia</string>
+    <string name="see_every_wallet_type">Vedi tutti i tipi di wallet</string>
+    <string name="kachat_checks_your_words_against_every">KaChat controlla le tue parole con ogni tipo di wallet Kaspa, quindi non devi sapere da quale provengono.</string>
+    <string name="this_address_has_history_so_this_looks">Questo indirizzo ha una cronologia, quindi sembra l\'account giusto.</string>
+    <string name="no_funds_or_history_on_this_address">Nessun fondo né cronologia su questo indirizzo.</string>
+    <string name="we_picked_the_most_likely_account">Abbiamo scelto l\'account più probabile. Toccane un altro se non è quello che usi.</string>
+    <string name="your_account">Il tuo account</string>
+    <string name="checking_this_wallets_address">Controllo dell\'indirizzo di questo wallet...</string>
+    <string name="this_wallet_type_has_a_single_address">Questo tipo di wallet ha un solo indirizzo, quindi non c\'è altro da scansionare.</string>
 </resources>

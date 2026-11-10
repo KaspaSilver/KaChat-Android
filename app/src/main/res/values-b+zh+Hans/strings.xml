@@ -833,8 +833,6 @@
     <string name="group_member_declined">已拒绝</string>
     <string name="group_invite_explainer">只有接受后你才会加入此群组。你的回复会以一笔小额加密交易发送，让群组和你的其他设备知晓。</string>
     <string name="group_invite_notification">你被邀请加入“%1$s”</string>
-    <string name="where_is_this_seed_phrase_from">你的 12 或 24 个单词来自哪里？</string>
-    <string name="different_wallets_store_your_kaspa">不同的钱包把你的 Kaspa 存在不同的地址路径上。请选择这些单词来自哪里，这样 KaChat 才能找到你的资金和域名。</string>
     <string name="could_not_derive_addresses">无法从这些单词推导出地址，请重试。</string>
     <string name="this_seed_already_has_conversations">这些单词在当前聊天地址上已有对话。切换后将用新地址重新开始。你现有的对话会留在旧地址上，不会被删除。</string>
     <string name="wallet_title">钱包</string>
@@ -982,7 +980,6 @@
     <string name="checking">正在检查...</string>
     <string name="this_address_holds_funds_so_this_looks">此地址上有资金，所以看起来这就是正确的账户。</string>
     <string name="no_funds_on_this_address_if_you">此地址上没有资金。如果你以为这里有，请检查你的密码短语。</string>
-    <string name="we_picked_the_first_address_with_funds">我们选了第一个有资金的地址。如果那不是你用来聊天的地址，请点另一个。</string>
     <string name="this_is_the_account_your_12_or">这是仅凭你的 12 或 24 个单词就能打开的账户。</string>
     <string name="a_different_passphrase_gives_a_different_address">密码短语不同，地址就不同，账户也就不同。</string>
     <string name="if_you_are_not_sure_the_answer">如果你不确定，答案几乎肯定是没有。密码短语是你特意输入过的东西。</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">直接在应用内打开。</string>
     <string name="opens_the_post_in_the_kapost_app">在 KaPost 应用中打开帖子。</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Nextcloud 上传失败，改为链上发送</string>
+    <string name="standard_kaspa_wallet">标准 Kaspa 钱包</string>
+    <string name="has_history">有历史记录</string>
+    <string name="see_every_wallet_type">查看所有钱包类型</string>
+    <string name="kachat_checks_your_words_against_every">KaChat 会用你的助记词核对每一种 Kaspa 钱包，所以你不需要知道它们来自哪个钱包。</string>
+    <string name="this_address_has_history_so_this_looks">此地址有历史记录，看起来是正确的账户。</string>
+    <string name="no_funds_or_history_on_this_address">此地址没有资金或历史记录。</string>
+    <string name="we_picked_the_most_likely_account">我们选择了最可能的账户。如果这不是你使用的账户，请点按其他账户。</string>
+    <string name="your_account">你的账户</string>
+    <string name="checking_this_wallets_address">正在检查此钱包的地址...</string>
+    <string name="this_wallet_type_has_a_single_address">此类钱包只有一个地址，所以没有更多可扫描的了。</string>
 </resources>

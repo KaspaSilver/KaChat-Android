@@ -833,8 +833,6 @@
     <string name="group_member_declined">Rechazado</string>
     <string name="group_invite_explainer">No estarás en este grupo a menos que aceptes. Tu respuesta se envía como una pequeña transacción cifrada, para que el grupo y tus otros dispositivos lo sepan.</string>
     <string name="group_invite_notification">Te han invitado a «%1$s»</string>
-    <string name="where_is_this_seed_phrase_from">¿De dónde vienen tus 12 o 24 palabras?</string>
-    <string name="different_wallets_store_your_kaspa">Cada cartera guarda tu Kaspa en rutas de dirección distintas. Elige de dónde vienen estas palabras para que KaChat encuentre tus fondos y tus dominios.</string>
     <string name="could_not_derive_addresses">No se pudieron derivar direcciones de estas palabras. Inténtalo de nuevo.</string>
     <string name="this_seed_already_has_conversations">Estas palabras ya tienen conversaciones en la dirección de chat actual. Al cambiar, empiezas de cero con la dirección nueva. Tus conversaciones existentes se quedan con la dirección anterior y no se borran.</string>
     <string name="wallet_title">Cartera</string>
@@ -982,7 +980,6 @@
     <string name="checking">Revisando...</string>
     <string name="this_address_holds_funds_so_this_looks">Esta dirección tiene fondos, así que parece la cuenta correcta.</string>
     <string name="no_funds_on_this_address_if_you">No hay fondos en esta dirección. Si esperabas fondos aquí, revisa tu frase de contraseña.</string>
-    <string name="we_picked_the_first_address_with_funds">Elegimos la primera dirección con fondos. Toca otra si no es la que usas para chatear.</string>
     <string name="this_is_the_account_your_12_or">Esta es la cuenta que tus 12 o 24 palabras abren por sí solas.</string>
     <string name="a_different_passphrase_gives_a_different_address">Una frase de contraseña distinta da una dirección distinta y una cuenta distinta.</string>
     <string name="if_you_are_not_sure_the_answer">Si no estás seguro, la respuesta casi seguro es no. Una frase de contraseña la habrías escrito a propósito.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">Lo abre aquí mismo, en la app.</string>
     <string name="opens_the_post_in_the_kapost_app">Abre la publicación en la app KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Falló la subida a Nextcloud: se envía en la cadena</string>
+    <string name="standard_kaspa_wallet">Billetera Kaspa estándar</string>
+    <string name="has_history">Tiene historial</string>
+    <string name="see_every_wallet_type">Ver todos los tipos de billetera</string>
+    <string name="kachat_checks_your_words_against_every">KaChat comprueba tus palabras con todos los tipos de billetera Kaspa, así que no necesitas saber de cuál proceden.</string>
+    <string name="this_address_has_history_so_this_looks">Esta dirección tiene historial, así que parece la cuenta correcta.</string>
+    <string name="no_funds_or_history_on_this_address">No hay fondos ni historial en esta dirección.</string>
+    <string name="we_picked_the_most_likely_account">Elegimos la cuenta más probable. Toca otra si no es la que usas.</string>
+    <string name="your_account">Tu cuenta</string>
+    <string name="checking_this_wallets_address">Revisando la dirección de esta cartera...</string>
+    <string name="this_wallet_type_has_a_single_address">Este tipo de cartera tiene una sola dirección, así que no hay nada más que escanear.</string>
 </resources>

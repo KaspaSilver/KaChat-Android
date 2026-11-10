@@ -833,8 +833,6 @@
     <string name="group_member_declined">Reddedildi</string>
     <string name="group_invite_explainer">Kabul etmedikçe bu grupta olmazsın. Yanıtın küçük, şifreli bir işlem olarak gönderilir; böylece grup ve diğer cihazların bunu öğrenir.</string>
     <string name="group_invite_notification">\"%1$s\" grubuna davet edildin</string>
-    <string name="where_is_this_seed_phrase_from">12 veya 24 kelimen nereden?</string>
-    <string name="different_wallets_store_your_kaspa">Farklı cüzdanlar Kaspa\'nı farklı adres yollarında saklar. KaChat\'in fonlarını ve alan adlarını bulabilmesi için bu kelimelerin nereden geldiğini seç.</string>
     <string name="could_not_derive_addresses">Bu kelimelerden adresler türetilemedi. Lütfen tekrar dene.</string>
     <string name="this_seed_already_has_conversations">Bu kelimelerin mevcut sohbet adresinde zaten konuşmaları var. Geçiş yapmak yeni adresle sıfırdan başlar. Mevcut konuşmaların eski adreste kalır ve silinmez.</string>
     <string name="wallet_title">Cüzdan</string>
@@ -982,7 +980,6 @@
     <string name="checking">Kontrol ediliyor...</string>
     <string name="this_address_holds_funds_so_this_looks">Bu adreste bakiye var, yani doğru hesap gibi görünüyor.</string>
     <string name="no_funds_on_this_address_if_you">Bu adreste bakiye yok. Burada bakiye bekliyorsan parola ifadeni kontrol et.</string>
-    <string name="we_picked_the_first_address_with_funds">Bakiyesi olan ilk adresi seçtik. Sohbet ettiğin adres o değilse başka birine dokun.</string>
     <string name="this_is_the_account_your_12_or">12 veya 24 kelimenin kendi başına açtığı hesap budur.</string>
     <string name="a_different_passphrase_gives_a_different_address">Farklı bir parola ifadesi, farklı bir adres ve farklı bir hesap demektir.</string>
     <string name="if_you_are_not_sure_the_answer">Emin değilsen cevap büyük ihtimalle hayırdır. Parola ifadesini bilerek kendin yazmış olurdun.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">Burada, uygulamanın içinde açar.</string>
     <string name="opens_the_post_in_the_kapost_app">Gönderiyi KaPost uygulamasında açar.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Nextcloud yüklemesi başarısız oldu; bunun yerine zincir üzerinden gönderiliyor</string>
+    <string name="standard_kaspa_wallet">Standart Kaspa Cüzdanı</string>
+    <string name="has_history">Geçmişi var</string>
+    <string name="see_every_wallet_type">Tüm Cüzdan Türlerini Gör</string>
+    <string name="kachat_checks_your_words_against_every">KaChat kelimelerinizi her tür Kaspa cüzdanıyla karşılaştırır, bu yüzden hangi cüzdandan geldiklerini bilmeniz gerekmez.</string>
+    <string name="this_address_has_history_so_this_looks">Bu adresin geçmişi var, yani doğru hesap gibi görünüyor.</string>
+    <string name="no_funds_or_history_on_this_address">Bu adreste bakiye veya geçmiş yok.</string>
+    <string name="we_picked_the_most_likely_account">En olası hesabı seçtik. Kullandığınız bu değilse başka birine dokunun.</string>
+    <string name="your_account">Hesabınız</string>
+    <string name="checking_this_wallets_address">Bu cüzdanın adresi kontrol ediliyor...</string>
+    <string name="this_wallet_type_has_a_single_address">Bu cüzdan türünün tek bir adresi var; taranacak başka bir şey yok.</string>
 </resources>

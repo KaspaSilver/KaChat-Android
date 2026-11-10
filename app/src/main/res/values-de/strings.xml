@@ -830,8 +830,6 @@
     <string name="group_member_declined">Abgelehnt</string>
     <string name="group_invite_explainer">Du bist erst in dieser Gruppe, wenn du annimmst. Deine Antwort wird als kleine verschlüsselte Transaktion gesendet, damit die Gruppe und deine anderen Geräte Bescheid wissen.</string>
     <string name="group_invite_notification">Du wurdest zu „%1$s“ eingeladen</string>
-    <string name="where_is_this_seed_phrase_from">Woher stammen deine 12 oder 24 Wörter?</string>
-    <string name="different_wallets_store_your_kaspa">Verschiedene Wallets speichern dein Kaspa auf unterschiedlichen Adresspfaden. Wähle, woher diese Wörter stammen, damit KaChat dein Guthaben und deine Domains findet.</string>
     <string name="could_not_derive_addresses">Aus diesen Wörtern konnten keine Adressen abgeleitet werden. Bitte versuche es erneut.</string>
     <string name="this_seed_already_has_conversations">Zu diesen Wörtern gibt es schon Unterhaltungen auf der aktuellen Chat-Adresse. Beim Wechseln beginnst du mit der neuen Adresse von vorn. Deine bestehenden Unterhaltungen bleiben bei der alten Adresse und werden nicht gelöscht.</string>
     <string name="wallet_total_balance">Gesamtguthaben</string>
@@ -978,7 +976,6 @@
     <string name="checking">Wird geprüft...</string>
     <string name="this_address_holds_funds_so_this_looks">Diese Adresse enthält Guthaben, das sieht also nach dem richtigen Konto aus.</string>
     <string name="no_funds_on_this_address_if_you">Kein Guthaben auf dieser Adresse. Wenn du hier Guthaben erwartet hast, prüfe deine Passphrase.</string>
-    <string name="we_picked_the_first_address_with_funds">Wir haben die erste Adresse mit Guthaben gewählt. Tippe auf eine andere, falls du nicht von dieser aus chattest.</string>
     <string name="this_is_the_account_your_12_or">Das ist das Konto, das sich mit deinen 12 oder 24 Wörtern allein öffnet.</string>
     <string name="a_different_passphrase_gives_a_different_address">Eine andere Passphrase ergibt eine andere Adresse und ein anderes Konto.</string>
     <string name="if_you_are_not_sure_the_answer">Wenn du dir nicht sicher bist, lautet die Antwort fast sicher Nein. Eine Passphrase hättest du bewusst selbst eingegeben.</string>
@@ -1413,4 +1410,14 @@
     <string name="opens_it_right_here_in_the_app">Öffnet es direkt hier in der App.</string>
     <string name="opens_the_post_in_the_kapost_app">Öffnet den Beitrag in der KaPost-App.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Nextcloud-Upload fehlgeschlagen – wird stattdessen über die Blockchain gesendet</string>
+    <string name="standard_kaspa_wallet">Standard-Kaspa-Wallet</string>
+    <string name="has_history">Hat Verlauf</string>
+    <string name="see_every_wallet_type">Alle Wallet-Typen anzeigen</string>
+    <string name="kachat_checks_your_words_against_every">KaChat prüft deine Wörter mit jeder Art von Kaspa-Wallet, du musst also nicht wissen, woher sie stammen.</string>
+    <string name="this_address_has_history_so_this_looks">Diese Adresse hat einen Verlauf, das sieht also nach dem richtigen Konto aus.</string>
+    <string name="no_funds_or_history_on_this_address">Kein Guthaben und kein Verlauf auf dieser Adresse.</string>
+    <string name="we_picked_the_most_likely_account">Wir haben das wahrscheinlichste Konto ausgewählt. Tippe auf ein anderes, wenn du dieses nicht verwendest.</string>
+    <string name="your_account">Dein Konto</string>
+    <string name="checking_this_wallets_address">Adresse dieses Wallets wird geprüft...</string>
+    <string name="this_wallet_type_has_a_single_address">Dieser Wallet-Typ hat nur eine Adresse, es gibt also nichts weiter zu scannen.</string>
 </resources>

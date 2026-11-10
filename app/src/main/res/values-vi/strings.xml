@@ -833,8 +833,6 @@
     <string name="group_member_declined">Đã từ chối</string>
     <string name="group_invite_explainer">Bạn không ở trong nhóm này trừ khi chấp nhận. Câu trả lời được gửi dưới dạng một giao dịch nhỏ đã mã hóa, để nhóm và các thiết bị khác của bạn biết.</string>
     <string name="group_invite_notification">Bạn được mời vào \"%1$s\"</string>
-    <string name="where_is_this_seed_phrase_from">12 hoặc 24 từ của bạn đến từ đâu?</string>
-    <string name="different_wallets_store_your_kaspa">Mỗi ví lưu Kaspa của bạn ở một đường dẫn địa chỉ khác nhau. Hãy chọn nơi các từ này đến từ để KaChat tìm thấy tiền và tên miền của bạn.</string>
     <string name="could_not_derive_addresses">Không thể tạo địa chỉ từ các từ này. Vui lòng thử lại.</string>
     <string name="this_seed_already_has_conversations">Những từ này đã có cuộc trò chuyện trên địa chỉ trò chuyện hiện tại. Chuyển sang địa chỉ mới sẽ bắt đầu lại từ đầu. Các cuộc trò chuyện hiện có vẫn ở địa chỉ cũ và không bị xóa.</string>
     <string name="wallet_title">Ví</string>
@@ -982,7 +980,6 @@
     <string name="checking">Đang kiểm tra...</string>
     <string name="this_address_holds_funds_so_this_looks">Địa chỉ này có tiền, nên đây có vẻ là đúng tài khoản.</string>
     <string name="no_funds_on_this_address_if_you">Địa chỉ này không có tiền. Nếu bạn mong đợi có tiền ở đây, hãy kiểm tra cụm mật khẩu của bạn.</string>
-    <string name="we_picked_the_first_address_with_funds">Chúng tôi đã chọn địa chỉ đầu tiên có tiền. Hãy chạm địa chỉ khác nếu đó không phải địa chỉ bạn dùng để trò chuyện.</string>
     <string name="this_is_the_account_your_12_or">Đây là tài khoản mà 12 hoặc 24 từ của bạn tự mở ra.</string>
     <string name="a_different_passphrase_gives_a_different_address">Cụm mật khẩu khác sẽ cho địa chỉ khác và tài khoản khác.</string>
     <string name="if_you_are_not_sure_the_answer">Nếu bạn không chắc, câu trả lời gần như chắc chắn là không. Cụm mật khẩu là thứ bạn đã chủ động tự nhập.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">Mở ngay tại đây trong ứng dụng.</string>
     <string name="opens_the_post_in_the_kapost_app">Mở bài đăng trong ứng dụng KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Tải lên Nextcloud thất bại, chuyển sang gửi trên chuỗi</string>
+    <string name="standard_kaspa_wallet">Ví Kaspa tiêu chuẩn</string>
+    <string name="has_history">Có lịch sử</string>
+    <string name="see_every_wallet_type">Xem mọi loại ví</string>
+    <string name="kachat_checks_your_words_against_every">KaChat đối chiếu các từ của bạn với mọi loại ví Kaspa, nên bạn không cần biết chúng đến từ ví nào.</string>
+    <string name="this_address_has_history_so_this_looks">Địa chỉ này có lịch sử, nên có vẻ đây là tài khoản đúng.</string>
+    <string name="no_funds_or_history_on_this_address">Địa chỉ này không có tiền hoặc lịch sử.</string>
+    <string name="we_picked_the_most_likely_account">Chúng tôi đã chọn tài khoản có khả năng nhất. Hãy chạm vào tài khoản khác nếu đây không phải tài khoản bạn dùng.</string>
+    <string name="your_account">Tài khoản của bạn</string>
+    <string name="checking_this_wallets_address">Đang kiểm tra địa chỉ của ví này...</string>
+    <string name="this_wallet_type_has_a_single_address">Loại ví này chỉ có một địa chỉ, nên không còn gì để quét thêm.</string>
 </resources>

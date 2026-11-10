@@ -833,8 +833,6 @@
     <string name="group_member_declined">Recusado</string>
     <string name="group_invite_explainer">Você só entra neste grupo se aceitar. Sua resposta é enviada como uma pequena transação criptografada, para que o grupo e seus outros dispositivos saibam.</string>
     <string name="group_invite_notification">Você recebeu um convite para “%1$s”</string>
-    <string name="where_is_this_seed_phrase_from">De onde vêm suas 12 ou 24 palavras?</string>
-    <string name="different_wallets_store_your_kaspa">Carteiras diferentes guardam seus Kaspa em caminhos de endereço diferentes. Escolha de onde vêm estas palavras para o KaChat encontrar seus fundos e domínios.</string>
     <string name="could_not_derive_addresses">Não foi possível obter os endereços a partir destas palavras. Tente novamente.</string>
     <string name="this_seed_already_has_conversations">Estas palavras já têm conversas no endereço de chat atual. Ao trocar, você começa do zero com o novo endereço. Suas conversas existentes ficam com o endereço antigo e não são excluídas.</string>
     <string name="wallet_title">Carteira</string>
@@ -982,7 +980,6 @@
     <string name="checking">Verificando...</string>
     <string name="this_address_holds_funds_so_this_looks">Este endereço tem fundos, então parece ser a conta certa.</string>
     <string name="no_funds_on_this_address_if_you">Sem fundos neste endereço. Se você esperava encontrar fundos aqui, confira sua frase secreta.</string>
-    <string name="we_picked_the_first_address_with_funds">Escolhemos o primeiro endereço com fundos. Toque em outro se não for o que você usa para conversar.</string>
     <string name="this_is_the_account_your_12_or">Esta é a conta que suas 12 ou 24 palavras abrem sozinhas.</string>
     <string name="a_different_passphrase_gives_a_different_address">Uma frase secreta diferente gera um endereço diferente e uma conta diferente.</string>
     <string name="if_you_are_not_sure_the_answer">Se você não tem certeza, a resposta é quase certamente não. Uma frase secreta é algo que você teria digitado de propósito.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">Abre aqui mesmo, no app.</string>
     <string name="opens_the_post_in_the_kapost_app">Abre a publicação no app KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Falha no envio ao Nextcloud: enviando pela blockchain</string>
+    <string name="standard_kaspa_wallet">Carteira Kaspa padrão</string>
+    <string name="has_history">Tem histórico</string>
+    <string name="see_every_wallet_type">Ver todos os tipos de carteira</string>
+    <string name="kachat_checks_your_words_against_every">O KaChat verifica suas palavras em todos os tipos de carteira Kaspa, então você não precisa saber de qual delas vieram.</string>
+    <string name="this_address_has_history_so_this_looks">Este endereço tem histórico, então parece ser a conta certa.</string>
+    <string name="no_funds_or_history_on_this_address">Sem fundos ou histórico neste endereço.</string>
+    <string name="we_picked_the_most_likely_account">Escolhemos a conta mais provável. Toque em outra se não for a que você usa.</string>
+    <string name="your_account">Sua conta</string>
+    <string name="checking_this_wallets_address">Verificando o endereço desta carteira...</string>
+    <string name="this_wallet_type_has_a_single_address">Este tipo de carteira tem um único endereço, então não há mais nada para escanear.</string>
 </resources>

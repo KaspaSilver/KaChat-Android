@@ -25,6 +25,11 @@ data class BalancesRequest(
     val addresses: List<String>
 )
 
+/** `GET addresses/{address}/transactions-count`: how many transactions the address has. */
+data class TransactionsCountResponse(
+    val total: Int
+)
+
 /** Request body for the batched `POST addresses/active` endpoint. */
 data class ActiveAddressesRequest(
     val addresses: List<String>
@@ -222,6 +227,16 @@ interface KaspaRestApi {
     suspend fun getActiveAddresses(
         @Body request: ActiveAddressesRequest
     ): List<ActiveAddressResponse>
+
+    /**
+     * How many transactions an address has - import's auto-detect asks it of each wallet type's
+     * address #0, since a chat identity or an emptied wallet holds no coins (iOS da467165
+     * `addressHasHistory`).
+     */
+    @GET("addresses/{address}/transactions-count")
+    suspend fun getTransactionsCount(
+        @Path("address") address: String
+    ): TransactionsCountResponse
 
     /**
      * Network hashrate over time. `resolution` is one of 15m/1h/3h/1d/7d; the chart uses 1d

@@ -833,8 +833,6 @@
     <string name="group_member_declined">Отклонено</string>
     <string name="group_invite_explainer">Вы не в этой группе, пока не примете приглашение. Ваш ответ отправляется небольшой зашифрованной транзакцией, чтобы группа и другие ваши устройства о нём узнали.</string>
     <string name="group_invite_notification">Вас пригласили в «%1$s»</string>
-    <string name="where_is_this_seed_phrase_from">Откуда ваши 12 или 24 слова?</string>
-    <string name="different_wallets_store_your_kaspa">Разные кошельки хранят ваши Kaspa по разным путям адресов. Выберите, откуда эти слова, чтобы KaChat нашёл ваши средства и домены.</string>
     <string name="could_not_derive_addresses">Не удалось получить адреса из этих слов. Попробуйте ещё раз.</string>
     <string name="this_seed_already_has_conversations">У этих слов уже есть переписки на текущем адресе для чата. После смены вы начнёте с чистого листа с новым адресом. Ваши прежние переписки остаются на старом адресе и не удаляются.</string>
     <string name="wallet_title">Кошелёк</string>
@@ -982,7 +980,6 @@
     <string name="checking">Проверка...</string>
     <string name="this_address_holds_funds_so_this_looks">На этом адресе есть средства, так что это, похоже, нужный аккаунт.</string>
     <string name="no_funds_on_this_address_if_you">На этом адресе нет средств. Если вы ждали их здесь, проверьте парольную фразу.</string>
-    <string name="we_picked_the_first_address_with_funds">Мы выбрали первый адрес со средствами. Нажмите на другой, если вы общаетесь не с него.</string>
     <string name="this_is_the_account_your_12_or">Это аккаунт, который открывают ваши 12 или 24 слова сами по себе.</string>
     <string name="a_different_passphrase_gives_a_different_address">Другая парольная фраза даёт другой адрес и другой аккаунт.</string>
     <string name="if_you_are_not_sure_the_answer">Если вы не уверены, то ответ почти наверняка «нет». Парольную фразу вы бы ввели сами и намеренно.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">Открывает прямо здесь, в приложении.</string>
     <string name="opens_the_post_in_the_kapost_app">Открывает публикацию в приложении KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">Не удалось загрузить в Nextcloud — отправляем через блокчейн</string>
+    <string name="standard_kaspa_wallet">Стандартный кошелёк Kaspa</string>
+    <string name="has_history">Есть история</string>
+    <string name="see_every_wallet_type">Показать все типы кошельков</string>
+    <string name="kachat_checks_your_words_against_every">KaChat проверяет ваши слова по всем типам кошельков Kaspa, поэтому вам не нужно знать, из какого они.</string>
+    <string name="this_address_has_history_so_this_looks">У этого адреса есть история, похоже, это нужный аккаунт.</string>
+    <string name="no_funds_or_history_on_this_address">На этом адресе нет средств и истории.</string>
+    <string name="we_picked_the_most_likely_account">Мы выбрали наиболее вероятный аккаунт. Нажмите на другой, если вы используете не этот.</string>
+    <string name="your_account">Ваш аккаунт</string>
+    <string name="checking_this_wallets_address">Проверяем адрес этого кошелька...</string>
+    <string name="this_wallet_type_has_a_single_address">У этого типа кошелька один адрес, так что сканировать больше нечего.</string>
 </resources>

@@ -73,7 +73,7 @@ import com.kachat.app.util.showAddressCopiedToast
  * [WelcomeGuideScreen]). Ported from iOS's `ChattingAddressPickerView`.
  *
  * Scans the identity derivation chain of the wallet's chosen source family (standard
- * m/44'/111111'/0'/0/{index}, or legacy 972 / OneKey, per the import chooser) in batches of
+ * m/44'/111111'/0'/0/{index}, or legacy 972 / Chainge / OneKey, as import found it) in batches of
  * [CHATTING_ADDRESS_SCAN_BATCH], checking the whole batch for KAS balance (one batched balances
  * call) and KNS domains (the existing cached batch lookups) — never 50 raw requests. Only
  * interesting slots are listed: nonzero balance or at least one domain, plus always index 0 and
@@ -89,6 +89,8 @@ fun ChattingAddressPickerScreen(
 ) {
     val scan by walletViewModel.chattingAddressScan.collectAsState()
     val currentIndex = remember(scan.candidates) { walletViewModel.currentChattingAddressIndex() }
+    // A single-address wallet type (Chainge) has nothing further to scan (iOS 4f3dac2d).
+    val supportsIndexScan = remember { walletViewModel.activeSourceSupportsIndexScan() }
     var selected by remember { mutableStateOf<WalletService.ChattingAddressCandidate?>(null) }
 
     // Existing conversations on the CURRENT identity: an imported seed's index-0 chats can sync
@@ -187,15 +189,27 @@ fun ChattingAddressPickerScreen(
                     com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        stringResource(
-                            R.string.scanning_addresses,
-                            scan.scannedCount + 1,
-                            scan.scannedCount + CHATTING_ADDRESS_SCAN_BATCH
-                        ),
+                        if (supportsIndexScan) {
+                            stringResource(
+                                R.string.scanning_addresses,
+                                scan.scannedCount + 1,
+                                scan.scannedCount + CHATTING_ADDRESS_SCAN_BATCH
+                            )
+                        } else {
+                            stringResource(R.string.checking_this_wallets_address)
+                        },
                         color = LocalAppColors.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+            } else if (scan.scannedCount > 0 && !supportsIndexScan) {
+                Text(
+                    stringResource(R.string.this_wallet_type_has_a_single_address),
+                    color = LocalAppColors.current.textSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             } else if (scan.scannedCount > 0) {
                 Text(
                     stringResource(R.string.scanned_the_first_addresses, scan.scannedCount),

@@ -833,8 +833,6 @@
     <string name="group_member_declined">رفض</string>
     <string name="group_invite_explainer">لن تكون في هذه المجموعة ما لم تقبل. يُرسل ردك كمعاملة صغيرة مشفرة ليعرف به أعضاء المجموعة وأجهزتك الأخرى.</string>
     <string name="group_invite_notification">تمت دعوتك إلى «%1$s»</string>
-    <string name="where_is_this_seed_phrase_from">من أين جاءت كلماتك الـ 12 أو 24؟</string>
-    <string name="different_wallets_store_your_kaspa">تخزّن المحافظ المختلفة Kaspa الخاص بك على مسارات عناوين مختلفة. اختر المحفظة التي جاءت منها هذه الكلمات ليجد KaChat أموالك ونطاقاتك.</string>
     <string name="could_not_derive_addresses">تعذّر استخراج العناوين من هذه الكلمات. يُرجى المحاولة مرة أخرى.</string>
     <string name="this_seed_already_has_conversations">لهذه الكلمات محادثات بالفعل على عنوان الدردشة الحالي. يبدأ التبديل من جديد بالعنوان الجديد. تبقى محادثاتك الحالية مع العنوان القديم ولا تُحذف.</string>
     <string name="wallet_title">المحفظة</string>
@@ -982,7 +980,6 @@
     <string name="checking">جارٍ الفحص...</string>
     <string name="this_address_holds_funds_so_this_looks">يحتوي هذا العنوان على أموال، لذا يبدو أنه الحساب الصحيح.</string>
     <string name="no_funds_on_this_address_if_you">لا توجد أموال في هذا العنوان. إذا كنت تتوقع وجود أموال هنا، فتحقق من عبارة المرور.</string>
-    <string name="we_picked_the_first_address_with_funds">اخترنا أول عنوان به أموال. اضغط على عنوان آخر إذا لم يكن هذا هو الذي تدردش منه.</string>
     <string name="this_is_the_account_your_12_or">هذا هو الحساب الذي تفتحه كلماتك الـ 12 أو 24 وحدها.</string>
     <string name="a_different_passphrase_gives_a_different_address">عبارة مرور مختلفة تعطي عنوانًا مختلفًا وحسابًا مختلفًا.</string>
     <string name="if_you_are_not_sure_the_answer">إذا لم تكن متأكدًا، فالإجابة على الأرجح لا. عبارة المرور شيء كنت ستكتبه عن قصد.</string>
@@ -1416,4 +1413,14 @@
     <string name="opens_it_right_here_in_the_app">يفتحه هنا داخل التطبيق.</string>
     <string name="opens_the_post_in_the_kapost_app">يفتح المنشور في تطبيق KaPost.</string>
     <string name="nextcloud_upload_failed_sending_on_chain">فشل الرفع إلى Nextcloud، جارٍ الإرسال عبر السلسلة بدلًا من ذلك</string>
+    <string name="standard_kaspa_wallet">محفظة Kaspa القياسية</string>
+    <string name="has_history">له سجل</string>
+    <string name="see_every_wallet_type">عرض كل أنواع المحافظ</string>
+    <string name="kachat_checks_your_words_against_every">يفحص KaChat كلماتك مقابل كل أنواع محافظ Kaspa، فلا تحتاج إلى معرفة المحفظة التي جاءت منها.</string>
+    <string name="this_address_has_history_so_this_looks">لهذا العنوان سجل، لذا يبدو أن هذا هو الحساب الصحيح.</string>
+    <string name="no_funds_or_history_on_this_address">لا توجد أموال أو سجل على هذا العنوان.</string>
+    <string name="we_picked_the_most_likely_account">اخترنا الحساب الأرجح. اضغط على حساب آخر إذا لم يكن هذا هو الذي تستخدمه.</string>
+    <string name="your_account">حسابك</string>
+    <string name="checking_this_wallets_address">جارٍ فحص عنوان هذه المحفظة...</string>
+    <string name="this_wallet_type_has_a_single_address">نوع المحفظة هذا له عنوان واحد، لذا لا يوجد المزيد لفحصه.</string>
 </resources>

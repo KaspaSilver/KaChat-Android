@@ -1406,7 +1406,7 @@ class WalletViewModel @Inject constructor(
     /** "Advanced: Create with a Passphrase": a new 24-word seed for the passphrase screens, which
      *  commit it. In memory only, and never shown (audit AND-031, iOS d063b897). */
     fun beginCreateWithPassphrase() {
-        pendingSourceFamily = WalletSourceFamily.KASPA_STANDARD
+        pendingImportChoice = com.kachat.app.models.ImportAccountChoice()
         pendingAccountName = ""
         pendingMnemonicWords = walletManager.generateMnemonic()
     }
@@ -1572,28 +1572,28 @@ class WalletViewModel @Inject constructor(
      * a different, empty account — so it's only collected on the next screen.
      */
     /**
-     * Source-wallet derivation family picked on the import chooser (the screen shown BEFORE seed
-     * entry). Carried in memory across the chooser -> seed -> passphrase steps, then persisted on
-     * the account by [commitImport]. Reset to the default whenever a fresh import run starts.
+     * The wallet type and address the import's passphrase step found or the user picked there
+     * (iOS da467165 `importChoice`), persisted on the account by [commitImport]. Standard #0 until
+     * the search says otherwise, and whenever a fresh import run starts ([prepareImport]).
      */
-    private var pendingSourceFamily: WalletSourceFamily = WalletSourceFamily.KASPA_STANDARD
+    private var pendingImportChoice = com.kachat.app.models.ImportAccountChoice()
 
-    /** The address the import's passphrase step found or the user picked there (iOS 836b62bc). */
-    private var pendingChattingAddressIndex = 0
-
-    fun setPendingChattingAddressIndex(index: Int) {
-        pendingChattingAddressIndex = index
+    fun setPendingImportChoice(choice: com.kachat.app.models.ImportAccountChoice) {
+        pendingImportChoice = choice
     }
 
-    /** Address #0 plus any others holding funds, for the pending import with [passphrase]. */
-    suspend fun findPendingChattingAddresses(passphrase: String): List<WalletService.FoundChattingAddress>? {
+    /** Every wallet type's likeliest accounts for the pending import with [passphrase] (iOS
+     *  da467165). See [WalletService.findImportAccounts]. */
+    suspend fun findPendingImportAccounts(passphrase: String): List<com.kachat.app.models.ImportAccountCandidate>? {
         if (pendingMnemonicWords.isEmpty()) return null
-        return walletService.findChattingAddresses(pendingMnemonicWords, passphrase, pendingSourceFamily, 0..49)
+        return walletService.findImportAccounts(pendingMnemonicWords, passphrase)
     }
 
-    fun setPendingSourceFamily(family: WalletSourceFamily) {
-        pendingSourceFamily = family
-    }
+    /** Address #0 of every wallet type for the pending import with [passphrase], for "See Every
+     *  Wallet Type" (iOS da467165). */
+    fun pendingImportAddressesAtZero(passphrase: String): List<com.kachat.app.models.ImportAccountCandidate> =
+        if (pendingMnemonicWords.isEmpty()) emptyList()
+        else walletManager.importAddressesAtZero(pendingMnemonicWords, passphrase)
 
     /** True while the CURRENT onboarding run is an import (not a create) — gates the wizard's
      *  "Change Chatting Address" option, which must never appear on Help replays or after a
@@ -1617,16 +1617,18 @@ class WalletViewModel @Inject constructor(
         }
         pendingAccountName = name
         pendingMnemonicWords = words
-        pendingChattingAddressIndex = 0
+        pendingImportChoice = com.kachat.app.models.ImportAccountChoice()
         _importWalletState.value = ImportWalletUiState() // clear any prior FAILED before advancing
         return true
     }
 
     /** The chatting address the pending seed would produce with [passphrase] - drives the live
-     *  preview on the passphrase entry screen. See [WalletManager.previewIdentityAddress]. */
+     *  preview on the passphrase entry screen. Always the standard wallet's #0: import's search
+     *  then moves it to the account it finds (iOS da467165). See
+     *  [WalletManager.previewIdentityAddress]. */
     fun previewChattingAddress(passphrase: String): String? =
         if (pendingMnemonicWords.isEmpty()) null
-        else walletManager.previewIdentityAddress(pendingMnemonicWords, passphrase, pendingSourceFamily)
+        else walletManager.previewIdentityAddress(pendingMnemonicWords, passphrase, WalletSourceFamily.KASPA_STANDARD)
 
     /** What [address] holds for the passphrase entry screen's Balance, or null when neither a node
      *  nor the REST gateway answered (iOS d063b897). */
@@ -1672,8 +1674,7 @@ class WalletViewModel @Inject constructor(
             .firstOrNull { com.kachat.app.util.KaspaNetwork.isSameAccount(it.address, backup.chattingAddress) }
             ?.name?.trim()?.takeIf { it.isNotEmpty() }
         pendingAccountName = savedName ?: backup.alias
-        pendingSourceFamily = family
-        pendingChattingAddressIndex = backup.chattingAddressIndex
+        pendingImportChoice = com.kachat.app.models.ImportAccountChoice(family, backup.chattingAddressIndex)
         commitImport(passphrase)
     }
 
@@ -1687,8 +1688,9 @@ class WalletViewModel @Inject constructor(
                     pendingMnemonicWords,
                     pendingAccountName,
                     passphrase,
-                    family = pendingSourceFamily,
-                    chattingAddressIndex = if (passphrase.isEmpty()) 0 else pendingChattingAddressIndex
+                    // what the search found, with or without a passphrase (iOS da467165)
+                    family = pendingImportChoice.family,
+                    chattingAddressIndex = pendingImportChoice.index
                 )
                 _justImportedWallet.value = true
                 pendingMnemonicWords = emptyList()
@@ -1776,8 +1778,9 @@ class WalletViewModel @Inject constructor(
     }
 
     fun resetImportWalletState() {
+        // Not the import choice: this also dismisses a failed import's error, and the pick on
+        // screen must still be what Import uses. [prepareImport] starts each run on Standard #0.
         _importWalletState.value = ImportWalletUiState()
-        pendingSourceFamily = WalletSourceFamily.KASPA_STANDARD
     }
 
     // --- Chatting-address picker (import onboarding runs only) --------------------------------
@@ -1821,6 +1824,9 @@ class WalletViewModel @Inject constructor(
             }
         }
     }
+
+    /** False for a wallet type with a single address: the picker has nothing further to scan. */
+    fun activeSourceSupportsIndexScan(): Boolean = walletManager.activeSourceFamily().supportsIndexScan
 
     fun resetChattingAddressScan() {
         _chattingAddressScan.value = ChattingAddressScanState()
