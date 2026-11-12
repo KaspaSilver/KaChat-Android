@@ -33,9 +33,12 @@ fun createCaptureUri(context: Context): Uri {
  * `ContextCompat.checkSelfPermission`/`RequestPermission()`) and the inline
  * `startVoiceRecordingIfPermitted`-style trigger shape already used for the composer's Audio
  * Message option (`Screens.kt`).
+ *
+ * Asks for the camera first ([MediaAccess.CAMERA]) and only opens once it's allowed; with access
+ * off for good it calls [onDenied] instead, for the composer's [MediaAccessAlert] (iOS ca013fc8).
  */
 @Composable
-fun rememberCameraCaptureLauncher(onCaptured: (Uri) -> Unit): () -> Unit {
+fun rememberCameraCaptureLauncher(onDenied: (MediaAccess) -> Unit = {}, onCaptured: (Uri) -> Unit): () -> Unit {
     val context = LocalContext.current
     var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -49,6 +52,7 @@ fun rememberCameraCaptureLauncher(onCaptured: (Uri) -> Unit): () -> Unit {
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
+        // A fresh Don't Allow just closes: they've only now said no.
         if (granted) {
             val uri = createCaptureUri(context)
             pendingCaptureUri = uri
@@ -62,7 +66,7 @@ fun rememberCameraCaptureLauncher(onCaptured: (Uri) -> Unit): () -> Unit {
             pendingCaptureUri = uri
             cameraLauncher.launch(uri)
         } else {
-            permissionLauncher.launch(Manifest.permission.CAMERA)
+            MediaAccess.CAMERA.request(context, permissionLauncher, onDenied)
         }
     }
 }

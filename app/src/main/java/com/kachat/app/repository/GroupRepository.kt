@@ -430,13 +430,25 @@ class GroupRepository @Inject constructor(
                         val bag = groupSecretStore.loadBag(address, groupId)
                         if (bag == null) null else decryptCached(it, bag, groupId.hexToByteArray())
                     }?.takeUnless { GroupMemberStatus.isHiddenEnvelope(it.content) }
+                    // A long voice note's or multi-part photo's parts count once (iOS 7c5c22e3
+                    // `unreadUnits`): read the unread rows only when there are several.
+                    val units = if (unread > 1) groupUnreadUnits(groupId, address, lastReadAt) ?: unread else unread
                     // A group never opened and not created by us counts as at least 1, covering
                     // "added to a new group, no messages yet".
-                    val count = if (lastReadAt == null && !isAdmin) maxOf(unread, 1) else unread
+                    val count = if (lastReadAt == null && !isAdmin) maxOf(units, 1) else units
                     GroupSummary(decrypted, count)
                 }.flowOn(Dispatchers.Default)
             }
         }
+    }
+
+    /** The group's unread messages as units, a note's parts counted once; null when they can't
+     *  be read (no secrets on this device), and the plain count stands. */
+    private suspend fun groupUnreadUnits(groupId: String, walletAddress: String, lastReadAt: Long?): Int? {
+        val bag = groupSecretStore.loadBag(walletAddress, groupId) ?: return null
+        val groupIdBytes = runCatching { groupId.hexToByteArray() }.getOrNull() ?: return null
+        val rows = database.groupDao().getUnreadOnce(groupId, walletAddress, lastReadAt)
+        return com.kachat.app.util.VoicePartGrouping.unreadUnits(rows, groupPartAccessors { decryptCached(it, bag, groupIdBytes)?.content })
     }
 
     /**
@@ -827,9 +839,99 @@ class GroupRepository @Inject constructor(
      * [com.kachat.app.util.ImageMessage] render it with no changes.
      */
     suspend fun sendGroupImage(imageBytes: ByteArray, groupId: String, fileName: String = "photo.jpg", mimeType: String = "image/jpeg"): String {
+        // Bigger than one transaction carries (Medium, High): its chunks, as one multi-part
+        // photo (iOS 7c5c22e3).
+        val chunks = com.kachat.app.util.PhotoPolicy.chunks(imageBytes, forGroup = true)
+        if (chunks.size > 1) return sendGroupMediaParts(chunks, groupId, mimeType)
         val base64 = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP)
         val json = com.kachat.app.util.ImageMessage.encode(fileName = fileName, sizeBytes = imageBytes.size.toLong(), base64Image = base64, mimeType = mimeType)
         return sendGroupMessage(json, groupId)
+    }
+
+    /**
+     * The parts of one long voice note or one multi-part photo in a group (iOS 7c5c22e3
+     * `sendGroupMediaParts`, MESSAGING.md "In group chats"): each part its own ordinary group
+     * message whose media-file JSON carries the `voicePart` / `mediaPart` tag, sealed as the binary
+     * media frame - so an old client shows the parts in order and this app one.
+     *
+     * - The balance is checked for ALL parts before anything goes out.
+     * - Every part is sealed and on screen as pending up front, then they go out one after
+     *   another, so each spends the previous one's change.
+     * - A part that fails stops the rest: they are marked failed too, and Retry on the bubble
+     *   resends only the failed parts.
+     * Returns the first part's txId.
+     */
+    suspend fun sendGroupMediaParts(parts: List<ByteArray>, groupId: String, mimeType: String): String {
+        if (parts.size !in 2..com.kachat.app.util.VoicePartTag.MAX_PARTS || parts.any { it.isEmpty() }) {
+            throw IllegalStateException("Audio file is empty")
+        }
+        val walletAddress = walletManager.getAddress()
+        database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
+        val isPhoto = mimeType.lowercase().startsWith("image/")
+        val noteId = com.kachat.app.util.VoicePartTag.newGroupId()
+        val contents = parts.mapIndexed { offset, data ->
+            val tag = com.kachat.app.util.VoicePartTag.of(noteId, offset + 1, parts.size)!!
+            com.kachat.app.util.ContextualMediaFrame.mediaFileJson(
+                name = if (isPhoto) tag.photoFileName else tag.fileName,
+                size = data.size,
+                mimeType = mimeType,
+                dataUrlContent = "data:$mimeType;base64,${android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP)}",
+                voicePart = tag.takeUnless { isPhoto },
+                mediaPart = tag.takeIf { isPhoto },
+            )
+        }
+        // The whole note first, before a single part goes out; the dust threshold stays over so
+        // the last part still has a change output to stand on. Skipped while the balance isn't known.
+        if (walletService.balanceKnown.value) {
+            val fee = com.kachat.app.util.MediaPartPayload.feeSompi(parts.map { it.size }, forGroup = true, feeRate = null)
+            val required = fee + 20_000_000L
+            val available = walletService.balance.value
+            if (available < required) throw IllegalStateException("Insufficient funds: Needed $required, have $available")
+        }
+        val privateKey = walletManager.getPrivateKeyBytes()
+        val senderXOnlyPub = Schnorr.publicKeyXOnly(privateKey)
+        val senderId = GroupCipher.deriveSenderId(walletAddress)
+        val start = System.currentTimeMillis()
+
+        // Every part sealed under its own msg_id, and on screen as pending, a millisecond apart.
+        class Sealed(val pendingId: String, val entity: GroupMessageEntity, val payload: String)
+        val sealed = ArrayList<Sealed>()
+        for ((offset, content) in contents.withIndex()) {
+            val (bag, counter) = groupSecretStore.reserveNextCounter(walletAddress, groupId)
+                ?: throw IllegalStateException("Missing group secrets - try rejoining this group.")
+            val groupIdBytes = groupId.hexToByteArray()
+            val msgId = GroupCipher.buildMsgId(bag.deviceId.hexToByteArray(), counter)
+            val ciphertext = GroupCipher.encryptMessage(GroupCipher.groupPlaintextData(content), bag.groupRootEpoch.hexToByteArray(), groupIdBytes, bag.currentEpoch, senderId, msgId)
+            val aad = GroupCipher.buildMessageAAD(groupIdBytes, bag.currentEpoch, senderId, msgId)
+            val signature = GroupCipher.sign(GroupCipher.buildMessageSigningPayload(aad, ciphertext), privateKey)
+            val blindedGroupId = GroupCipher.deriveBlindedGroupId(bag.blindingKey.hexToByteArray(), senderXOnlyPub)
+            val payloadString = GroupCipher.buildGroupMessagePayload(blindedGroupId, bag.currentEpoch, senderId, senderXOnlyPub, msgId, ciphertext, signature)
+            val pendingId = "pending_${UUID.randomUUID()}"
+            val entity = GroupMessageEntity(
+                txId = pendingId, walletAddress = walletAddress, groupId = groupId, senderAddress = walletAddress,
+                senderIdHex = senderId.toHexString(), epoch = bag.currentEpoch, msgIdHex = msgId.toHexString(),
+                contentEncryptedHex = ciphertext.toHexString(), blockTimestamp = start + offset, isOutgoing = true, deliveryStatus = "pending"
+            )
+            database.groupDao().insertMessage(entity)
+            sealed.add(Sealed(pendingId, entity, payloadString))
+        }
+
+        var firstTxId = ""
+        for ((offset, part) in sealed.withIndex()) {
+            try {
+                val txId = walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = part.payload.toByteArray(Charsets.UTF_8))
+                database.groupDao().deleteMessage(part.pendingId, walletAddress)
+                database.groupDao().insertMessage(part.entity.copy(txId = txId, deliveryStatus = "sent"))
+                if (offset == 0) firstTxId = txId
+            } catch (e: Exception) {
+                val status = if (e is com.kachat.app.services.SendOutcomeUnknownException) "warning" else "failed"
+                database.groupDao().updateMessageStatus(part.pendingId, walletAddress, status)
+                // The rest never went: failed too, so one Retry resends them in order.
+                for (rest in sealed.drop(offset + 1)) database.groupDao().updateMessageStatus(rest.pendingId, walletAddress, "failed")
+                throw e
+            }
+        }
+        return firstTxId
     }
 
     /** Sends a voice message to the group - same envelope/reuse rationale as [sendGroupImage]. */
@@ -869,7 +971,8 @@ class GroupRepository @Inject constructor(
         val senderId = GroupCipher.deriveSenderId(walletAddress)
 
         val msgId = GroupCipher.buildMsgId(deviceId, counter)
-        val ciphertext = GroupCipher.encryptMessage(text, groupRootEpoch, groupIdBytes, bag.currentEpoch, senderId, msgId)
+        // A voice note or photo is sealed as the binary media frame (iOS 7c5c22e3).
+        val ciphertext = GroupCipher.encryptMessage(GroupCipher.groupPlaintextData(text), groupRootEpoch, groupIdBytes, bag.currentEpoch, senderId, msgId)
         val aad = GroupCipher.buildMessageAAD(groupIdBytes, bag.currentEpoch, senderId, msgId)
         val signature = GroupCipher.sign(GroupCipher.buildMessageSigningPayload(aad, ciphertext), privateKey)
         val blindedGroupId = GroupCipher.deriveBlindedGroupId(blindingKey, senderXOnlyPub)
@@ -1347,7 +1450,11 @@ class GroupRepository @Inject constructor(
                 // background (iOS ChatService.localBannersEnabled): the FCM handler words this one
                 // with readGroupMessagePush. Only a device with no push banners from here.
                 if (!pushState.isActive) {
-                    val bannerText = groupMessageBannerText(group, senderAddress, walletAddress, plaintext)
+                    // A later part of a long voice note or multi-part photo: the note is one
+                    // message, so only its first part to arrive rings (iOS 7c5c22e3).
+                    val partKey = com.kachat.app.util.VoicePartGrouping.partKey(plaintext, "${group.groupId}|${parsed.senderId.toHexString()}")
+                    val laterPart = partKey != null && !notificationHelper.claimPartBanner(partKey, txId)
+                    val bannerText = if (laterPart) null else groupMessageBannerText(group, senderAddress, walletAddress, plaintext)
                     if (bannerText != null) {
                         notificationHelper.showGroup(group.groupId, group.name, bannerText, dedupeTxId = txId)
                     } else {
@@ -1435,7 +1542,9 @@ class GroupRepository @Inject constructor(
 
     /** What the FCM handler learned from a `group_message` push by reading it (see [readGroupMessagePush]). */
     sealed class GroupMessagePush {
-        data class Banner(val groupId: String, val title: String, val text: String) : GroupMessagePush()
+        /** [partKey]: set on a part of a long voice note or multi-part photo, keyed (group,
+         *  sender, tag id, count) - only the first part to arrive rings (iOS 7c5c22e3). */
+        data class Banner(val groupId: String, val title: String, val text: String, val partKey: String? = null) : GroupMessagePush()
         /** Read, and nothing to announce: an edit, a member's answer, or this group's rules. */
         object Silent : GroupMessagePush()
         /** No payload, a group this device doesn't hold yet, or it failed its checks. */
@@ -1474,7 +1583,10 @@ class GroupRepository @Inject constructor(
 
                 if (senderAddress == walletAddress) return GroupMessagePush.Silent
                 // An edit changes an earlier bubble in place, and a member's answer only the list.
-                if (GroupMemberStatus.isHiddenEnvelope(plaintext) || com.kachat.app.util.MessageEdit.isEditEnvelope(plaintext)) {
+                // Nor does a call message: KaChat has no calls (iOS 7c5c22e3 NotificationService).
+                if (GroupMemberStatus.isHiddenEnvelope(plaintext) || com.kachat.app.util.MessageEdit.isEditEnvelope(plaintext) ||
+                    com.kachat.app.util.CallSignal.isCallSignal(plaintext)
+                ) {
                     return GroupMessagePush.Silent
                 }
                 val reaction = MessageReaction.parseOrNull(plaintext)
@@ -1483,7 +1595,8 @@ class GroupRepository @Inject constructor(
                 } else {
                     groupMessageBannerText(group, senderAddress, walletAddress, plaintext)
                 }
-                return if (text != null) GroupMessagePush.Banner(group.groupId, group.name, text) else GroupMessagePush.Silent
+                val partKey = com.kachat.app.util.VoicePartGrouping.partKey(plaintext, "${group.groupId}|${parsed.senderId.toHexString()}")
+                return if (text != null) GroupMessagePush.Banner(group.groupId, group.name, text, partKey) else GroupMessagePush.Silent
             }
             GroupMessagePush.Unreadable
         } catch (e: kotlinx.coroutines.CancellationException) {

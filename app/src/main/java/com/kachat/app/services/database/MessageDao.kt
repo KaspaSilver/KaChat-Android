@@ -95,7 +95,8 @@ interface MessageDao {
     /*
      * [hidden] ([MessageEntity.HIDDEN_PLACEHOLDERS]) are bodies never shown: a chat whose newest
      * row is one previews its newest real message instead, or nothing (iOS
-     * Conversation.newestRealMessage).
+     * Conversation.newestRealMessage). So is a call message an older build stored (iOS
+     * 7c5c22e3, `CallSignal`): the LIKE is the SQL side of [com.kachat.app.util.CallSignal].
      */
     @Query(
         """
@@ -104,10 +105,12 @@ interface MessageDao {
             SELECT contactId, MAX(blockTimestamp) AS maxTs FROM messages
             WHERE walletAddress = :walletAddress
               AND (plaintextBody IS NULL OR plaintextBody NOT IN (:hidden))
+              AND (plaintextBody IS NULL OR plaintextBody NOT LIKE '{%"type":"call_%')
             GROUP BY contactId
         ) newest ON m.contactId = newest.contactId AND m.blockTimestamp = newest.maxTs
         WHERE m.walletAddress = :walletAddress
           AND (m.plaintextBody IS NULL OR m.plaintextBody NOT IN (:hidden))
+          AND (m.plaintextBody IS NULL OR m.plaintextBody NOT LIKE '{%"type":"call_%')
         GROUP BY m.contactId
         """
     )
@@ -252,12 +255,14 @@ interface MessageDao {
     )
     suspend fun deleteContractAddressPayments(walletAddress: String): Int
 
-    /** A hidden placeholder ([hidden]) is never unread: a badge nobody could clear (iOS c130dc1). */
+    /** A hidden placeholder ([hidden]) is never unread: a badge nobody could clear (iOS c130dc1).
+     *  Nor is a call message an older build stored (iOS 7c5c22e3, the LIKE). */
     @Query(
         """
         SELECT contactId, COUNT(*) as count FROM messages
         WHERE isRead = 0 AND direction = 'received' AND walletAddress = :walletAddress
           AND (plaintextBody IS NULL OR plaintextBody NOT IN (:hidden))
+          AND (plaintextBody IS NULL OR plaintextBody NOT LIKE '{%"type":"call_%')
         GROUP BY contactId
         """
     )
@@ -265,6 +270,16 @@ interface MessageDao {
 
     @Query("UPDATE messages SET isRead = 1 WHERE contactId = :contactId AND walletAddress = :walletAddress AND isRead = 0")
     suspend fun markAllAsRead(contactId: String, walletAddress: String)
+
+    /** Received rows of [contactId] whose text matches [pattern] (a LIKE pattern), [excludeId]
+     *  aside - the other parts of a long voice note or multi-part photo, found by their tag id. */
+    @Query(
+        """
+        SELECT * FROM messages WHERE contactId = :contactId AND walletAddress = :walletAddress
+          AND direction = 'received' AND id != :excludeId AND plaintextBody LIKE :pattern LIMIT 24
+        """
+    )
+    suspend fun findReceivedMatching(contactId: String, walletAddress: String, excludeId: String, pattern: String): List<MessageEntity>
 
     /** Chat-list "mark as unread" (swipe/bulk action) — flips just the single latest received
      * message back to unread, which is enough to make the contact reappear with a nonzero badge

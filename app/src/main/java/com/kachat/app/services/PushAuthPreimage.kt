@@ -9,18 +9,15 @@ import java.security.MessageDigest
  * canonicalized (trimmed, deduped, sorted) sets.
  *
  * Shapes:
- * - **LegacyV1** (no `watched_group_ids_hash` line): registration with no groups, and ALWAYS the
- *   ring - the service verifies `POST /v1/push/ring` with no group ids (ring_call ->
- *   select_auth_format), and with the caller's wallet address as `primary_address` (iOS 7182b4a,
- *   82eb7f7; audit XP-010).
+ * - **LegacyV1** (no `watched_group_ids_hash` line): a request with no group ids.
  * - **TransitionalGroups**: the group line right after `watched_addresses_hash`, when group ids
  *   are registered (the server forces the group_v1 capability).
+ * The call ring (`POST /v1/push/ring`) left with calls (iOS 7c5c22e3).
  * `capabilities_hash` and `auth_version` lines belong to V2 and are never emitted.
  */
 object PushAuthPreimage {
 
     const val AUTH_DOMAIN_V1 = "kchat-push-auth:v1"
-    const val RING_PATH = "/v1/push/ring"
 
     fun build(
         method: String,
@@ -35,7 +32,6 @@ object PushAuthPreimage {
         nonce: String,
         timestampMs: Long,
         expiresAtMs: Long,
-        includeWatchedGroupIds: Boolean = watchedGroupIds.isNotEmpty(),
     ): String {
         val lines = mutableListOf(
             "domain=$AUTH_DOMAIN_V1",
@@ -49,7 +45,7 @@ object PushAuthPreimage {
         )
         // TransitionalGroups: the server inserts this line right after watched_addresses_hash.
         // Group ids are lowercase hex, canonicalized like addresses (trim/lowercase/dedupe/sort).
-        if (includeWatchedGroupIds) {
+        if (watchedGroupIds.isNotEmpty()) {
             lines += "watched_group_ids_hash=${sha256Hex(canonicalizeAddresses(watchedGroupIds).joinToString("\n"))}"
         }
         lines += listOf(
@@ -62,31 +58,6 @@ object PushAuthPreimage {
         )
         return lines.joinToString("\n")
     }
-
-    /** The ring's preimage: LegacyV1, no watched addresses/groups/aliases, and the caller's own
-     *  wallet address signed as `primary_address`. */
-    fun ring(
-        deviceToken: String,
-        walletPubkey: String,
-        walletAddress: String,
-        nonce: String,
-        timestampMs: Long,
-        expiresAtMs: Long,
-    ): String = build(
-        method = "POST",
-        path = RING_PATH,
-        deviceToken = deviceToken,
-        watchedAddresses = emptyList(),
-        watchedGroupIds = emptyList(),
-        primaryAddress = walletAddress,
-        aliases = emptyList(),
-        walletPubkey = walletPubkey,
-        walletAddress = walletAddress,
-        nonce = nonce,
-        timestampMs = timestampMs,
-        expiresAtMs = expiresAtMs,
-        includeWatchedGroupIds = false,
-    )
 
     fun sha256Hex(value: String): String =
         MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))

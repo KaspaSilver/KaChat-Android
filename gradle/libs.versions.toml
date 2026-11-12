@@ -1,5 +1,4 @@
 [versions]
-webrtc = "125.6422.07"
 agp = "8.13.2"
 kotlin = "2.0.21"
 coreKtx = "1.13.1"
@@ -117,11 +116,6 @@ androidx-compose-material = { group = "androidx.compose.material", name = "mater
 # Image loading (KNS avatars)
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
-
-# Voice and video calls over Nextcloud Talk: the Android WebRTC library (Google's libwebrtc,
-# published to Maven Central by the webrtc-sdk project). The counterpart of iOS's WebRTC SPM package.
-webrtc = { group = "io.github.webrtc-sdk", name = "android", version.ref = "webrtc" }
-
 
 # Language IDENTIFICATION for KaPosts, on device: it decides whether to OFFER a Translate link,
 # which is asked for every post that scrolls past, so it cannot be a server round trip. The

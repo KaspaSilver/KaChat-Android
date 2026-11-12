@@ -254,7 +254,15 @@ fun GroupChatThreadScreen(
     val fundingGate = rememberZeroBalanceFundingGate()
     val groups by chatViewModel.groups.collectAsState()
     val group = groups.firstOrNull { it.groupId == groupId }
-    val messages by chatViewModel.getGroupMessages(groupId).collectAsState(initial = emptyList())
+    val allGroupMessages by chatViewModel.getGroupMessages(groupId).collectAsState(initial = emptyList())
+    // Long voice notes' and multi-part photos' parts (iOS 7c5c22e3), keyed by (group, sender,
+    // tag id): each shows as one row, its earliest part; the other parts are left out.
+    val mediaPartGroups = remember(allGroupMessages) {
+        com.kachat.app.util.VoicePartGrouping.group(allGroupMessages, com.kachat.app.repository.GroupMessagePartAccessors)
+    }
+    val messages = remember(allGroupMessages, mediaPartGroups) {
+        if (mediaPartGroups.hiddenTxIds.isEmpty()) allGroupMessages else allGroupMessages.filterNot { it.txId in mediaPartGroups.hiddenTxIds }
+    }
     val groupReactions by chatViewModel.getGroupReactions(groupId).collectAsState(initial = emptyList())
     val groupReactionsByTxId = remember(groupReactions) { groupReactions.groupBy { it.targetTxId } }
     val groupReplyingTo by chatViewModel.groupReplyingTo.collectAsState()
@@ -272,6 +280,21 @@ fun GroupChatThreadScreen(
     val pendingPhotoUri by chatViewModel.groupPendingPhotoUri.collectAsState()
     val nextcloudStaged by chatViewModel.groupNextcloudStaged.collectAsState()
     val voiceRecordingState by chatViewModel.groupVoiceRecordingState.collectAsState()
+    val groupVoiceNoteFee by chatViewModel.groupVoiceNoteFeeSompi.collectAsState()
+    // Send on an on-chain photo asks High / Medium / Low first, at the group budgets (iOS
+    // 7c5c22e3 PhotoQualitySheet).
+    var showPhotoQualitySheet by remember { mutableStateOf(false) }
+    val groupPhotoTierFees by chatViewModel.groupPhotoTierFees.collectAsState()
+    if (showPhotoQualitySheet) {
+        PhotoQualitySheet(
+            fees = groupPhotoTierFees,
+            onChoose = { tier ->
+                showPhotoQualitySheet = false
+                chatViewModel.sendPendingGroupPhoto(groupId, tier)
+            },
+            onDismiss = { showPhotoQualitySheet = false },
+        )
+    }
     val showFeeEstimate by settingsViewModel.showFeeEstimate.collectAsState()
     val estimatedFeeRaw by chatViewModel.groupEstimatedFeeSompi.collectAsState()
     val estimatedFee = estimatedFeeRaw
@@ -382,7 +405,9 @@ fun GroupChatThreadScreen(
     val coroutineScope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     var highlightedMessageId by remember { mutableStateOf<String?>(null) }
-    val jumpToReply: (String) -> Unit = { targetId ->
+    val jumpToReply: (String) -> Unit = { originalTargetId ->
+        // A reply to a later part of a long voice note lands on the note's one bubble.
+        val targetId = mediaPartGroups.anchorTxIdByTxId[originalTargetId] ?: originalTargetId
         val index = messages.indexOfFirst { it.txId == targetId }
         if (index >= 0) {
             coroutineScope.launch {
@@ -440,14 +465,18 @@ fun GroupChatThreadScreen(
             chatViewModel.setGroupPendingPhoto(uri, viaNextcloud = true)
         }
     }
-    val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setGroupPendingPhoto(uri, viaNextcloud = cameraViaNextcloud) }
+    // See the 1:1 composer: access off for good shows the alert with Open Settings (iOS ca013fc8).
+    var deniedMediaAccess by remember { mutableStateOf<com.kachat.app.util.MediaAccess?>(null) }
+    com.kachat.app.util.MediaAccessAlert(deniedMediaAccess) { deniedMediaAccess = null }
+    val startCameraCapture = rememberCameraCaptureLauncher(onDenied = { deniedMediaAccess = it }) { uri -> chatViewModel.setGroupPendingPhoto(uri, viaNextcloud = cameraViaNextcloud) }
     val startVoiceRecordingIfPermitted = { viaNextcloud: Boolean ->
         voiceViaNextcloud = viaNextcloud
         if (chatViewModel.voiceRecordingSupported) {
             if (ContextCompat.checkSelfPermission(micContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 chatViewModel.startGroupVoiceRecording(groupId, viaNextcloud = viaNextcloud)
             } else {
-                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                // A fresh Don't Allow just stops: they've only now said no.
+                com.kachat.app.util.MediaAccess.MICROPHONE.request(micContext, recordAudioPermissionLauncher) { deniedMediaAccess = it }
             }
         }
     }
@@ -652,27 +681,43 @@ fun GroupChatThreadScreen(
                 ) {
                     if (pendingPhotoUri != null) {
                         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            // Show Fee Estimate covers text. A photo or voice message on chain
-                            // costs enough more that its fee always shows (iOS d1844582).
-                            if (showFeeEstimate || !chatViewModel.groupPhotoViaNextcloud) {
+                            // Show Fee Estimate covers the Nextcloud link; an on-chain photo's fee
+                            // is chosen in the quality sheet at Send (iOS 7c5c22e3).
+                            if (showFeeEstimate && chatViewModel.groupPhotoViaNextcloud) {
                                 groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
                             }
                             groupPhotoPreviewRow(
                                 pendingPhotoUri = pendingPhotoUri,
                                 staged = nextcloudStaged,
                                 onCancel = { chatViewModel.cancelGroupPendingPhoto() },
-                                onSend = { chatViewModel.sendPendingGroupPhoto(groupId) }
+                                onSend = {
+                                    if (chatViewModel.groupPendingPhotoGoesOnChain) {
+                                        // On chain: the quality first.
+                                        chatViewModel.prepareGroupPhotoTiers()
+                                        showPhotoQualitySheet = true
+                                    } else {
+                                        chatViewModel.sendPendingGroupPhoto(groupId)
+                                    }
+                                }
                             )
                         }
-                    } else if (voiceRecordingState.status == ChatViewModel.VoiceRecordingStatus.RECORDING) {
+                    } else if (voiceRecordingState.isActive) {
                         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (showFeeEstimate || !chatViewModel.groupVoiceViaNextcloud) {
-                                groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                            // On chain the sum over the parts it goes as (iOS 7c5c22e3); via
+                            // Nextcloud the link's fee under Show Fee Estimate.
+                            if (voiceRecordingState.viaNextcloud) {
+                                if (showFeeEstimate) groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                            } else {
+                                groupFeePill(groupVoiceNoteFee, onClick = { openFeeEditor(groupVoiceNoteFee ?: 0L) })
                             }
-                            groupRecordingRow(
-                                elapsedMs = voiceRecordingState.elapsedMs,
-                                onCancel = { chatViewModel.cancelGroupVoiceRecording() },
-                                onSend = { chatViewModel.stopAndSendGroupVoiceRecording(groupId) }
+                            // Like 1:1 (iOS ca013fc8): stop, "Encoding…", "Audio ready" with a
+                            // preview, then send; the trash discards at any stage.
+                            VoiceNoteComposerRow(
+                                state = voiceRecordingState,
+                                onTrash = { chatViewModel.cancelGroupVoiceRecording() },
+                                onStop = { chatViewModel.stopGroupVoiceRecording() },
+                                onTogglePreview = { chatViewModel.toggleGroupVoicePreview() },
+                                onSend = { chatViewModel.sendRecordedGroupVoice(groupId) },
                             )
                         }
                     } else {
@@ -931,6 +976,8 @@ fun GroupChatThreadScreen(
                                 composerMediaStep?.let { kind ->
                                     ComposerMediaRouteSheet(
                                         kind = kind,
+                                        // A group's on-chain voice cap, 1:50 (iOS 7c5c22e3 VoiceNotePolicy.group).
+                                        onChainVoiceSeconds = com.kachat.app.util.VoiceNotePolicy.GROUP.maxSeconds.toInt(),
                                         onChoose = { viaNextcloud ->
                                             composerMediaStep = null
                                             showComposerMenu = false
@@ -1074,8 +1121,12 @@ fun GroupChatThreadScreen(
                         }
                     } else
                     Box {
+                        // The row standing for a whole long voice note or multi-part photo: every
+                        // part present, and the note's combined status (iOS 7c5c22e3).
+                        val partGroupForRow = mediaPartGroups.groupsByAnchorTxId[message.txId]
                         GroupMessageBubble(
-                            message = message,
+                            message = if (partGroupForRow == null) message else message.copy(deliveryStatus = partGroupForRow.deliveryStatus),
+                            mediaParts = partGroupForRow,
                             group = group,
                             avatarUrl = message.senderAddress?.let { contactAvatarsByAddress[it] },
                             linkPreviewAutoFetch = message.senderAddress?.let { it == myAddress || it in acceptedContacts } ?: false,
@@ -1083,7 +1134,14 @@ fun GroupChatThreadScreen(
                             myAddress = myAddress,
                             myAvatarUrl = myKnsProfile?.avatarUrl,
                             navController = navController,
-                            onRetry = { chatViewModel.retryGroupMessage(groupId, message.content, failedTxId = message.txId) },
+                            onRetry = {
+                                // A long voice note's Retry resends only its failed parts, in order.
+                                if (partGroupForRow != null) {
+                                    chatViewModel.retryGroupFailedParts(groupId, partGroupForRow.failedOutgoingParts)
+                                } else {
+                                    chatViewModel.retryGroupMessage(groupId, message.content, failedTxId = message.txId)
+                                }
+                            },
                             onReply = { chatViewModel.startGroupReplyTo(message) },
                             isEdited = editForRow != null,
                             // Your own delivered text messages only - the same gate 1:1 uses.
@@ -1252,7 +1310,8 @@ fun GroupChatThreadScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    chatViewModel.deleteGroupMessages(groupId, selectedMessageIds)
+                    // A long voice note or multi-part photo goes with every part.
+                    chatViewModel.deleteGroupMessages(groupId, mediaPartGroups.expanded(selectedMessageIds))
                     showDeleteMessagesConfirmation = false
                     isSelectingMessages = false
                     selectedMessageIds = emptySet()
@@ -1308,41 +1367,6 @@ private fun groupPhotoPreviewRow(
     }
 }
 
-@Composable
-private fun groupRecordingRow(elapsedMs: Long, onCancel: () -> Unit, onSend: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 40.dp)
-            // iOS photoPreviewRow / recordingRow: glassBackground(cornerRadius: 20)
-            .chatComposerFieldModifier()
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        IconButton(onClick = onCancel) {
-            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = LocalAppColors.current.danger)
-        }
-        Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
-        Text(
-            text = stringResource(R.string.recording, formatRecordingElapsed(elapsedMs)),
-            color = LocalAppColors.current.textPrimary,
-            modifier = Modifier.weight(1f)
-        )
-        IconButton(
-            onClick = onSend,
-            modifier = Modifier.size(40.dp).background(KaspaTeal, CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = stringResource(R.string.send),
-                tint = Color.Black,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GroupMessageBubble(
@@ -1380,7 +1404,10 @@ private fun GroupMessageBubble(
     onAvatarTap: (String) -> Unit = {},
     /** Enters the chat's message multi-select mode with this message pre-selected - null disables
      *  the "Select" long-press menu option entirely. Mirrors [MessageBubble]'s onSelect. */
-    onSelect: (() -> Unit)? = null
+    onSelect: (() -> Unit)? = null,
+    /** Set on the row standing for a whole long voice note or multi-part photo (its earliest
+     *  part, iOS 7c5c22e3) - see [MessageBubble]'s `mediaParts`. */
+    mediaParts: com.kachat.app.util.VoicePartCluster<GroupMessage>? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val isSent = message.isOutgoing
@@ -1413,8 +1440,17 @@ private fun GroupMessageBubble(
         val member = groupMembersForMentions.firstOrNull { it.address == reply.replyToSender }
         member?.displayName?.takeIf { it.isNotBlank() } ?: KaspaAddress.shortDisplay(reply.replyToSender)
     }
+    // A long voice note's or multi-part photo's parts present, and the photo once every chunk is
+    // here (iOS 7c5c22e3).
+    val mediaPartsInput = remember(mediaParts?.allTxIds, mediaParts?.parts?.size) {
+        mediaParts?.let { MediaPartsInput.of(it) { part -> part.content } }?.takeIf { it.parts.isNotEmpty() }
+    }
+    val joinedPhoto = remember(mediaPartsInput?.signature) { mediaPartsInput?.let { joinedPhotoContent(it) } }
     val voiceContent = remember(displayContent) { VoiceMessage.parseOrNull(displayContent) }
-    val imageContent = remember(displayContent) { if (voiceContent == null) ImageMessage.parseOrNull(displayContent) else null }
+    val imageContent = remember(displayContent, joinedPhoto, mediaPartsInput?.isPhoto) {
+        if (mediaPartsInput?.isPhoto == true) joinedPhoto
+        else if (voiceContent == null) ImageMessage.parseOrNull(displayContent) else null
+    }
     val clipboardManager = LocalClipboardManager.current
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
@@ -1496,6 +1532,11 @@ private fun GroupMessageBubble(
 
             Box {
             when {
+                // A multi-part photo still arriving, and a long voice note played as one.
+                mediaPartsInput != null && mediaPartsInput.isPhoto && joinedPhoto == null ->
+                    PhotoPartsPlaceholderBubble(input = mediaPartsInput, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { QuickReactionBarState.activeId = message.txId })
+                mediaPartsInput != null && !mediaPartsInput.isPhoto ->
+                    MultipartAudioBubble(input = mediaPartsInput, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { QuickReactionBarState.activeId = message.txId })
                 voiceContent != null -> AudioBubble(voiceContent = voiceContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { QuickReactionBarState.activeId = message.txId })
                 imageContent != null -> ImageBubble(imageContent = imageContent, isSent = isSent, onLongPress = { showMenu = true }, onDoubleClick = { QuickReactionBarState.activeId = message.txId }, senderDisplayName = senderName)
                 else -> {

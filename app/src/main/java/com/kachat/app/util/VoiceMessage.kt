@@ -121,14 +121,6 @@ object VoiceMessage {
     }
 
     /**
-     * [estimatedWirePayloadSize] for a 1:1 voice note, which travels in the binary media frame
-     * (iOS f5f6a11): the recording's raw bytes, then only the payload's own base64 - the same
-     * single-encoding shape as [ImagePrep.estimatedWirePayloadSize]. Preview only.
-     */
-    fun estimatedFramedWirePayloadSize(elapsedMs: Long, ownWebM: Boolean = true): Int =
-        ((estimatedRecordingBytes(elapsedMs, ownWebM) + 150) * 4.0 / 3.0).toInt() + 80
-
-    /**
      * Raw recording bytes after [elapsedMs]. [ownWebM]: iOS's layout ([WebMOpusWriter]) at 6 kbps
      * CBR - 50 packets of 15 + 6 bytes and a Cluster's 10 a second, 1,060 bytes, after ~152 of
      * header (25 s: 26,652; the real file is 26,651). Otherwise MediaRecorder's WebM: the same

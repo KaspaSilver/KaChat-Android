@@ -72,9 +72,6 @@ class ChatRepository @Inject constructor(
     // Drives the poll loop's metered cadence tiers (see the loop in init) — cellular polls
     // slower than WiFi, in-chat and idle alike.
     private val meteredNetwork: MeteredNetwork,
-    // Lazy because of a circular constructor dependency Dagger can't resolve: CallService sends its envelopes through WalletService, which
-    // depends on this repository. Incoming call envelopes are handed to it from the ingest.
-    private val callServiceLazy: dagger.Lazy<com.kachat.app.services.CallService>,
     // Lazy: ContactNoteService sends through WalletService, which itself depends on this.
     private val contactNotesLazy: dagger.Lazy<com.kachat.app.services.ContactNoteService>,
     private val onboardingGate: com.kachat.app.services.OnboardingGate,
@@ -2515,6 +2512,8 @@ class ChatRepository @Inject constructor(
             return
         }
         ownSendsHandled.add(handledKey)
+        // A call message an older build sent: dropped like anyone else's (iOS 7c5c22e3).
+        if (com.kachat.app.util.CallSignal.isCallSignal(plaintext)) return
 
         val edit = com.kachat.app.util.MessageEdit.parseOrNull(plaintext)
         val reaction = if (edit == null) MessageReaction.parseOrNull(plaintext) else null
@@ -2694,7 +2693,15 @@ class ChatRepository @Inject constructor(
             return
         }
 
+        // KaChat has no calls (iOS 7c5c22e3): another client's call messages (call_invite,
+        // call_request, call_response, call_end) are dropped here, before they can become a
+        // bubble, an unread or a notification.
+        if (com.kachat.app.util.CallSignal.isCallSignal(plaintext)) return
+
         val backfill = isBackfill(message.blockTime)
+        // A later-arriving part of a long voice note or multi-part photo (iOS 7c5c22e3): the
+        // note is one message, so only its first part to arrive counts as unread and notifies.
+        val laterPart = contact.id != myAddress && isLaterMediaPart(contact.id, myAddress, message.txId, plaintext)
         insertMessage(
             MessageEntity(
                 id = message.txId,
@@ -2710,21 +2717,9 @@ class ChatRepository @Inject constructor(
                 blockTimestamp = message.blockTime,
                 // Read when it's backfilled history OR the user is looking at this thread
                 // right now - watching a message arrive must not leave an unread badge.
-                isRead = backfill || notificationHelper.isViewingContact(contact.id)
+                isRead = backfill || laterPart || notificationHelper.isViewingContact(contact.id)
             )
         )
-
-        // Call events (invite / answer / hang-up) ring through the chat itself. They DO stay as
-        // bubbles - the chat shows "Voice call · 4:12" the way a phone's history would - so this
-        // only hands the envelope to CallService and carries on.
-        val callEnvelope = if (contact.id != myAddress) com.kachat.app.util.CallCodec.parseOrNull(plaintext) else null
-        callEnvelope?.let { envelope ->
-            callServiceLazy.get().handleIncoming(envelope, contact.id, message.blockTime, isOutgoing = false)
-        }
-        // A call from someone calls are off for (or never turned on) is ignored silently: no
-        // "Incoming call" banner either (MESSAGING.md "Consent before ringing", iOS 88aa3c1).
-        val unwantedCall = callEnvelope != null && com.kachat.app.util.CallCodec.isOpeningCall(callEnvelope) &&
-            contact.callsEnabled != true
 
         val replyContent = MessageReply.parseOrNull(plaintext)
         // A reply to a message this device never received is the one signal that a message was
@@ -2739,7 +2734,7 @@ class ChatRepository @Inject constructor(
         // The remote push is the only banner source while push is active, foreground or
         // background - see PushState. Only a device with no push at all banners from here.
         // Nor a banner for one the chat won't show (a hidden placeholder, iOS c130dc1).
-        if (!backfill && !unwantedCall && !pushState.isActive && !MessageEntity.isHiddenPlaceholder(plaintext) &&
+        if (!backfill && !pushState.isActive && !MessageEntity.isHiddenPlaceholder(plaintext) && !laterPart &&
             !notifyAsMessageRequest(contact, myAddress, message.txId)
         ) {
             notificationHelper.show(
@@ -2749,7 +2744,23 @@ class ChatRepository @Inject constructor(
                 notificationOverride = ContactNotificationMode.fromName(contact.notificationOverride),
                 dedupeTxId = message.txId
             )
+        } else if (laterPart) {
+            // Claimed, so a racing push for it can't ring either.
+            notificationHelper.claimWithoutNotifying(message.txId)
         }
+    }
+
+    /** True when [plaintext] is a part of a long voice note or multi-part photo from [contactId]
+     *  and another part of it is already here (iOS 7c5c22e3 `VoicePartGrouping.isLaterPart`). */
+    private suspend fun isLaterMediaPart(contactId: String, myAddress: String, txId: String, plaintext: String): Boolean {
+        val tag = com.kachat.app.util.VoicePartTag.sniff(plaintext) ?: return false
+        val others = database.messageDao().findReceivedMatching(contactId, myAddress, txId, "%\"id\":\"${tag.id}\"%")
+        if (others.isEmpty()) return false
+        val probe = MessageEntity(
+            id = txId, contactId = contactId, walletAddress = myAddress, type = MessageProtocol.TYPE_COMM,
+            direction = "received", plaintextBody = plaintext, encryptedPayload = "", amountSompi = null, blockTimestamp = 0,
+        )
+        return com.kachat.app.util.VoicePartGrouping.isLaterPart(probe, others, ChatMessagePartAccessors)
     }
 
     /**
@@ -3794,6 +3805,8 @@ class ChatRepository @Inject constructor(
             ).also { database.contactDao().insert(it) }
 
         val backfill = isBackfill(blockTime)
+        // A later part of a long voice note or multi-part photo counts and rings no second time.
+        val laterPart = !isOutgoing && isLaterMediaPart(contactAddress, myAddress, txId, content)
         val filed = insertMessageIfAbsent(
             MessageEntity(
                 id = txId,
@@ -3805,7 +3818,7 @@ class ChatRepository @Inject constructor(
                 encryptedPayload = "",
                 amountSompi = null,
                 blockTimestamp = blockTime,
-                isRead = isOutgoing || backfill || notificationHelper.isViewingContact(contactAddress),
+                isRead = isOutgoing || backfill || laterPart || notificationHelper.isViewingContact(contactAddress),
                 deliveryStatus = "sent",
             )
         )
@@ -3814,7 +3827,7 @@ class ChatRepository @Inject constructor(
             contactNotesLazy.get().onMessageDelivered(contactAddress)
             return
         }
-        if (!backfill && !pushState.isActive && !notifyAsMessageRequest(contact, myAddress, txId)) {
+        if (!backfill && !pushState.isActive && !laterPart && !notifyAsMessageRequest(contact, myAddress, txId)) {
             notificationHelper.show(
                 contactId = contact.id,
                 title = contact.displayName,

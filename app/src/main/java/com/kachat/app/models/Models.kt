@@ -76,11 +76,14 @@ data class MessageEntity(
         /** Bodies the app never shows: [SENT_VIA_OTHER_DEVICE_PLACEHOLDER] and [UNREADABLE_PLACEHOLDER]. */
         val HIDDEN_PLACEHOLDERS: List<String> = listOf(SENT_VIA_OTHER_DEVICE_PLACEHOLDER, UNREADABLE_PLACEHOLDER)
 
-        /** Placeholders the app never shows: cross-device sends and undecryptable messages. Hidden
-         *  from the chat, the chat-list preview and search, and never unread or a banner -
-         *  mirrors iOS's ChatMessage.isHiddenPlaceholder. */
+        /** What the app never shows: cross-device sends, undecryptable messages and call messages
+         *  ([com.kachat.app.util.CallSignal]: other clients' calls, or ones an older build stored,
+         *  iOS 7c5c22e3). Hidden from the chat, the chat-list preview and search, and never unread
+         *  or a banner - mirrors iOS's ChatMessage.isHiddenPlaceholder. MessageDao's chat-list and
+         *  unread queries leave call messages out with a LIKE of their own. */
         fun isHiddenPlaceholder(content: String?): Boolean =
-            isSentPlaceholder(content) || content == UNREADABLE_PLACEHOLDER
+            isSentPlaceholder(content) || content == UNREADABLE_PLACEHOLDER ||
+                com.kachat.app.util.CallSignal.isCallSignal(content)
 
         /**
          * Prefix of the synthetic local id the optimistic send paths give a row BEFORE the
@@ -203,9 +206,12 @@ data class ContactEntity(
     val photoAutoDisplayOverride: String? = null, // Legacy per-contact photo setting (iOS d1844582 replaced it with one rule, ChatRepository.photosUnlockAt); the column stays so the table shape is unchanged, nothing reads it
     val notificationOverride: String? = null, // ContactNotificationMode.name, null = follow Settings > Notifications (see NotificationHelper.show)
     val backupPhotoBase64: String? = null, // Base64 JPEG carried in the cross-platform backup; avatar fallback when there is no KNS photo (e.g. a photo set on desktop)
-    @Deprecated("Superseded by callsEnabled (calls are off by default now); the column stays so the table shape is unchanged.")
+    // Calls left the app (iOS 7c5c22e3): these two columns stay so the table shape is unchanged;
+    // nothing reads or writes them any more.
+    @Deprecated("Calls left the app (iOS 7c5c22e3); the column stays so the table shape is unchanged.")
     val callsDisabled: Boolean? = null,
-    val callsEnabled: Boolean? = null // True once you have allowed calls with this contact - the prompt behind the call button or Chat Info's switch. Off (null) by default: nobody can ring you, or ask your Nextcloud to host a call, until you say so for them (device-local, like iOS Contact.callsEnabled)
+    @Deprecated("Calls left the app (iOS 7c5c22e3); the column stays so the table shape is unchanged.")
+    val callsEnabled: Boolean? = null
 )
 
 /**

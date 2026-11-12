@@ -2,13 +2,13 @@ package com.kachat.app.services
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.security.MessageDigest
 
 /**
- * The push ring is signed the way the push service verifies it (iOS 7182b4a + 82eb7f7, audit
- * XP-010): LegacyV1, no watched_group_ids_hash line, wallet address as primary_address.
+ * The push auth preimage, as the push service verifies it: LegacyV1 with no group ids, the group
+ * line right after watched addresses once group ids are registered. The call ring and its own
+ * preimage left with calls (iOS 7c5c22e3).
  */
 class PushAuthPreimageTest {
 
@@ -20,55 +20,31 @@ class PushAuthPreimageTest {
 
     private fun sha(s: String) = MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 
-    /** iOS buildAuthPreimage(includeWatchedGroupIds: false), as requestRing calls it: lines built
-     *  in a var, the group line skipped, joined once with "\n". */
-    private fun iosRingPreimage(): String {
-        val lines = mutableListOf(
+    @Test
+    fun `no group ids gives the LegacyV1 shape`() {
+        val pre = PushAuthPreimage.build(
+            method = "DELETE", path = "/v1/push/unregister", deviceToken = token,
+            watchedAddresses = emptyList(), watchedGroupIds = emptyList(),
+            primaryAddress = "", aliases = emptyList(),
+            walletPubkey = pubkey, walletAddress = wallet, nonce = " $nonce\n",
+            timestampMs = 1_790_300_000_000L, expiresAtMs = 1_790_300_060_000L,
+        )
+        val expected = listOf(
             "domain=kchat-push-auth:v1",
             "nonce=$nonce",
-            "method=POST",
-            "path=/v1/push/ring",
+            "method=DELETE",
+            "path=/v1/push/unregister",
             "device_token_hash=${sha(token)}",
             "watched_addresses_hash=$emptyHash",
-        )
-        lines += listOf(
-            "primary_address=$wallet",
+            "primary_address=",
             "aliases_hash=$emptyHash",
             "wallet_pubkey=$pubkey",
             "wallet_address=$wallet",
             "timestamp_ms=1790300000000",
             "expires_at_ms=1790300060000",
-        )
-        return lines.joinToString("\n")
-    }
-
-    @Test
-    fun `ring preimage matches iOS exactly`() {
-        val ring = PushAuthPreimage.ring(token, pubkey, wallet, " $nonce\n", 1_790_300_000_000L, 1_790_300_060_000L)
-        assertEquals(iosRingPreimage(), ring)
-        assertFalse(ring.contains("watched_group_ids_hash"))
-        assertEquals(12, ring.split("\n").size)
-    }
-
-    @Test
-    fun `requestRing's arguments produce the same preimage as ring`() {
-        // The exact argument set PushRegistrationManager.requestRing hands to buildAuth.
-        val viaBuild = PushAuthPreimage.build(
-            method = "POST",
-            path = PushAuthPreimage.RING_PATH,
-            deviceToken = token,
-            watchedAddresses = emptyList(),
-            watchedGroupIds = emptyList(),
-            primaryAddress = wallet,
-            aliases = emptyList(),
-            walletPubkey = pubkey,
-            walletAddress = wallet,
-            nonce = nonce,
-            timestampMs = 1_790_300_000_000L,
-            expiresAtMs = 1_790_300_060_000L,
-            includeWatchedGroupIds = false,
-        )
-        assertEquals(iosRingPreimage(), viaBuild)
+        ).joinToString("\n")
+        assertEquals(expected, pre)
+        assertFalse(pre.contains("watched_group_ids_hash"))
     }
 
     @Test

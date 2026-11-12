@@ -33,7 +33,7 @@ import javax.inject.Singleton
 
 /**
  * Registers this device's FCM token with the KaChat indexer's `/v1/push` API so the server can
- * deliver native push notifications (DMs, group chats, call rings) while the app is backgrounded
+ * deliver native push notifications (DMs and group chats) while the app is backgrounded
  * or killed.
  *
  * The registration is authenticated exactly like the iOS client: a BIP-340 Schnorr signature over
@@ -191,49 +191,6 @@ class PushRegistrationManager @Inject constructor(
             runCatching { register(token) }
                 .onFailure { Log.w(TAG, "push re-registration failed: ${it.message}") }
         }
-    }
-
-    /**
-     * Asks the push service to ring [toAddress]'s devices for a call this device is placing
-     * (the iOS repo's PUSH_EXTENSIONS.md §5). The request is signed like every other push call, which is how the
-     * service knows the sender it names in the push; [payloadHex] is the opening call message
-     * encrypted to the contact, exactly as it went on chain.
-     *
-     * Best effort by design: a phone with the app open rings off the chain message anyway, so a
-     * failure here costs nothing but the ring on a sleeping phone. Throws so the caller can log it.
-     */
-    suspend fun requestRing(toAddress: String, callId: String, video: Boolean, kind: String, payloadHex: String) {
-        val api = pushApiOrNull()
-            ?: throw IllegalStateException("push API unavailable")
-        val token = FirebaseMessaging.getInstance().token.await().trim()
-        if (token.isEmpty()) throw IllegalStateException("no FCM token")
-        val material = signingMaterial()
-        // The service checks a ring in its legacy shape (the iOS repo's PUSH_EXTENSIONS.md §5, push.rs ring_call
-        // -> LegacyV1): no watched_group_ids_hash line, and the caller's own wallet address as
-        // primary_address - the same preimage iOS signs since 7182b4a/82eb7f7 (audit XP-010).
-        val auth = buildAuth(
-            material,
-            method = "POST",
-            path = PushAuthPreimage.RING_PATH,
-            deviceToken = token,
-            watchedAddresses = emptyList(),
-            aliases = emptyList(),
-            watchedGroupIds = emptyList(),
-            primaryAddress = material.walletAddress,
-            includeWatchedGroupIds = false,
-        )
-        api.ring(
-            PushRingRequest(
-                deviceToken = token,
-                toAddress = toAddress,
-                callId = callId,
-                video = video,
-                kind = kind,
-                payload = payloadHex,
-                timestampMs = System.currentTimeMillis(),
-                auth = auth,
-            )
-        )
     }
 
     /**
@@ -648,9 +605,6 @@ class PushRegistrationManager @Inject constructor(
         aliases: List<String> = emptyList(),
         watchedGroupIds: List<String> = emptyList(),
         primaryAddress: String,
-        /** The group line rides only when group ids are registered (TransitionalGroups); the
-         *  ring passes false explicitly - see [PushAuthPreimage.build]. */
-        includeWatchedGroupIds: Boolean = watchedGroupIds.isNotEmpty(),
     ): PushAuthRequest {
         val api = pushApiOrNull()
             ?: throw IllegalStateException("push API unavailable")
@@ -672,7 +626,6 @@ class PushRegistrationManager @Inject constructor(
             nonce = challenge.nonce,
             timestampMs = timestampMs,
             expiresAtMs = challenge.expiresAtMs,
-            includeWatchedGroupIds = includeWatchedGroupIds,
         )
         val signature = KaspaMessageSigner.sign(
             preimage,

@@ -194,6 +194,9 @@ internal class OpusWebMRecorder private constructor(
 
         val isAvailable: Boolean get() = encoderName != null
 
+        /** The platform Opus encoder's name, for [VoiceNoteCodec]'s long-note parts too. */
+        internal val encoderNameOrNull: String? get() = encoderName
+
         /** Starts a recording, or returns null when this device can't record this way (the caller
          *  then falls back to MediaRecorder). */
         @SuppressLint("MissingPermission") // the mic button asks for RECORD_AUDIO before recording

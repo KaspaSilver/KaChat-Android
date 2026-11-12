@@ -22,6 +22,13 @@ class HiddenPlaceholderTest {
     }
 
     @Test
+    fun `call messages are hidden, as calls left the app (iOS 7c5c22e3)`() {
+        assertTrue(MessageEntity.isHiddenPlaceholder("""{"type":"call_end","callId":"c1","reason":"no_answer"}"""))
+        assertTrue(row("""{"type":"call_invite","callId":"c1","server":"https://cloud.example","token":"t","video":true}""").isHiddenPlaceholder)
+        assertFalse(MessageEntity.isHiddenPlaceholder("""{"type":"chess_move","note":"call_me"}"""))
+    }
+
+    @Test
     fun `real text, near misses and no body are not hidden`() {
         assertFalse(MessageEntity.isHiddenPlaceholder("hello"))
         assertFalse(MessageEntity.isHiddenPlaceholder("[Encrypted message] "))

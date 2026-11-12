@@ -27,9 +27,10 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val showFeeEstimate = settings.showFeeEstimate
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
-    /** Settings > Chats > Higher quality photos (iOS, off by default). */
-    val higherQualityPhotos = settings.higherQualityPhotos
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    /** Settings > Customization > Show .kachat Endings (iOS 94ed3a35, on by default). Starts
+     *  from the mirror the names read, so the switch doesn't flick on opening. */
+    val showKachatNameEndings = settings.showKachatNameEndings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.kachat.app.models.KachatNameLabel.showsEnding)
     val quickReactionEmojis = settings.quickReactionEmojis
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsRepository.DEFAULT_QUICK_REACTION_EMOJIS)
 
@@ -61,7 +62,7 @@ class SettingsViewModel @Inject constructor(
     fun setNotificationSoundEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationSoundEnabled(value) }
     fun setNotificationVibrationEnabled(value: Boolean) = viewModelScope.launch { settings.setNotificationVibrationEnabled(value) }
     fun setShowFeeEstimate(value: Boolean) = viewModelScope.launch { settings.setShowFeeEstimate(value) }
-    fun setHigherQualityPhotos(value: Boolean) = viewModelScope.launch { settings.setHigherQualityPhotos(value) }
+    fun setShowKachatNameEndings(value: Boolean) = viewModelScope.launch { settings.setShowKachatNameEndings(value) }
     fun setQuickReactionEmojis(value: List<String>) = viewModelScope.launch { settings.setQuickReactionEmojis(value) }
 
     // ------------------------------------------------------------------

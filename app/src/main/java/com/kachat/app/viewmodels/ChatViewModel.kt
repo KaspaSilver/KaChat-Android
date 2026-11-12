@@ -63,7 +63,6 @@ class ChatViewModel @Inject constructor(
     private val voiceRecorderService: VoiceRecorderService,
     private val nextcloudService: NextcloudService,
     private val nextcloudSyncService: com.kachat.app.services.NextcloudSyncService,
-    private val callService: com.kachat.app.services.CallService,
     private val backupRestoreCoordinator: com.kachat.app.services.BackupRestoreCoordinator,
     private val groupRepository: com.kachat.app.repository.GroupRepository,
     private val shareShortcutsManager: com.kachat.app.services.ShareShortcutsManager,
@@ -204,45 +203,6 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = getOrCreateContact(contactId)
             chatRepository.addContact(existing.copy(notificationOverride = override?.name))
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Calls (Nextcloud Talk over the 1:1 channel) - see CallService.
-    // -------------------------------------------------------------------------
-
-    /** The live call, if any; the thread hides its call button while one is up. */
-    val callSession: StateFlow<com.kachat.app.services.CallService.ActiveCall?> = callService.session
-
-    val callLastError: StateFlow<String?> = callService.lastError
-
-    /** Why a call from someone did not ring, for their chat to say once (see CallService). */
-    val callChatNotice: StateFlow<com.kachat.app.services.CallService.ChatNotice?> = callService.chatNotice
-
-    fun takeCallChatNotice(contactId: String): String? = callService.takeChatNotice(contactId)
-
-    fun startCall(contact: ContactEntity, video: Boolean) = callService.startCall(contact, video)
-
-    /** The contact a call goes to: the saved row, or a new one when a Contacts entry has no chat
-     *  yet. Only asked for once Call is tapped, so viewing an entry never adds a chat contact
-     *  (iOS AddressBookEntryDetail, `getOrCreateContact(address:alias:)`). */
-    suspend fun contactForCall(contactId: String, newContactAlias: String? = null): ContactEntity {
-        chatRepository.getContact(contactId)?.let { return it }
-        val created = getOrCreateContact(contactId).copy(alias = newContactAlias?.takeIf { it.isNotBlank() })
-        // A deliberate add is of the network the app runs on (see addContact).
-        if (com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(contactId.trim())) {
-            chatRepository.addContact(created, deliberate = true)
-        }
-        return created
-    }
-
-    /** "Allow calls and video calls" for one contact - Chat Info's switch and the prompt behind
-     *  the call button. OFF by default: while off, this contact's invites and requests are
-     *  ignored on this device (silently, no reply). Per contact, this device only. */
-    fun setCallsEnabled(contactId: String, enabled: Boolean) {
-        viewModelScope.launch {
-            val existing = getOrCreateContact(contactId)
-            chatRepository.addContact(existing.copy(callsEnabled = if (enabled) true else null))
         }
     }
 
@@ -959,8 +919,25 @@ class ChatViewModel @Inject constructor(
         _feeRateOverride.value = rate
     }
 
-    enum class VoiceRecordingStatus { IDLE, RECORDING }
-    data class VoiceRecordingState(val status: VoiceRecordingStatus = VoiceRecordingStatus.IDLE, val elapsedMs: Long = 0L)
+    /** Recording, then "Encoding…", then "Audio ready" with a preview until Send or the trash
+     *  (iOS ca013fc8, [VoiceNoteComposer]). */
+    enum class VoiceRecordingStatus { IDLE, RECORDING, ENCODING, READY }
+    data class VoiceRecordingState(
+        val status: VoiceRecordingStatus = VoiceRecordingStatus.IDLE,
+        val elapsedMs: Long = 0L,
+        /** The note's length limit: 2:50 / 1:50 on chain, 5:00 via Nextcloud - the ring fills to it. */
+        val maxMs: Long = 0L,
+        val viaNextcloud: Boolean = false,
+        /** A ready note's preview: playing, where it is, and how long the note is. */
+        val previewPlaying: Boolean = false,
+        val previewPositionMs: Long = 0L,
+        val previewDurationMs: Long = 0L,
+        /** A ready on-chain note's part sizes (WebM bytes), for its exact fee. */
+        val readyPartSizes: List<Int>? = null,
+    ) {
+        /** Anything is staged in the voice row: recording, encoding or ready. */
+        val isActive: Boolean get() = status != VoiceRecordingStatus.IDLE
+    }
 
     private val _voiceRecordingState = MutableStateFlow(VoiceRecordingState())
     val voiceRecordingState: StateFlow<VoiceRecordingState> = _voiceRecordingState.asStateFlow()
@@ -1081,6 +1058,7 @@ class ChatViewModel @Inject constructor(
 
     fun cancelPendingPhoto() {
         nextcloudStager.discard()
+        photoTierPrep.clear()
     }
 
     // Group chat's own photo-staging/voice-recording state - kept separate from the 1:1 fields
@@ -1114,6 +1092,7 @@ class ChatViewModel @Inject constructor(
 
     fun cancelGroupPendingPhoto() {
         groupNextcloudStager.discard()
+        groupPhotoTierPrep.clear()
     }
 
     /** Bumped when code (not a keystroke) sets the 1:1 composer's text, or the fee editor opens:
@@ -1144,34 +1123,24 @@ class ChatViewModel @Inject constructor(
     val isEstimatingFee: StateFlow<Boolean> = com.kachat.app.util.TypingFeeGate.estimating(typedTextPreview)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
-    /** The 1:1 on-chain photo budget for this send (Chats > Higher quality photos, iOS f5f6a11). */
-    private val onChainPhotoTargetBytes: Flow<Int> = settings.higherQualityPhotos.map { higher ->
-        if (higher) ImagePrep.HIGH_QUALITY_CHAT_TARGET_BYTES else ImagePrep.DEFAULT_CHAT_TARGET_BYTES
-    }
-
     /**
      * The payload byte count to price the live fee preview off of: the typed text's payload
-     * while composing, a rough elapsed-time-based estimate of the final encoded/encrypted size
-     * while recording a voice message, or a rough estimate of the final wire size for a staged
-     * photo — same shape as [VoiceMessage.estimatedWirePayloadSize]: the real send always measures
-     * the actual encoded bytes exactly, this is only ever used for the live preview.
+     * while composing, or the ~100-byte share link for media going via Nextcloud. An on-chain
+     * voice note is priced part by part ([voiceNoteFeeSompi]), and an on-chain photo has no fee
+     * until the quality sheet shows each tier's (iOS 7c5c22e3).
      */
     private val previewPayloadSize: Flow<Int> = combine(
         combine(typedTextPreviewBytes, voiceRecordingState, pendingPhotoUri, flow { emitAll(replyingTo) }) { textBytes, recording, photoUri, reply -> PreviewInput(textBytes, recording, photoUri, reply) },
         _nextcloudPhotoRequested,
         _nextcloudVoiceRequested,
-        onChainPhotoTargetBytes,
-    ) { (textBytes, recording, photoUri, reply), photoNextcloud, voiceNextcloud, photoTargetBytes ->
+    ) { (textBytes, recording, photoUri, reply), photoNextcloud, voiceNextcloud ->
         // Via Nextcloud (chosen in the "+" sheet), the chain only carries the ~100-byte share
         // link regardless of media size — mirrors groupPreviewPayloadSize's identical branch.
         val connected = nextcloudService.isConnected
-        if (recording.status == VoiceRecordingStatus.RECORDING) {
-            if (voiceNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else VoiceMessage.estimatedFramedWirePayloadSize(recording.elapsedMs, voiceRecorderService.writesOwnWebM)
+        if (recording.isActive) {
+            if (recording.viaNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else 0
         } else if (photoUri != null) {
-            // Compressed image bytes in the binary media frame -> encryption -> the payload's one
-            // base64 layer (iOS f5f6a11), at the chosen budget (Chats > Higher quality photos):
-            // never used for the real fee, only this live preview.
-            if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else ImagePrep.estimatedWirePayloadSize(photoTargetBytes)
+            if (photoNextcloud && connected) NEXTCLOUD_LINK_PREVIEW_BYTES else 0
         } else if (textBytes == 0) {
             0
         } else {
@@ -1187,6 +1156,30 @@ class ChatViewModel @Inject constructor(
         val photoUri: android.net.Uri?,
         val reply: MessageEntity?,
     )
+
+    /**
+     * The fee of the on-chain voice note being recorded or ready to send (iOS 7c5c22e3
+     * `updateRecordingFee`): the sum over the parts it goes as - while recording, the part sizes
+     * the layout gives for the length so far ([com.kachat.app.util.VoiceNoteLayout]); once
+     * encoded, the real parts. Null when there is no on-chain note.
+     */
+    private fun voiceNoteFeeFlow(state: StateFlow<VoiceRecordingState>, path: com.kachat.app.util.VoiceNotePolicy.Path, forGroup: Boolean): StateFlow<Long?> =
+        combine(state, _networkFeeRate, _feeRateOverride) { recording, networkRate, overrideRate ->
+            if (!recording.isActive || recording.viaNextcloud) return@combine null
+            val sizes = recording.readyPartSizes ?: com.kachat.app.util.VoiceNoteLayout.partSizes(
+                durationSeconds = recording.elapsedMs / 1000.0,
+                partSeconds = path.partSeconds,
+                maxBytes = path.maxBytes,
+            )
+            if (sizes.isEmpty()) null
+            else com.kachat.app.util.MediaPartPayload.feeSompi(sizes, forGroup, overrideRate ?: networkRate.toLong())
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
+    /** The 1:1 composer's on-chain voice note fee. */
+    val voiceNoteFeeSompi: StateFlow<Long?> by lazy { voiceNoteFeeFlow(voiceRecordingState, com.kachat.app.util.VoiceNotePolicy.ONE_TO_ONE, forGroup = false) }
+
+    /** The group composer's on-chain voice note fee. */
+    val groupVoiceNoteFeeSompi: StateFlow<Long?> by lazy { voiceNoteFeeFlow(groupVoiceRecordingState, com.kachat.app.util.VoiceNotePolicy.GROUP, forGroup = true) }
 
     /** What replying to [reply] adds to the text's bytes; built as [sendMessage] builds it. */
     private fun replyEnvelopeBytes(reply: MessageEntity?): Int {
@@ -1463,12 +1456,6 @@ class ChatViewModel @Inject constructor(
         return ciphertextHexBytes + 370
     }
 
-    /** Raw encoded-Opus-bytes/sec for [VoiceRecorderService]'s fixed 6kbps/48kHz config (bitrate/8 + WebM container overhead) - same heuristic as iOS's matching estimate for the same encoder settings. */
-    private fun estimatedGroupAudioRawBytes(elapsedMs: Long): Int {
-        val elapsedSeconds = elapsedMs / 1000.0
-        return (elapsedSeconds * 1_150.0).toInt()
-    }
-
     /** The group composer's text bytes as the fee preview prices them - the same typing gate as
      *  1:1's [typedTextPreviewBytes] (iOS 0977a5b). `groupReplyingTo` is declared further down,
      *  so it's read lazily. */
@@ -1495,14 +1482,16 @@ class ChatViewModel @Inject constructor(
         nextcloudService.account,
     ) { (textBytes, recording, photoUri), photoNextcloud, voiceNextcloud, account ->
         // Media sent "via Nextcloud" from the "+" sheet goes out as just a short share-link text
-        // message (see sendPendingGroupPhoto/stopAndSendGroupVoiceRecording), so the fee pill
+        // message (see sendPendingGroupPhoto/sendRecordedGroupVoice), so the fee pill
         // prices a link-sized payload instead of the embedded media envelope.
         val connected = account != null
+        // An on-chain voice note is priced part by part ([groupVoiceNoteFeeSompi]) and an
+        // on-chain photo in the quality sheet (iOS 7c5c22e3): 0 here, no pill.
         when {
-            recording.status == VoiceRecordingStatus.RECORDING && voiceNextcloud && connected -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
-            recording.status == VoiceRecordingStatus.RECORDING -> estimatedGroupWirePayloadSize(estimatedGroupAudioRawBytes(recording.elapsedMs), isMediaEnvelope = true)
+            recording.isActive && recording.viaNextcloud && connected -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
+            recording.isActive -> 0
             photoUri != null && photoNextcloud && connected -> estimatedGroupWirePayloadSize(NEXTCLOUD_LINK_PREVIEW_BYTES, isMediaEnvelope = false)
-            photoUri != null -> estimatedGroupWirePayloadSize(GROUP_PHOTO_TARGET_BYTES, isMediaEnvelope = true)
+            photoUri != null -> 0
             else -> estimatedGroupWirePayloadSize(textBytes, isMediaEnvelope = false)
         }
     }
@@ -2310,6 +2299,24 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** Retry on a group's long voice note or multi-part photo: only its failed parts, in index
+     *  order, one after another, stopping at the first that fails again (iOS 7c5c22e3
+     *  `retryGroupVoiceNoteParts`). */
+    fun retryGroupFailedParts(groupId: String, failedParts: List<com.kachat.app.repository.GroupMessage>) {
+        viewModelScope.launch {
+            for (part in failedParts) {
+                if (!part.isOutgoing || part.deliveryStatus != "failed") continue
+                try {
+                    groupRepository.sendGroupMessage(part.content, groupId, retryOfTxId = part.txId)
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Error retrying a group media part", e)
+                    com.kachat.app.ui.screens.IosToasts.error(UserFacingError.message(e, "Failed to send"))
+                    return@launch
+                }
+            }
+        }
+    }
+
     data class KnsProfileUiState(
         val ownedDomains: List<String> = emptyList(),
         val selectedDomain: String? = null,
@@ -2682,11 +2689,7 @@ class ChatViewModel @Inject constructor(
         // mirrors — promote it explicitly since the conversations flow only reorders after the
         // pending insert lands. Diffed inside refresh(), so repeat sends to the same top chat are free.
         shareShortcutsManager.refresh(conversations.value, promoteContactId = contactId)
-        // Never a call message: a call_invite / request / end sent while a reply was queued went
-        // out as a reply, and the other phone never saw a call (iOS 40b1461). The reply stays
-        // queued for the person's next text.
-        val isCallEnvelope = com.kachat.app.util.CallCodec.parseOrNull(text) != null
-        val reply = if (plain || isCallEnvelope) null else _replyingTo.value
+        val reply = if (plain) null else _replyingTo.value
         val feeRate = if (plain) null else _feeRateOverride.value
         if (!plain) _feeRateOverride.value = null
         run {
@@ -2742,7 +2745,7 @@ class ChatViewModel @Inject constructor(
                         deliveryStatus = "sent"
                     )
                 )
-                if (!plain && !isCallEnvelope) _replyingTo.value = null
+                if (!plain) _replyingTo.value = null
                 return true
             } catch (unknown: com.kachat.app.services.SendOutcomeUnknownException) {
                 // It may have landed: never Retry (that could post it twice). The row takes the
@@ -2772,28 +2775,21 @@ class ChatViewModel @Inject constructor(
         var allOk = true
         if (text.isNotBlank() && !sendMessageAwait(contactId, text)) allOk = false
         for (uri in imageUris) {
-            val payload = prepareSharedImagePayload(uri)
-            if (payload == null || !sendMessageAwait(contactId, payload)) allOk = false
+            val bytes = prepareSharedImage(uri)
+            if (bytes == null || !sendImageAwait(contactId, bytes, onError = null)) allOk = false
         }
         return allOk
     }
 
-    /** The message payload for one shared image: always the embedded on-chain [ImageMessage]
-     *  envelope. Shared, pasted and dropped photos go on chain - the on-chain-or-Nextcloud choice
-     *  is only asked from the "+" sheet now that the "Send Media via Nextcloud" setting is gone
-     *  (iOS 8b13460). */
-    private suspend fun prepareSharedImagePayload(uri: Uri): String? {
+    /** One shared image as it goes when sent straight away: on chain at Low (iOS 7c5c22e3 - a
+     *  share opened in the composer asks for a quality at Send instead). Shared, pasted and
+     *  dropped photos go on chain - the on-chain-or-Nextcloud choice is only asked from the "+"
+     *  sheet now that the "Send Media via Nextcloud" setting is gone (iOS 8b13460). */
+    private suspend fun prepareSharedImage(uri: Uri): ByteArray? {
         return try {
-            val prepared = withContext(Dispatchers.Default) {
-                ImagePrep.prepareForChatMessage(appContext, uri)
+            withContext(Dispatchers.Default) {
+                ImagePrep.prepareForTier(appContext, uri, com.kachat.app.util.PhotoTier.LOW, forGroup = false).bytes
             }
-            val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
-            ImageMessage.encode(
-                fileName = prepared.fileName,
-                sizeBytes = prepared.bytes.size.toLong(),
-                base64Image = base64,
-                mimeType = prepared.mimeType
-            )
         } catch (e: Exception) {
             Log.e("ChatViewModel", "Error preparing shared photo", e)
             null
@@ -3043,83 +3039,61 @@ class ChatViewModel @Inject constructor(
     // upload/transport, matching iOS.
     // -------------------------------------------------------------------------
 
-    private var recordingTickerJob: Job? = null
-
     /** Recording (not playback) needs Android 10+ — the mic button should be disabled below that. */
     val voiceRecordingSupported: Boolean get() = voiceRecorderService.isSupported
 
+    /** The chat the 1:1 voice note is being recorded in: where a failure is reported. */
+    private var voiceContactId: String? = null
+
+    /** The 1:1 composer's voice note (iOS 7c5c22e3 / ca013fc8): on chain up to 2:50 as parts of
+     *  at most 14.5 s ([VoiceNotePolicy.ONE_TO_ONE]), via Nextcloud up to 5:00. */
+    private val voiceComposer by lazy {
+        VoiceNoteComposer(
+            scope = viewModelScope,
+            recorder = voiceRecorderService,
+            cacheDir = appContext.cacheDir,
+            path = com.kachat.app.util.VoiceNotePolicy.ONE_TO_ONE,
+            state = _voiceRecordingState,
+            onFailure = { message -> voiceContactId?.let { reportSendFailure(it, message) } },
+        )
+    }
+
     fun startVoiceRecording(contactId: String, viaNextcloud: Boolean = false) {
+        if (_voiceRecordingState.value.isActive) return
         _nextcloudVoiceRequested.value = viaNextcloud
-        if (_voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
-        // On-chain 1:1 notes are payload-capped: 25 s or 31 KB, whichever comes first (iOS
-        // f5f6a11) - the own-WebM recorder fits the full 25 s (iOS 48f0dce); a "Record via
-        // Nextcloud" note only needs to fit the server, so it runs to the app-wide Nextcloud
-        // ceiling (5 minutes, iOS 8b13460).
-        val onChain = !voiceViaNextcloud
-        try {
-            if (onChain) {
-                voiceRecorderService.startRecording(
-                    maxDurationMs = VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS,
-                    maxBytes = VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES,
-                    fallbackStopsAtBytes = true
-                )
-            } else {
-                voiceRecorderService.startRecording(VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS)
-            }
-        } catch (e: Exception) {
-            Log.e("ChatViewModel", "Could not start voice recording", e)
-            reportSendFailure(contactId, "Failed to start recording: ${UserFacingError.message(e, "Recording failed. Please try again.")}")
-            return
-        }
-        _voiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
-        val startedAt = System.currentTimeMillis()
-        recordingTickerJob = viewModelScope.launch {
-            while (isActive && _voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
-                val elapsed = System.currentTimeMillis() - startedAt
-                _voiceRecordingState.value = _voiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (voiceRecorderService.reachedLimit(elapsed)) {
-                    stopAndSendVoiceRecording(contactId)
-                    break
-                }
-                delay(200)
-            }
-        }
+        voiceContactId = contactId
+        // On chain: up to 2:50 (iOS 7c5c22e3 VoiceNotePolicy); a "Record via Nextcloud" note only
+        // needs to fit the server, so it runs to the app-wide Nextcloud ceiling (5 minutes).
+        if (!voiceComposer.start(viaNextcloud = voiceViaNextcloud)) _nextcloudVoiceRequested.value = false
     }
 
-    /** Stops recording and sends it — unless it was too short to be a real message (a stray tap), in which case it's discarded silently, same as a cancel. */
-    fun stopAndSendVoiceRecording(contactId: String) {
-        // Read before it is cleared: what was asked for is what gets sent. Snapshot once, so a
-        // disconnect mid-send can't change the route.
-        val viaNextcloud = voiceViaNextcloud
+    /** The composer's stop button, and the length limit: stops and encodes the note, which is
+     *  then ready to preview and send (iOS ca013fc8). */
+    fun stopVoiceRecording() = voiceComposer.stop()
+
+    /** Play or pause the ready note's preview. */
+    fun toggleVoicePreview() = voiceComposer.togglePreview()
+
+    /** Sends the ready note: its parts on chain, or its upload's link via Nextcloud. */
+    fun sendRecordedVoice(contactId: String) {
+        val viaNextcloud = _voiceRecordingState.value.viaNextcloud
+        val ready = voiceComposer.take() ?: return
         _nextcloudVoiceRequested.value = false
-        if (_voiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
-        val elapsed = _voiceRecordingState.value.elapsedMs
-        recordingTickerJob?.cancel()
-        recordingTickerJob = null
-        _voiceRecordingState.value = VoiceRecordingState()
-
-        val file = voiceRecorderService.stopRecording()
-        if (file == null || elapsed < VoiceRecorderService.MIN_RECORDING_DURATION_MS) {
-            file?.delete()
-            return
-        }
-        sendVoiceMessage(contactId, file, viaNextcloud)
+        sendVoiceMessage(contactId, ready, viaNextcloud)
     }
 
+    /** The trash: throws the note away at any stage. */
     fun cancelVoiceRecording() {
         _nextcloudVoiceRequested.value = false
-        recordingTickerJob?.cancel()
-        recordingTickerJob = null
-        _voiceRecordingState.value = VoiceRecordingState()
-        voiceRecorderService.cancelRecording()
+        voiceComposer.cancel()
     }
 
     override fun onCleared() {
         super.onCleared()
-        // Avoid leaking a live MediaRecorder if the screen/ViewModel is torn down mid-recording.
-        if (_voiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
-            voiceRecorderService.cancelRecording()
-        }
+        // Avoid leaking a live recorder, an encode or a preview player if the screen/ViewModel is
+        // torn down mid-note.
+        if (_voiceRecordingState.value.isActive) voiceComposer.release()
+        if (_groupVoiceRecordingState.value.isActive) groupVoiceComposer.release()
     }
 
     // -------------------------------------------------------------------------
@@ -3127,62 +3101,57 @@ class ChatViewModel @Inject constructor(
     // GroupRepository's sendGroupImage/sendGroupAudio (gcomm payload) instead of sendMessage.
     // -------------------------------------------------------------------------
 
-    private var groupRecordingTickerJob: Job? = null
-
-    fun startGroupVoiceRecording(groupId: String, viaNextcloud: Boolean = false) {
-        _groupNextcloudVoiceRequested.value = viaNextcloud
-        if (_groupVoiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) return
-        // Same dynamic ceiling as 1:1's startVoiceRecording: on-chain group notes are
-        // payload-capped at 10s (iOS PublicChatAudioRecorder: 10 s / 13 KB), but a "Record via
-        // Nextcloud" note only needs to fit the server, so it runs to the app-wide Nextcloud ceiling.
-        try {
-            if (groupVoiceViaNextcloud) {
-                voiceRecorderService.startRecording(VoiceRecorderService.MAX_NEXTCLOUD_RECORDING_DURATION_MS)
-            } else {
-                voiceRecorderService.startRecording(
-                    maxDurationMs = VoiceRecorderService.MAX_RECORDING_DURATION_MS,
-                    maxBytes = VoiceRecorderService.GROUP_ON_CHAIN_VOICE_BYTES
-                )
-            }
-        } catch (e: Exception) {
-            Log.e("ChatViewModel", "Could not start group voice recording", e)
-            return
-        }
-        _groupVoiceRecordingState.value = VoiceRecordingState(status = VoiceRecordingStatus.RECORDING)
-        val startedAt = System.currentTimeMillis()
-        groupRecordingTickerJob = viewModelScope.launch {
-            while (isActive && _groupVoiceRecordingState.value.status == VoiceRecordingStatus.RECORDING) {
-                val elapsed = System.currentTimeMillis() - startedAt
-                _groupVoiceRecordingState.value = _groupVoiceRecordingState.value.copy(elapsedMs = elapsed)
-                if (voiceRecorderService.reachedLimit(elapsed)) {
-                    stopAndSendGroupVoiceRecording(groupId)
-                    break
-                }
-                delay(200)
-            }
-        }
+    /** The group composer's voice note, recorded like 1:1's (iOS ca013fc8): on chain up to 1:50
+     *  as parts of at most 9.8 s ([VoiceNotePolicy.GROUP]), via Nextcloud up to 5:00. */
+    private val groupVoiceComposer by lazy {
+        VoiceNoteComposer(
+            scope = viewModelScope,
+            recorder = voiceRecorderService,
+            cacheDir = appContext.cacheDir,
+            path = com.kachat.app.util.VoiceNotePolicy.GROUP,
+            state = _groupVoiceRecordingState,
+            onFailure = { message -> com.kachat.app.ui.screens.IosToasts.error(message) },
+        )
     }
 
-    /** Group twin of the 1:1 [sendVoiceMessage] Nextcloud gate: recorded "via Nextcloud" (and
-     *  still connected), the recorded file (Opus-in-WebM, exactly as captured — no
-     *  re-encode, so the full relaxed-cap length ships byte-for-byte) uploads to the server and
-     *  the group message is just the public share link; any upload/share failure falls back to
-     *  the embedded on-chain gcomm envelope below, with a toast so the sender knows. */
-    fun stopAndSendGroupVoiceRecording(groupId: String) {
-        // Read before it is cleared: what was asked for is what gets sent.
-        val viaNextcloud = groupVoiceViaNextcloud
-        _groupNextcloudVoiceRequested.value = false
-        if (_groupVoiceRecordingState.value.status != VoiceRecordingStatus.RECORDING) return
-        val elapsed = _groupVoiceRecordingState.value.elapsedMs
-        groupRecordingTickerJob?.cancel()
-        groupRecordingTickerJob = null
-        _groupVoiceRecordingState.value = VoiceRecordingState()
+    fun startGroupVoiceRecording(groupId: String, viaNextcloud: Boolean = false) {
+        if (_groupVoiceRecordingState.value.isActive) return
+        _groupNextcloudVoiceRequested.value = viaNextcloud
+        if (!groupVoiceComposer.start(viaNextcloud = groupVoiceViaNextcloud)) _groupNextcloudVoiceRequested.value = false
+    }
 
-        val file = voiceRecorderService.stopRecording()
-        if (file == null || elapsed < VoiceRecorderService.MIN_RECORDING_DURATION_MS) {
-            file?.delete()
+    /** The group composer's stop button, and the length limit: stops and encodes the note. */
+    fun stopGroupVoiceRecording() = groupVoiceComposer.stop()
+
+    fun toggleGroupVoicePreview() = groupVoiceComposer.togglePreview()
+
+    /** Group twin of the 1:1 [sendRecordedVoice] (iOS ca013fc8 `takeRecording`): on chain, the
+     *  ready note's parts - one untagged message when it is one part, else every part tagged
+     *  `voicePart`, in the binary media frame inside gcomm (iOS 7c5c22e3). Recorded "via
+     *  Nextcloud" (and still connected), the recorded file (Opus-in-WebM, exactly as captured)
+     *  uploads to the server and the group message is just the public share link; an upload or
+     *  share failure falls back to the file on chain when one transaction carries it, with a
+     *  toast so the sender knows. */
+    fun sendRecordedGroupVoice(groupId: String) {
+        val viaNextcloud = _groupVoiceRecordingState.value.viaNextcloud
+        val ready = groupVoiceComposer.take() ?: return
+        _groupNextcloudVoiceRequested.value = false
+        if (ready is VoiceNoteComposer.Ready.OnChain) {
+            viewModelScope.launch {
+                try {
+                    if (ready.parts.size > 1) {
+                        groupRepository.sendGroupMediaParts(ready.parts, groupId, mimeType = "audio/webm")
+                    } else {
+                        groupRepository.sendGroupAudio(ready.parts.first(), groupId)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Error sending group voice message", e)
+                    com.kachat.app.ui.screens.IosToasts.error(UserFacingError.message(e, "Failed to send"))
+                }
+            }
             return
         }
+        val file = (ready as VoiceNoteComposer.Ready.Nextcloud).file
         viewModelScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) { file.readBytes() }
@@ -3204,6 +3173,10 @@ class ChatViewModel @Inject constructor(
                         com.kachat.app.ui.screens.IosToasts.error(appContext.getString(com.kachat.app.R.string.nextcloud_upload_failed_sending_on_chain))
                     }
                 }
+                // On chain only as one ordinary note that one transaction carries.
+                if (bytes.size > com.kachat.app.util.VoiceNotePolicy.GROUP.maxBytes) {
+                    throw IllegalStateException("Recording failed. Please try again.")
+                }
                 groupRepository.sendGroupAudio(bytes, groupId, fileName = file.name)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending group voice message", e)
@@ -3213,20 +3186,44 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** The trash: throws the group note away at any stage. */
     fun cancelGroupVoiceRecording() {
         _groupNextcloudVoiceRequested.value = false
-        groupRecordingTickerJob?.cancel()
-        groupRecordingTickerJob = null
-        _groupVoiceRecordingState.value = VoiceRecordingState()
-        voiceRecorderService.cancelRecording()
+        groupVoiceComposer.cancel()
     }
 
-    /** Mirrors [sendPendingPhoto] for the group's own staged photo - smaller default target than 1:1's preset since group's `gcomm` payload hex-encodes the ciphertext (vs. 1:1's base64) plus extra fixed per-message fields, so the same raw photo lands as a noticeably larger on-chain payload.
+    /** The 1:1 and group composers' pending photos compressed for the quality sheet (iOS
+     *  7c5c22e3 `preparePhotoTiers`), at each path's byte budgets. */
+    private val photoTierPrep by lazy { PhotoTierPrep(viewModelScope, appContext, forGroup = false) }
+    private val groupPhotoTierPrep by lazy { PhotoTierPrep(viewModelScope, appContext, forGroup = true) }
+
+    /** Each tier's fee for the 1:1 pending photo, once compressed - the quality sheet's numbers. */
+    val photoTierFees: StateFlow<Map<com.kachat.app.util.PhotoTier, Long>> get() = photoTierPrep.fees
+    val groupPhotoTierFees: StateFlow<Map<com.kachat.app.util.PhotoTier, Long>> get() = groupPhotoTierPrep.fees
+
+    /** The 1:1 pending photo goes on chain - no Nextcloud upload for it, or the upload failed -
+     *  so Send asks for a quality first (iOS 7c5c22e3 `pendingPhotoGoesOnChain`). */
+    val pendingPhotoGoesOnChain: Boolean
+        get() = nextcloudStager.staged.value.let { it == null || it.phase is NextcloudStagedMedia.Phase.Failed }
+    val groupPendingPhotoGoesOnChain: Boolean
+        get() = groupNextcloudStager.staged.value.let { it == null || it.phase is NextcloudStagedMedia.Phase.Failed }
+
+    /** Starts compressing the 1:1 pending photo for every tier as the quality sheet opens. */
+    fun preparePhotoTiers() {
+        _pendingPhotoUri.value?.let { photoTierPrep.prepare(it) }
+    }
+
+    fun prepareGroupPhotoTiers() {
+        _groupPendingPhotoUri.value?.let { groupPhotoTierPrep.prepare(it) }
+    }
+
+    /** Mirrors [sendPendingPhoto] for the group's own staged photo, at the group tier budgets
+     *  (iOS 7c5c22e3: the `gcomm` payload carries the photo's frame as hex).
      *
      *  Same Nextcloud route as 1:1's [sendPendingPhoto]: a photo or video staged "via Nextcloud"
      *  has been uploading since it was staged, and the group message is its share link once that
-     *  is back; a photo whose upload failed goes as the compressed on-chain gcomm envelope below. */
-    fun sendPendingGroupPhoto(groupId: String) {
+     *  is back; a photo whose upload failed goes on chain at [tier]. */
+    fun sendPendingGroupPhoto(groupId: String, tier: com.kachat.app.util.PhotoTier = com.kachat.app.util.PhotoTier.LOW) {
         val uri = _groupPendingPhotoUri.value ?: return
         val staged = groupNextcloudStager.staged.value
         // The send button spins until the share link is back.
@@ -3245,10 +3242,14 @@ class ChatViewModel @Inject constructor(
                 return@launch
             }
             try {
-                val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri, GROUP_PHOTO_TARGET_BYTES) }
-                groupRepository.sendGroupImage(prepared.bytes, groupId, fileName = prepared.fileName, mimeType = prepared.mimeType)
+                // The chosen tier's photo; bigger than one transaction, it goes as a multi-part
+                // photo (GroupRepository.sendGroupImage).
+                val bytes = groupPhotoTierPrep.dataFor(uri, tier)
+                groupPhotoTierPrep.clear()
+                groupRepository.sendGroupImage(bytes, groupId, fileName = "photo.jpg", mimeType = "image/jpeg")
             } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error preparing group photo message", e)
+                Log.e("ChatViewModel", "Error sending group photo message", e)
+                com.kachat.app.ui.screens.IosToasts.error(UserFacingError.message(e, "Failed to send"))
             }
         }
     }
@@ -3258,8 +3259,9 @@ class ChatViewModel @Inject constructor(
      *  A photo or video staged "via Nextcloud" from the "+" sheet has been uploading at full
      *  quality since it was staged ([nextcloudStaged], iOS 7abc06e); once the share link is back
      *  the chat message is just that link - the recipient's link preview renders it as a photo or
-     *  video bubble. A photo whose upload failed goes as the embedded on-chain envelope below. */
-    fun sendPendingPhoto(contactId: String) {
+     *  video bubble. A photo whose upload failed goes on chain at [tier] (iOS 7c5c22e3: the quality
+     *  sheet asks first), as several tagged parts when it is bigger than one transaction. */
+    fun sendPendingPhoto(contactId: String, tier: com.kachat.app.util.PhotoTier = com.kachat.app.util.PhotoTier.LOW) {
         val uri = _pendingPhotoUri.value ?: return
         val staged = nextcloudStager.staged.value
         // The send button spins until the share link is back.
@@ -3274,13 +3276,10 @@ class ChatViewModel @Inject constructor(
                 return@launch
             }
             try {
-                // On chain, the photo budget: 20 KB, or the largest a transaction carries with
-                // Chats > Higher quality photos on (iOS f5f6a11).
-                val targetBytes = onChainPhotoTargetBytes.first()
-                val prepared = withContext(Dispatchers.Default) { ImagePrep.prepareForChatMessage(appContext, uri, targetBytes) }
-                val base64 = android.util.Base64.encodeToString(prepared.bytes, android.util.Base64.NO_WRAP)
-                val json = ImageMessage.encode(fileName = prepared.fileName, sizeBytes = prepared.bytes.size.toLong(), base64Image = base64, mimeType = prepared.mimeType)
-                sendMessage(contactId, json, sendFailureAlert(contactId))
+                // On chain, the chosen tier's photo: compressed already for the sheet, else now.
+                val bytes = photoTierPrep.dataFor(uri, tier)
+                photoTierPrep.clear()
+                sendImageAwait(contactId, bytes, sendFailureAlert(contactId))
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error preparing photo message", e)
                 reportSendFailure(contactId, "Couldn't load that photo. Please try another.")
@@ -3320,11 +3319,26 @@ class ChatViewModel @Inject constructor(
         nextcloudService.uploadMediaAndShare(body, "video_${System.currentTimeMillis() / 1000}.$extension")
     }
 
-    /** Recorded "via Nextcloud", the recorded file (Opus-in-WebM, exactly as captured — no
+    /** A ready 1:1 voice note. On chain: one ordinary message when it is one part, else every
+     *  part tagged `voicePart` ([sendMediaPartsAwait], iOS 7c5c22e3 `sendVoiceNoteParts`).
+     *  Recorded "via Nextcloud", the recorded file (Opus-in-WebM, exactly as captured — no
      *  duration cap pressure from on-chain payload size) uploads to the server and the message
-     *  is the share link; any failure falls back to the embedded on-chain envelope with a toast.
-     *  1:1 only — the group voice path is untouched. */
-    private fun sendVoiceMessage(contactId: String, file: java.io.File, viaNextcloud: Boolean) {
+     *  is the share link; a failure falls back to the file on chain, with a toast, when one
+     *  transaction carries it. */
+    private fun sendVoiceMessage(contactId: String, ready: VoiceNoteComposer.Ready, viaNextcloud: Boolean) {
+        if (ready is VoiceNoteComposer.Ready.OnChain) {
+            viewModelScope.launch {
+                if (ready.parts.size > 1) {
+                    sendMediaPartsAwait(contactId, ready.parts, "audio/webm", sendFailureAlert(contactId))
+                } else {
+                    val bytes = ready.parts.first()
+                    val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    sendMessageAwait(contactId, VoiceMessage.encode(fileName = "voice.webm", sizeBytes = bytes.size.toLong(), base64Audio = base64), sendFailureAlert(contactId))
+                }
+            }
+            return
+        }
+        val file = (ready as VoiceNoteComposer.Ready.Nextcloud).file
         viewModelScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) { file.readBytes() }
@@ -3346,6 +3360,10 @@ class ChatViewModel @Inject constructor(
                         com.kachat.app.ui.screens.IosToasts.error(appContext.getString(com.kachat.app.R.string.nextcloud_upload_failed_sending_on_chain))
                     }
                 }
+                // On chain only as one ordinary note that one transaction carries.
+                if (bytes.size > com.kachat.app.util.VoiceNotePolicy.ONE_TO_ONE.maxBytes) {
+                    throw IllegalStateException("Recording failed. Please try again.")
+                }
                 val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                 val json = VoiceMessage.encode(fileName = file.name, sizeBytes = bytes.size.toLong(), base64Audio = base64)
                 sendMessage(contactId, json, sendFailureAlert(contactId))
@@ -3354,6 +3372,170 @@ class ChatViewModel @Inject constructor(
                 reportSendFailure(contactId, "Failed to prepare audio: ${UserFacingError.message(e, "Recording failed. Please try again.")}")
             } finally {
                 file.delete()
+            }
+        }
+    }
+
+    /** A JPEG on chain (iOS 7c5c22e3 `sendImage`): one ordinary photo message when it fits one
+     *  transaction, else its chunks as one multi-part photo ([sendMediaPartsAwait]). */
+    private suspend fun sendImageAwait(contactId: String, bytes: ByteArray, onError: ((String) -> Unit)?, plain: Boolean = false): Boolean {
+        val chunks = com.kachat.app.util.PhotoPolicy.chunks(bytes, forGroup = false)
+        if (chunks.size > 1) return sendMediaPartsAwait(contactId, chunks, "image/jpeg", onError)
+        val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        return sendMessageAwait(contactId, ImageMessage.encode(fileName = "photo.jpg", sizeBytes = bytes.size.toLong(), base64Image = base64), onError, plain = plain)
+    }
+
+    /**
+     * The parts of one long voice note or one multi-part photo (iOS 7c5c22e3 `sendMediaParts`,
+     * MESSAGING.md "Long voice notes (multi-part)" / "Photos: quality tiers and multi-part
+     * photos"): each part its own ordinary message tagged `voicePart` (audio) or `mediaPart`
+     * (image) {id, index, count}, so older clients show the parts in order and this app one.
+     *
+     * - The balance is checked for ALL parts before anything goes out.
+     * - Every part's row is created up front (the one bubble shows Sending), then the parts go
+     *   out in index order, one after another, so each spends the previous one's change.
+     * - A part that fails stops the rest: they are marked failed too, and Retry on the bubble
+     *   resends only the failed parts ([retryFailedParts]).
+     * - Parts carry no reply envelope (it would take them off the binary media frame and past
+     *   what one transaction carries); a reply being composed is dropped, as after any send.
+     */
+    suspend fun sendMediaPartsAwait(contactId: String, parts: List<ByteArray>, mimeType: String, onError: ((String) -> Unit)?): Boolean {
+        if (parts.size !in 2..com.kachat.app.util.VoicePartTag.MAX_PARTS || parts.any { it.isEmpty() }) {
+            onError?.invoke("Audio file is empty")
+            return false
+        }
+        val owner = runCatching { walletManager.getAddress() }.getOrNull() ?: return false
+        shareShortcutsManager.refresh(conversations.value, promoteContactId = contactId)
+        val feeRate = _feeRateOverride.value
+        _feeRateOverride.value = null
+        val isPhoto = mimeType.lowercase().startsWith("image/")
+        val noteId = com.kachat.app.util.VoicePartTag.newGroupId()
+        val contents = parts.mapIndexed { offset, data ->
+            val tag = com.kachat.app.util.VoicePartTag.of(noteId, offset + 1, parts.size)!!
+            com.kachat.app.util.ContextualMediaFrame.mediaFileJson(
+                name = if (isPhoto) tag.photoFileName else tag.fileName,
+                size = data.size,
+                mimeType = mimeType,
+                dataUrlContent = "data:$mimeType;base64,${android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP)}",
+                voicePart = tag.takeUnless { isPhoto },
+                mediaPart = tag.takeIf { isPhoto },
+            )
+        }
+        // The whole note first, before a single part goes out.
+        try {
+            ensureBalanceForParts(contents.map { content ->
+                com.kachat.app.util.MessageProtocol.estimatedCommPayloadSize(
+                    com.kachat.app.util.ContextualMediaFrame.frameForEnvelope(content)?.size ?: content.toByteArray(Charsets.UTF_8).size
+                )
+            }, feeRate)
+        } catch (e: Exception) {
+            onError?.invoke(UserFacingError.message(e, "Failed to send"))
+            return false
+        }
+        // Every part's row now, a millisecond apart so they keep their order.
+        val start = System.currentTimeMillis()
+        val pendingIds = contents.mapIndexed { offset, content ->
+            val pendingId = "pending_${java.util.UUID.randomUUID()}"
+            chatRepository.insertMessage(
+                MessageEntity(
+                    id = pendingId,
+                    contactId = contactId,
+                    walletAddress = owner,
+                    type = com.kachat.app.util.MessageProtocol.TYPE_COMM,
+                    direction = "sent",
+                    plaintextBody = content,
+                    encryptedPayload = "",
+                    amountSompi = 0,
+                    blockTimestamp = start + offset,
+                    deliveryStatus = "pending"
+                )
+            )
+            pendingId
+        }
+        _replyingTo.value = null
+        for ((offset, content) in contents.withIndex()) {
+            val pendingId = pendingIds[offset]
+            try {
+                refuseIfAccountChanged(owner)
+                val result = walletService.sendKasiaMessage(contactId, content, feeRateOverride = feeRate)
+                chatRepository.finalizeProvisionalMessage(
+                    pendingId,
+                    MessageEntity(
+                        id = result.txId,
+                        contactId = contactId,
+                        walletAddress = owner,
+                        type = com.kachat.app.util.MessageProtocol.TYPE_COMM,
+                        direction = "sent",
+                        plaintextBody = content,
+                        encryptedPayload = result.payloadHex,
+                        amountSompi = 0,
+                        blockTimestamp = maxOf(System.currentTimeMillis(), start + offset),
+                        deliveryStatus = "sent"
+                    )
+                )
+            } catch (e: Exception) {
+                if (e is com.kachat.app.services.SendOutcomeUnknownException) {
+                    Log.w("ChatViewModel", "Media part send outcome unknown: marked not confirmed")
+                    finalizeUnconfirmedSend(pendingId, e.txId)
+                } else {
+                    Log.e("ChatViewModel", "Error sending media part ${offset + 1} of ${contents.size}", e)
+                    chatRepository.updateMessageStatus(pendingId, "failed")
+                }
+                // The rest never went: failed too, so one Retry resends them in order.
+                for (rest in pendingIds.drop(offset + 1)) chatRepository.updateMessageStatus(rest, "failed")
+                onError?.invoke(UserFacingError.message(e, "Failed to send"))
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * What all of a note's parts cost together (each a self-send paying only its fee), against
+     * the identity address's balance, leaving the dust threshold over so the last part still has
+     * a change output to stand on (iOS `ensureSufficientBalanceForVoiceParts`). Skipped while the
+     * balance isn't known yet; the sends themselves still refuse what can't be paid.
+     */
+    private fun ensureBalanceForParts(payloadSizes: List<Int>, feeRate: Long?) {
+        if (!walletService.balanceKnown.value) return
+        val rate = feeRate ?: _networkFeeRate.value.toLong()
+        var total = 0L
+        for (size in payloadSizes) {
+            val mass = com.kachat.app.util.KaspaMass.calculateMass(numInputs = 1, outputScriptLens = listOf(34), payloadSize = size)
+            total += com.kachat.app.util.KaspaMass.calculateFee(mass, rate)
+        }
+        val required = total + MEDIA_PARTS_DUST_SOMPI
+        val available = walletService.balance.value
+        if (available < required) throw IllegalStateException("Insufficient funds: Needed $required, have $available")
+    }
+
+    /** Retry on a long voice note's or multi-part photo's bubble: only its failed parts, in index
+     *  order, one after another, stopping at the first that fails again (iOS
+     *  `retryVoiceNoteParts`). Each keeps its row and its place. */
+    fun retryFailedParts(failedParts: List<MessageEntity>, onError: ((String) -> Unit)? = null) {
+        viewModelScope.launch {
+            val owner = runCatching { walletManager.getAddress() }.getOrNull() ?: return@launch
+            for (part in failedParts) {
+                if (part.deliveryStatus != "failed" || part.direction != "sent") continue
+                val text = part.plaintextBody ?: continue
+                try {
+                    if (!chatRepository.claimFailedSendForRetry(part.id)) continue
+                    refuseIfAccountChanged(owner)
+                    val result = walletService.sendKasiaMessage(part.contactId, text)
+                    chatRepository.finalizeProvisionalMessage(
+                        part.id,
+                        part.copy(id = result.txId, walletAddress = owner, encryptedPayload = result.payloadHex, deliveryStatus = "sent")
+                    )
+                } catch (e: Exception) {
+                    if (e is com.kachat.app.services.SendOutcomeUnknownException) {
+                        finalizeUnconfirmedSend(part.id, e.txId)
+                    } else {
+                        Log.e("ChatViewModel", "Error retrying a media part", e)
+                        chatRepository.updateMessageStatus(part.id, "failed")
+                    }
+                    onError?.invoke(UserFacingError.message(e, "Failed to send"))
+                    return@launch
+                }
             }
         }
     }
@@ -3853,8 +4035,9 @@ class ChatViewModel @Inject constructor(
          *  database, so the sweep is a refresh rather than something the UI waits on. */
         private const val KNS_NAME_SWEEP_INTERVAL_MS = 6L * 60 * 60 * 1000
 
-        /** Target raw JPEG bytes for a group chat photo — see [sendPendingGroupPhoto]. */
-        private const val GROUP_PHOTO_TARGET_BYTES = 10_000
+        /** What a long voice note's or multi-part photo's balance check leaves over, so the last
+         *  part still has a change output (iOS `KasiaTransactionBuilder.dustThreshold`, 0.2 KAS). */
+        private const val MEDIA_PARTS_DUST_SOMPI = 20_000_000L
 
         /** Rough byte length of a Nextcloud public share link ("https://<host>/s/<token>") for the
          *  live fee preview while media is staged in Nextcloud mode — the real send measures the

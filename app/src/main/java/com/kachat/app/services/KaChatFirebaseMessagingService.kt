@@ -45,14 +45,16 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     @Inject lateinit var chatRepositoryLazy: dagger.Lazy<ChatRepository>
     @Inject lateinit var groupRepositoryLazy: dagger.Lazy<com.kachat.app.repository.GroupRepository>
     @Inject lateinit var settingsRepositoryLazy: dagger.Lazy<com.kachat.app.repository.AppSettingsRepository>
-    @Inject lateinit var callServiceLazy: dagger.Lazy<CallService>
     private val notificationHelper: NotificationHelper get() = notificationHelperLazy.get()
     private val pushRegistrationManager: PushRegistrationManager get() = pushRegistrationManagerLazy.get()
     private val walletManager: WalletManager get() = walletManagerLazy.get()
     private val chatRepository: ChatRepository get() = chatRepositoryLazy.get()
     private val groupRepository: com.kachat.app.repository.GroupRepository get() = groupRepositoryLazy.get()
     private val settingsRepository: com.kachat.app.repository.AppSettingsRepository get() = settingsRepositoryLazy.get()
-    private val callService: CallService get() = callServiceLazy.get()
+
+    /** When the push being handled arrived: its chain reads retry until [CHAIN_READ_DEADLINE_MS]
+     *  after it. Pushes are handled one at a time. */
+    @Volatile private var pushReceivedAtMs = 0L
 
     /** The account stores open: the app's problem screen covers the rest; a push or a token
      *  rotation meanwhile is dropped rather than building the wallet and ending the process. */
@@ -79,6 +81,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
         val type = data["type"].orEmpty()
         val body = data["body"].orEmpty()
+        pushReceivedAtMs = System.currentTimeMillis()
         Log.i(TAG, "push received: type=$type txId=${data["tx_id"].orEmpty().take(16)}")
 
         // NotificationHelper.show* are suspend and quick; block so the work completes before the
@@ -170,14 +173,18 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     private suspend fun handleGroupMessagePush(data: Map<String, String>) {
         val groupId = data["blinded_group_id"] ?: return
         val txId = data["tx_id"].orEmpty()
+        // Read off chain (a photo or voice note part is over the push's size), retried while the
+        // API catches up with the transaction (iOS ca013fc8 fetchTransactionPayload).
+        val readOffChain = data["enc_payload"].isNullOrBlank()
         val payload = data["enc_payload"]?.takeIf { it.isNotBlank() }?.let { "kchat:1:gcomm:$it" }
             ?: txId.takeIf { it.isNotBlank() }?.let { id ->
-                runCatching {
-                    kotlinx.coroutines.withTimeoutOrNull(CHAIN_READ_BUDGET_MS) { groupRepository.readChainPayload(id) }
-                }.getOrNull()
+                readOffChainWithRetry({ groupRepository.readChainPayload(id) }) { it != null }
             }
+        // Back-to-back parts read off chain from one group ring once (iOS ca013fc8
+        // `part_push_bursts`, by blinded group id).
+        val burstOwner = "group:${groupId.lowercase()}"
         val read = groupRepository.readGroupMessagePush(payload)
-        if (read is GroupMessagePush.Banner) postGroupBanner(read, txId)
+        if (read is GroupMessagePush.Banner) postGroupBanner(read, txId, burstOwner.takeIf { readOffChain && read.partKey != null })
         // Stores the message, and brings the keys of a group this device has only just heard of.
         // Bounded: syncGroups() is a full catch-up (every group, backfill sends included) and FCM
         // gives this handler about 20 s. A sync still running at 8 s is left behind and the
@@ -191,7 +198,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // The catch-up may have just brought the group this message belongs to.
         when (val reread = groupRepository.readGroupMessagePush(payload)) {
             is GroupMessagePush.Banner -> {
-                postGroupBanner(reread, txId)
+                postGroupBanner(reread, txId, burstOwner.takeIf { readOffChain && reread.partKey != null })
                 return
             }
             GroupMessagePush.Silent -> return
@@ -225,6 +232,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             Log.i(TAG, "Generic group fallback suppressed by notification settings")
             return
         }
+        // Read off chain and still unreadable (most often: not on the API yet after every
+        // retry): back-to-back ones in this group ring once, as parts would (iOS ca013fc8).
+        val quiet = readOffChain && !notificationHelper.claimPartBurst(burstOwner)
         notificationHelper.showGroup(
             // Prefer the resolved real group id/name: the tap intent then opens the actual thread
             // and the open-thread suppression keys correctly.
@@ -236,16 +246,54 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             // Unresolved: `groupId` here is the per-sender BLINDED id, which is not a route
             // argument any thread can be found by. Send the tap to the Chats list instead.
             targetGroupId = resolvedGroup?.groupId,
+            quiet = quiet,
         )
     }
 
-    private suspend fun postGroupBanner(banner: GroupMessagePush.Banner, txId: String) {
+    /** [burstOwner]: set for a part read off chain, which also joins its group's burst. A later
+     *  part of a long voice note or multi-part photo, or of a burst, is delivered quietly - the
+     *  note already rang (iOS 7c5c22e3 / ca013fc8 `isLaterPartPush`). */
+    private suspend fun postGroupBanner(banner: GroupMessagePush.Banner, txId: String, burstOwner: String? = null) {
         notificationHelper.showGroup(
             groupId = banner.groupId,
             title = banner.title,
             text = banner.text,
             dedupeTxId = txId.takeIf { it.isNotBlank() },
+            quiet = isLaterPartPush(banner.partKey, txId, burstOwner),
         )
+    }
+
+    /** True when this push is a later part of a note or burst that already rang: a tagged part
+     *  whose note was announced, or a payload-less push that follows another from the same owner
+     *  within a minute. Claims both ledgers, so call it once per push (iOS ca013fc8). */
+    private fun isLaterPartPush(partKey: String?, txId: String, burstOwner: String?): Boolean {
+        val firstOfNote = partKey?.let { notificationHelper.claimPartBanner(it, txId) } ?: true
+        val firstOfBurst = burstOwner?.let { notificationHelper.claimPartBurst(it) } ?: true
+        return !firstOfNote || !firstOfBurst
+    }
+
+    /**
+     * A transaction read off chain, retried until [CHAIN_READ_DEADLINE_MS] after the push
+     * arrived (iOS ca013fc8 `fetchTransactionPayload`): the push comes the moment the
+     * transaction is sent, often before the API has it, and a photo's or voice note's parts go
+     * back to back. With one try every part could come back unreadable and ring as its own "New
+     * message". [done] says when a result is final; the last result is returned at the deadline.
+     */
+    private suspend fun <T> readOffChainWithRetry(read: suspend () -> T?, done: (T?) -> Boolean): T? {
+        var attempt = 0
+        var result: T? = null
+        while (true) {
+            val remaining = CHAIN_READ_DEADLINE_MS - (System.currentTimeMillis() - pushReceivedAtMs)
+            if (remaining <= 1_000L) return result
+            result = runCatching { kotlinx.coroutines.withTimeoutOrNull(minOf(CHAIN_READ_BUDGET_MS, remaining)) { read() } }.getOrNull()
+            if (done(result)) return result
+            // Not on the API yet, busy, or no answer: try again shortly, while there's time.
+            val delayMs = minOf(1_000L + attempt * 750L, 3_000L)
+            val left = CHAIN_READ_DEADLINE_MS - (System.currentTimeMillis() - pushReceivedAtMs)
+            if (left <= delayMs + 1_000L) return result
+            kotlinx.coroutines.delay(delayMs)
+            attempt++
+        }
     }
 
     /**
@@ -330,11 +378,10 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // message, since those run to tens of kilobytes. Read it off chain so the preview below
         // can say what it is instead of falling back to the server's generic wording.
         // Bounded so the fallback text still posts when the REST API is slow (audit AND-008).
+        // Retried while the API catches up with the transaction (iOS ca013fc8).
         val pushedPlaintext = decryptDirectMessage(data["enc_payload"])
         val chainRead = if (pushedPlaintext != null) null else data["tx_id"]?.takeIf { it.isNotBlank() }?.let { txId ->
-            runCatching {
-                kotlinx.coroutines.withTimeoutOrNull(CHAIN_READ_BUDGET_MS) { chatRepository.readChainMessage(txId) }
-            }.getOrNull()
+            readOffChainWithRetry({ chatRepository.readChainMessage(txId) }) { it != null && it !is ChatRepository.ContextualRead.Unreadable }
         }
         // The indexer picks devices by who sent a message, not who it's for, so a contact's
         // message to someone else can reach this phone: it isn't ours, so it says nothing and
@@ -376,46 +423,26 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
             return
         }
+        // KaChat has no calls: another client's call message is dropped silently, as the app
+        // drops it (iOS 7c5c22e3 NotificationService.isCallSignal).
+        if (plaintext != null && com.kachat.app.util.CallSignal.isCallSignal(plaintext)) {
+            data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
+            return
+        }
 
         // Message Requests (NO_HANDSHAKE_MESSAGING.md §4): one "New message request" per new
         // sender, then nothing from them until accepted; nothing at all from a blocked address.
         if (applyMessageRequestRule(sender, data)) return
 
-        // A call. The chain is how a call is carried, but a closed app cannot watch the chain -
-        // this push is what wakes it, and the phone must ring, not show a banner. Hand the
-        // envelope to the call machinery, which rings exactly as it does with the app open
-        // (once per call id, only if calls are on for this contact, only while it is fresh) and
-        // posts the full-screen call notification. The invite and the request are the two that
-        // ring; everything else about a call still reads as an ordinary line in the chat.
-        val callEnvelope = plaintext?.let { com.kachat.app.util.CallCodec.parseOrNull(it) }
-        // A call from someone this phone hasn't allowed calls from ("Allow calls" off, or never
-        // turned on): ignored silently, decided here before anything waits or rings - no ring,
-        // no "Incoming call" notification (MESSAGING.md "Consent before ringing", iOS 88aa3c1).
-        if (callEnvelope != null && com.kachat.app.util.CallCodec.isOpeningCall(callEnvelope)) {
-            val allowed = runCatching { chatRepository.getContact(sender)?.callsEnabled == true }.getOrDefault(false)
-            if (!allowed) {
-                Log.i(TAG, "Call push ${callEnvelope.callId.take(8)} from ${sender.takeLast(8)} ignored: calls are off for them")
-                data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
-                return
-            }
-        }
-        if (callEnvelope != null) {
-            val sentAtMs = pushSentAtMs(data)
-            val opening = callEnvelope is com.kachat.app.util.CallEnvelope.Invite ||
-                callEnvelope is com.kachat.app.util.CallEnvelope.Request
-            if (!opening) {
-                callService.handleIncoming(callEnvelope, contactAddress = sender, blockTimeMs = sentAtMs, isOutgoing = false)
-            } else if (callService.receivePushedCall(callEnvelope, contactAddress = sender, sentAtMs = sentAtMs)) {
-                // It is ringing: the call screen is the notification.
-                data["tx_id"]?.takeIf { it.isNotBlank() }?.let { notificationHelper.claimWithoutNotifying(it) }
-                return
-            }
-            // Turned away - already over, nothing to host with, or another call in progress
-            // (calls off for this contact never get here: silent, above). It used to vanish without a trace; now the ordinary
-            // notification says a call came, and the chat it opens says why it did not ring.
-        }
-
         val text = plaintext?.let { notificationPreview(it) } ?: fallback
+        // A long voice note or multi-part photo is ONE message: the first of its parts to arrive
+        // rings, a later one is delivered quietly (iOS 7c5c22e3). A payload-less push read off
+        // chain that turned out to be a part, or couldn't be read in time, joins its sender's
+        // burst: back-to-back ones ring once (iOS ca013fc8).
+        val txId = data["tx_id"].orEmpty()
+        val partKey = com.kachat.app.util.VoicePartGrouping.partKey(plaintext, sender)
+        val readOffChain = pushedPlaintext == null && txId.isNotBlank()
+        val burstOwner = "dm:${sender.lowercase()}".takeIf { readOffChain && (plaintext == null || partKey != null) }
         notificationHelper.show(
             contactId = sender,
             title = contactTitle(sender, data["title"].orEmpty().ifEmpty { sender }),
@@ -423,7 +450,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             notificationOverride = contactOverride(sender),
             // Collapses with the in-app poll's banner when the app is foregrounded and both
             // paths see the same message.
-            dedupeTxId = data["tx_id"]?.takeIf { it.isNotBlank() },
+            dedupeTxId = txId.takeIf { it.isNotBlank() },
+            quiet = isLaterPartPush(partKey, txId, burstOwner),
         )
     }
 
@@ -456,10 +484,9 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     /**
-     * When the message this push is about was sent, in milliseconds. A call only rings while it
-     * is fresh, so this decides whether a push that arrives late still rings: the server's
-     * timestamp is the honest answer, and arrival time is the fallback when it is missing or
-     * unreadable. Seconds are accepted too - the field has been written both ways.
+     * When the message this push is about was sent, in milliseconds: the server's timestamp is
+     * the honest answer, and arrival time is the fallback when it is missing or unreadable.
+     * Seconds are accepted too - the field has been written both ways.
      */
     private fun pushSentAtMs(data: Map<String, String>): Long {
         val raw = data["timestamp"]?.trim()?.toLongOrNull() ?: return System.currentTimeMillis()
@@ -531,9 +558,13 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         /** How long a push may spend on a group catch-up before the generic banner posts. */
         private const val GROUP_SYNC_BUDGET_MS = 8_000L
 
-        /** How long a payload-less push may spend reading its message off chain (iOS
-         *  NotificationService fetchChainPreview, timeoutInterval 8). */
+        /** How long one read off chain may take (iOS NotificationService fetchChainPreview,
+         *  timeoutInterval 8). */
         private const val CHAIN_READ_BUDGET_MS = 8_000L
+
+        /** How long a payload-less push's chain reads keep trying, from the push's arrival (iOS
+         *  ca013fc8 `chainReadDeadline`). */
+        private const val CHAIN_READ_DEADLINE_MS = 20_000L
 
         /** The 1:1 push types whose sender can be this wallet itself. */
         private val OWN_SEND_PUSH_TYPES = setOf("contextual", "payment", "handshake")

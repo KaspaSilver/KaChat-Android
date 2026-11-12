@@ -154,8 +154,9 @@ class NextcloudService @Inject constructor(
         // or via Nextcloud choice per send). Never read any more; kept in ALL_PREF_BASES so
         // disconnect/purge still clean up a value stored by an older build.
         private const val PREF_MEDIA_SEND_ENABLED = "media_send_enabled"
-        /** The last capabilities probe's answer, per wallet, so a launch knows at once whether
-         *  this account can host a call - a push that starts the app cannot wait for the network. */
+        // The last Nextcloud Talk check, per wallet, from when the app had calls. Calls left the
+        // app (iOS 7c5c22e3): never read any more, deleted on each wallet load, and kept in
+        // ALL_PREF_BASES so disconnect/purge still clean up a value stored by an older build.
         private const val PREF_TALK_CALLS = "talk_calls_available"
 
         /** Every per-wallet key base — the unit `disconnect`/`purgeStoredState`/migration act on. */
@@ -226,7 +227,7 @@ class NextcloudService @Inject constructor(
         }
     }
 
-    // The same encrypted file as always. Built at startup (NextcloudSyncService, CallService):
+    // The same encrypted file as always. Built at startup (NextcloudSyncService):
     // where the Keystore refuses to open it (seen on hardened ROMs), Nextcloud shows as not
     // connected for this session and the file - the saved account included - is left as it is
     // for the next launch, rather than the app failing to open.
@@ -261,18 +262,6 @@ class NextcloudService @Inject constructor(
     private val _autoBackupEnabled = MutableStateFlow(false)
     val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
 
-    /** Whether the connected server has Nextcloud Talk with calls enabled - what makes the call
-     *  button appear in 1:1 chats (see CallService.canCall). Read from the server's capabilities
-     *  on connect and on every wallet activation; false until known. */
-    private val _talkCallsAvailable = MutableStateFlow(false)
-    val talkCallsAvailable: StateFlow<Boolean> = _talkCallsAvailable.asStateFlow()
-
-    /** Why the last Talk probe answered what it did - "Talk with calls enabled", "no spreed
-     *  capability", "HTTP 401", ... - for the diagnostics archive and the log, so a missing call
-     *  button can be explained rather than guessed at. */
-    private val _talkAvailabilityReason = MutableStateFlow("not probed yet")
-    val talkAvailabilityReason: StateFlow<String> = _talkAvailabilityReason.asStateFlow()
-
     /** The active wallet's address — every credential/settings read and write is scoped to it.
      *  Null (signed out / no wallet yet) presents as disconnected and persists nothing. */
     @Volatile
@@ -298,10 +287,10 @@ class NextcloudService @Inject constructor(
     val isConnected: Boolean get() = _account.value != null
 
     /**
-     * Off for the whole testnet launch (iOS af8ec68): the backup archive, media folder and Talk
-     * calls are one per account across both networks, so testnet could otherwise write testnet
-     * history over the mainnet backup or import mainnet history into testnet. With no account
-     * nothing syncs, restores, watches, uploads or rings, and every Nextcloud option hides as if
+     * Off for the whole testnet launch (iOS af8ec68): the backup archive and media folder are
+     * one per account across both networks, so testnet could otherwise write testnet history
+     * over the mainnet backup or import mainnet history into testnet. With no account nothing
+     * syncs, restores, watches or uploads, and every Nextcloud option hides as if
      * disconnected. The mainnet login is untouched and comes back on the next mainnet launch.
      */
     val isOffForTestnet: Boolean get() = com.kachat.app.util.KaspaNetwork.isTestnet
@@ -334,7 +323,6 @@ class NextcloudService @Inject constructor(
         if (walletAddress == null) {
             _account.value = null
             _autoBackupEnabled.value = false
-            _talkCallsAvailable.value = false
             return
         }
 
@@ -342,85 +330,8 @@ class NextcloudService @Inject constructor(
 
         _account.value = loadAccount()
         _autoBackupEnabled.value = resolveAutoBackupEnabled(currentSuffix ?: return, connected = _account.value != null)
-        // What the last probe said, until this one answers. A call arriving seconds after the
-        // app was woken by a push would otherwise be turned away as "cannot host" simply because
-        // the capabilities lookup had not come back yet.
-        _talkCallsAvailable.value = _account.value != null &&
-            (scopedKey(PREF_TALK_CALLS)?.let { prefs.getBoolean(it, false) } ?: false)
-        refreshTalkAvailability()
-    }
-
-    /** Asks the server's capabilities whether Talk is installed with calls on, and publishes
-     *  the answer. A lookup that couldn't reach the server changes nothing: it used to store
-     *  "no Talk" until the next wallet load, and a phone with Talk then asked the other side to
-     *  host every call it made (iOS 88aa3c1). */
-    fun refreshTalkAvailability() {
-        serviceScope.launch { recheckTalkAvailability() }
-    }
-
-    /** The same, awaited: what a call about to start (or a request about to be hosted) asks when
-     *  Talk isn't known to be there. Returns what is known afterwards. */
-    suspend fun recheckTalkAvailability(): Boolean = withContext(Dispatchers.Main.immediate) {
-        val account = _account.value ?: run {
-            _talkCallsAvailable.value = false
-            _talkAvailabilityReason.value = "no Nextcloud account connected"
-            return@withContext false
-        }
-        val owner = currentWalletAddress
-        val (available, reason) = withContext(Dispatchers.IO) { probeTalkCalls(account) }
-        if (currentWalletAddress != owner || _account.value?.server != account.server) return@withContext _talkCallsAvailable.value
-        if (available == null) {
-            // Not an answer about Talk (offline, a timeout, an error page): keep what we knew.
-            _talkAvailabilityReason.value = "$reason - keeping ${_talkCallsAvailable.value}"
-            Log.i("NextcloudService", "Talk check could not reach ${account.server}: $reason - keeping ${_talkCallsAvailable.value}")
-            return@withContext _talkCallsAvailable.value
-        }
-        _talkAvailabilityReason.value = reason
-        if (_talkCallsAvailable.value != available) _talkCallsAvailable.value = available
-        scopedKey(PREF_TALK_CALLS)?.let { prefs.edit().putBoolean(it, available).apply() }
-        Log.i("NextcloudService", "Talk calls ${if (available) "available" else "NOT available"} on ${account.server}: $reason")
-        available
-    }
-
-    /** Bounded like iOS's 20 s capabilities request: a call waits on this answer. */
-    private val talkProbeClient by lazy { client.newBuilder().callTimeout(20, TimeUnit.SECONDS).build() }
-
-    /** Whether the server has Talk with calls enabled, and the reason in words. The answer is
-     *  null when the server couldn't be asked (offline, timeout, an error page) - that is not
-     *  an answer about Talk. */
-    private fun probeTalkCalls(account: NextcloudAccount): Pair<Boolean?, String> {
-        return try {
-            val request = Request.Builder()
-                .url("${account.server.trimEnd('/')}/ocs/v2.php/cloud/capabilities?format=json")
-                .header("Authorization", basicAuth(account))
-                .header("OCS-APIRequest", "true")
-                .header("Accept", "application/json")
-                .build()
-            talkProbeClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null to "capabilities answered HTTP ${response.code}"
-                val body = response.body?.string() ?: return null to "capabilities answered an empty body"
-                val capabilities = runCatching {
-                    JSONObject(body).getJSONObject("ocs").getJSONObject("data").getJSONObject("capabilities")
-                }.getOrNull() ?: return null to "capabilities answer was not the OCS shape"
-                // The server answered: no "spreed" entry means Talk isn't installed.
-                val spreed = capabilities.optJSONObject("spreed") ?: return false to "Nextcloud Talk (spreed) is not installed or not enabled for this user"
-                val features = spreed.optJSONArray("features")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } } ?: emptyList()
-                val missing = listOf("conversation-v4", "signaling-v3").filter { it !in features }
-                if (missing.isNotEmpty()) return false to "Talk is too old: missing ${missing.joinToString()}"
-                val call = spreed.optJSONObject("config")?.optJSONObject("call")
-                // Absent means an older Talk that never had the switch - calls are on.
-                val enabled = when (val raw = call?.opt("enabled")) {
-                    null -> true
-                    is Boolean -> raw
-                    is Number -> raw.toInt() != 0
-                    is String -> raw != "0" && raw != "false"
-                    else -> true
-                }
-                if (enabled) true to "Talk with calls enabled" else false to "Talk is installed but calls are switched off in its settings"
-            }
-        } catch (e: Exception) {
-            null to "capabilities request failed: ${e.message}"
-        }
+        // Calls left the app (iOS 7c5c22e3 RetiredFeatureCleanup): this account's Talk check goes.
+        scopedKey(PREF_TALK_CALLS)?.let { key -> if (prefs.contains(key)) prefs.edit().remove(key).apply() }
     }
 
     /**
@@ -568,7 +479,6 @@ class NextcloudService @Inject constructor(
         // Recorded now and shown after the folder search below, so nothing syncs before the folder
         // is known: a catch-up during the search could start a second file beside the real one.
         val autoSync = resolveAutoSyncForConnect(currentSuffix ?: return)
-        refreshTalkAvailability()
 
         // Point at the backup this account already has, before anything reads or writes one.
         // Only when the user has not chosen a folder themselves - an explicit choice outranks
@@ -607,7 +517,6 @@ class NextcloudService @Inject constructor(
         editor.apply()
         _account.value = null
         _autoBackupEnabled.value = false
-        _talkCallsAvailable.value = false
     }
 
     /** Delete Account: the active wallet's app password, revoked while the credentials still exist

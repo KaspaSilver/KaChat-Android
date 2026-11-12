@@ -21,14 +21,6 @@ interface PushApi {
     @POST("v1/push/register")
     suspend fun register(@Body body: PushRegistrationRequest): PushResponse
 
-    /**
-     * Ring the callee's devices for a call this device is placing (the iOS repo's PUSH_EXTENSIONS.md §5).
-     * A closed app cannot watch the chain, so the caller asks the service to wake the other
-     * phone; the ring carries the same opening message that went on chain.
-     */
-    @POST("v1/push/ring")
-    suspend fun ring(@Body body: PushRingRequest): PushResponse
-
     // DELETE with a body — Retrofit needs the explicit @HTTP form for that.
     @HTTP(method = "DELETE", path = "v1/push/unregister", hasBody = true)
     suspend fun unregister(@Body body: PushUnregisterRequest): PushResponse
@@ -72,27 +64,6 @@ data class PushRegistrationRequest(
     @SerializedName("kaposts_notify_reposts") val kaPostsNotifyReposts: Boolean = false,
     @SerializedName("kaposts_notify_follows") val kaPostsNotifyFollows: Boolean = false,
     @SerializedName("kaposts_watch_authors") val kaPostsWatchAuthors: List<String> = emptyList(),
-    @SerializedName("auth") val auth: PushAuthRequest? = null,
-)
-
-/**
- * `POST /v1/push/ring` — ring [toAddress]'s devices for a call this device is placing
- * (the iOS repo's PUSH_EXTENSIONS.md §5, same body iOS sends).
- *
- * The service trusts [auth] for the sender it names in the push, so the callee can show who is
- * calling without decrypting anything. [payload] is the opening call message encrypted to the
- * callee exactly as it went on chain, hex — opaque to the service, and the only way a phone that
- * was asleep learns the Talk room before the chain message reaches it.
- */
-data class PushRingRequest(
-    @SerializedName("device_token") val deviceToken: String,
-    @SerializedName("to_address") val toAddress: String,
-    @SerializedName("call_id") val callId: String,
-    @SerializedName("video") val video: Boolean,
-    /** "invite" (the caller hosts the Talk room) or "request" (the caller asks the callee to host). */
-    @SerializedName("kind") val kind: String,
-    @SerializedName("payload") val payload: String,
-    @SerializedName("timestamp") val timestampMs: Long,
     @SerializedName("auth") val auth: PushAuthRequest? = null,
 )
 

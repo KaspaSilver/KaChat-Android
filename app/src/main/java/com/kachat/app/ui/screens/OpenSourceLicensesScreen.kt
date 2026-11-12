@@ -35,8 +35,9 @@ import com.kachat.app.ui.theme.LocalAppColors
  * Settings > Profile > About > Open Source Licenses. Direct port of iOS's
  * `OpenSourceLicensesView` (f656d9d).
  *
- * WebRTC and the Opus codec inside it are BSD 3-Clause and require their notice to travel with
- * the binary; Protocol Buffers is BSD 3-Clause too. The Apache and MIT libraries ask for
+ * Opus is BSD 3-Clause and requires its notice to travel with the binary (voice notes are Opus;
+ * WebRTC, which carried it here, left with calls in iOS 7c5c22e3); Protocol Buffers is BSD
+ * 3-Clause too. The Apache and MIT libraries ask for
  * attribution. None of it was anywhere in the app. Android's list differs from iOS's because the
  * stack does — gRPC-Java and bitcoinj here, grpc-swift and P256K there — and every licence below
  * was read off the library's own POM or its published LICENSE rather than assumed.
@@ -72,12 +73,6 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."""
 
 private val NOTICES = listOf(
-    LicenseNotice(
-        "WebRTC",
-        "BSD 3-Clause",
-        "Copyright (c) 2011, The WebRTC project authors. All rights reserved.",
-        BSD_3,
-    ),
     LicenseNotice(
         "Opus",
         "BSD 3-Clause",

@@ -14,7 +14,8 @@ import java.io.File
  * - Portfolio, Cold Storage and the .kachat market (iOS d54ea87): Portfolio's fees, tombstones and
  *   price history (the current KAS price stays: the Send screens read it), the KasSigner accounts
  *   and the .kachat name notifier's and reminders' state;
- * - Simple Mode (iOS eb2ccac): its password record and attempt counters.
+ * - Simple Mode (iOS eb2ccac): its password record and attempt counters;
+ * - voice and video calls (iOS 7c5c22e3): the handled call ids and the call notification channels.
  * Their DataStore keys go with [com.kachat.app.repository.AppSettingsRepository.removeRetiredFeatureKeys],
  * and their database tables with the Room migrations that dropped them.
  */
@@ -53,6 +54,17 @@ object RetiredFeatureCleanup {
         },
         // Simple Mode (iOS eb2ccac): its salted-hash password record and attempt counters
         Pass("retired_feature_files_cleaned_v3", listOf("kachat_child_mode_prefs")),
+        // Voice and video calls (iOS 7c5c22e3 RetiredFeatureCleanup.runOnceV4): the handled call
+        // ids, and the two call notification channels. Each account's Nextcloud Talk check goes
+        // with NextcloudService's next load of that account.
+        Pass("retired_feature_files_cleaned_v4", listOf("kachat_calls")) { context ->
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.getSystemService(android.app.NotificationManager::class.java)?.let { manager ->
+                    manager.deleteNotificationChannel("kachat_incoming_call")
+                    manager.deleteNotificationChannel("kachat_calls")
+                }
+            }
+        },
     )
 
     fun deleteLocalFiles(context: Context) {

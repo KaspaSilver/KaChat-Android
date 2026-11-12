@@ -212,22 +212,94 @@ class ContextualMediaFrameTest {
         )
     }
 
+    // --- part tags (iOS 7c5c22e3, MESSAGING.md "Long voice notes" / "Photos: quality tiers") ---
+
+    private val noteId = "0123456789abcdef0123456789abcdef"
+
     @Test
-    fun `the photo fee preview prices the single encoding`() {
-        assertEquals(26_946, ImagePrep.estimatedWirePayloadSize(20_000))
-        assertEquals(42_946, ImagePrep.estimatedWirePayloadSize(32_000))
+    fun `a voice part's tag rides in the header, sorted as iOS writes it`() {
+        val opus = ByteArray(300) { (it * 13).toByte() }
+        val tag = VoicePartTag.of(noteId, 2, 12)!!
+        val envelope = ContextualMediaFrame.mediaFileJson(tag.fileName, opus.size, "audio/webm", "data:audio/webm;base64,${b64(opus)}", voicePart = tag)
+        // The tag sits between mimeType and content in the text form.
+        assertEquals(
+            "{\"type\":\"file\",\"name\":\"voice-2of12.webm\",\"size\":300,\"mimeType\":\"audio/webm\"," +
+                "\"voicePart\":{\"id\":\"$noteId\",\"index\":2,\"count\":12},\"content\":\"data:audio/webm;base64,${b64(opus)}\"}",
+            envelope
+        )
+        val f = ContextualMediaFrame.frameForEnvelope(envelope)!!
+        val header = "{\"mimeType\":\"audio\\/webm\",\"name\":\"voice-2of12.webm\",\"size\":300," +
+            "\"voicePart\":{\"count\":12,\"id\":\"$noteId\",\"index\":2}}"
+        assertEquals(frame(header, opus).toList(), f.toList())
+        assertEquals(envelope, ContextualMediaFrame.envelopeText(f))
+        assertEquals(tag, VoicePartTag.sniff(ContextualMediaFrame.envelopeText(f)))
     }
 
     @Test
-    fun `a 1-1 voice note stops at 31 KB, within one transaction`() {
-        val cap = com.kachat.app.services.VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES
-        val fullNote = com.kachat.app.services.VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS
-        // iOS's own WebM layout (~1.06 KB a second) holds the full 25 s ...
-        assertTrue(VoiceMessage.estimatedRecordingBytes(fullNote) < cap)
-        // ... MediaRecorder's (~1.6 KB a second, the fallback) reaches 31 KB before 25 s
-        assertTrue(VoiceMessage.estimatedRecordingBytes(fullNote, ownWebM = false) > cap)
-        assertTrue(VoiceMessage.estimatedRecordingBytes(10_000, ownWebM = false) < cap)
-        // ... and a full note's payload stays under the ~43 KB a 32 KB photo takes
-        assertTrue(((cap + 150) * 4.0 / 3.0).toInt() + 80 < ImagePrep.estimatedWirePayloadSize(ImagePrep.HIGH_QUALITY_CHAT_TARGET_BYTES))
+    fun `a photo chunk's tag is mediaPart, first in the sorted header`() {
+        val tag = VoicePartTag.of(noteId, 1, 2)!!
+        val envelope = ContextualMediaFrame.mediaFileJson(tag.photoFileName, jpeg.size, "image/jpeg", "data:image/jpeg;base64,${b64(jpeg)}", mediaPart = tag)
+        val f = ContextualMediaFrame.frameForEnvelope(envelope)!!
+        val header = "{\"mediaPart\":{\"count\":2,\"id\":\"$noteId\",\"index\":1},\"mimeType\":\"image\\/jpeg\"," +
+            "\"name\":\"photo-1of2.jpg\",\"size\":26}"
+        assertEquals(frame(header, jpeg).toList(), f.toList())
+        assertEquals(envelope, ContextualMediaFrame.envelopeText(f))
+    }
+
+    @Test
+    fun `a malformed or misplaced tag is dropped - a plain single note or photo`() {
+        val opus = byteArrayOf(1, 2, 3)
+        val bad = listOf(
+            "{\"count\":13,\"id\":\"$noteId\",\"index\":2}",
+            "{\"count\":2,\"id\":\"$noteId\",\"index\":0}",
+            "{\"count\":2,\"id\":\"$noteId\",\"index\":3}",
+            "{\"count\":2,\"id\":\"0123\",\"index\":1}",
+            "{\"count\":2,\"id\":\"zz23456789abcdef\",\"index\":1}",
+            "{\"count\":\"2\",\"id\":\"$noteId\",\"index\":1}",
+            "{\"count\":2.5,\"id\":\"$noteId\",\"index\":1}",
+            "{\"count\":true,\"id\":\"$noteId\",\"index\":1}",
+        )
+        for (tag in bad) {
+            val f = frame("{\"mimeType\":\"audio\\/webm\",\"name\":\"v.webm\",\"size\":3,\"voicePart\":$tag}", opus)
+            assertEquals(tag, iosTextForm("v.webm", "audio/webm", opus), ContextualMediaFrame.envelopeText(f))
+        }
+        // The voice key on a photo is no tag either.
+        val onPhoto = frame("{\"mimeType\":\"image\\/jpeg\",\"name\":\"p.jpg\",\"size\":26,\"voicePart\":{\"count\":2,\"id\":\"$noteId\",\"index\":1}}", jpeg)
+        assertEquals(iosTextForm("p.jpg", "image/jpeg", jpeg), ContextualMediaFrame.envelopeText(onPhoto))
+    }
+
+    @Test
+    fun `a group voice note is sealed as the frame and read back as the text form`() {
+        val opus = ByteArray(2_000) { (it * 7).toByte() }
+        val tag = VoicePartTag.of(noteId, 1, 3)!!
+        val envelope = ContextualMediaFrame.mediaFileJson(tag.fileName, opus.size, "audio/webm", "data:audio/webm;base64,${b64(opus)}", voicePart = tag)
+        val plaintext = GroupCipher.groupPlaintextData(envelope)
+        assertEquals(ContextualMediaFrame.MAGIC.toList(), plaintext.take(5))
+        val random = SecureRandom()
+        val root = ByteArray(32).also { random.nextBytes(it) }
+        val groupId = ByteArray(32).also { random.nextBytes(it) }
+        val senderId = ByteArray(32).also { random.nextBytes(it) }
+        val msgId = ByteArray(24).also { random.nextBytes(it) }
+        val sealed = GroupCipher.encryptMessage(plaintext, root, groupId, 3L, senderId, msgId)
+        // raw bytes + header inside the cipher, not 4/3 of base64
+        assertTrue(sealed.size < opus.size + 250)
+        assertEquals(envelope, GroupCipher.decryptMessage(sealed, root, groupId, 3L, senderId, msgId))
+        // Text and old text-form group notes stay UTF-8.
+        assertEquals("hello".toByteArray().toList(), GroupCipher.groupPlaintextData("hello").toList())
+        val textForm = iosTextForm("v.webm", "video/mp4", opus)
+        assertEquals(textForm.toByteArray().toList(), GroupCipher.groupPlaintextData(textForm).toList())
+        val legacy = GroupCipher.encryptMessage(iosTextForm("v.webm", "audio/webm", opus), root, groupId, 3L, senderId, msgId)
+        assertEquals(iosTextForm("v.webm", "audio/webm", opus), GroupCipher.decryptMessage(legacy, root, groupId, 3L, senderId, msgId))
+    }
+
+    @Test
+    fun `a malformed group frame is unreadable, never garbage text`() {
+        val random = SecureRandom()
+        val root = ByteArray(32).also { random.nextBytes(it) }
+        val groupId = ByteArray(32).also { random.nextBytes(it) }
+        val senderId = ByteArray(32).also { random.nextBytes(it) }
+        val msgId = ByteArray(24).also { random.nextBytes(it) }
+        val sealed = GroupCipher.encryptMessage(byteArrayOf(0xFF.toByte(), 1, 2, 3), root, groupId, 1L, senderId, msgId)
+        assertNull(GroupCipher.decryptMessage(sealed, root, groupId, 1L, senderId, msgId))
     }
 }

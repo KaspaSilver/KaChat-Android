@@ -108,6 +108,91 @@ object WebMOpusWriter {
     }
 
     /**
+     * One part of a long voice note (iOS 7c5c22e3 `WebMOpusEncoder.encodeRange`): [packets] with
+     * the samples each decodes to ([packetSamples], 2880 for a 60 ms packet), Clusters of
+     * [packetsPerCluster] (16 at 60 ms, as iOS's 1000 / 60) whose timecodes and block offsets are
+     * the packets' running time. The Info Duration is [contentSamples] - the part's real length,
+     * not the look-ahead its packets also carry - or what the kept packets hold if less. Over
+     * [maxBytes], trailing packets are dropped (never the first) until it fits, as iOS does.
+     * With uniform 60 ms packets the file is laid out exactly as iOS's.
+     */
+    fun encodePart(
+        packets: List<ByteArray>,
+        packetSamples: List<Int>,
+        contentSamples: Long,
+        preSkip: Int = DEFAULT_PRE_SKIP,
+        packetsPerCluster: Int = 1000 / VoiceNotePolicy.FRAME_MS,
+        maxBytes: Int? = null,
+        trackUid: Long = randomTrackUid(),
+    ): ByteArray {
+        require(packets.size == packetSamples.size) { "one sample count per packet" }
+        val head = opusHead(preSkip)
+        val sampleRate = SAMPLE_RATE_HZ.toDouble()
+        var count = packets.size
+        fun buildKept(): ByteArray {
+            val kept = packets.subList(0, count)
+            val keptSamples = packetSamples.subList(0, count)
+            val held = keptSamples.sumOf { it.toLong() }
+            val duration = minOf(contentSamples, held).toDouble() / sampleRate
+            return buildTimed(kept, keptSamples, head, sampleRate, duration, packetsPerCluster, trackUid)
+        }
+        var webm = buildKept()
+        if (maxBytes != null) {
+            while (webm.size > maxBytes && count > 1) {
+                count--
+                webm = buildKept()
+            }
+        }
+        return webm
+    }
+
+    /** [build] for packets of any length: each block sits at its packet's running time (ms). */
+    fun buildTimed(
+        packets: List<ByteArray>,
+        packetSamples: List<Int>,
+        opusHead: ByteArray,
+        sampleRate: Double,
+        durationSeconds: Double,
+        packetsPerCluster: Int,
+        trackUid: Long,
+    ): ByteArray {
+        val ebmlHeader = ebmlHeader()
+        val info = info(durationSeconds)
+        val tracks = tracks(opusHead, sampleRate, channels = 1, trackUid = trackUid)
+        val clusters = ByteArrayOutputStream()
+        val perCluster = maxOf(1, packetsPerCluster)
+        val startMs = LongArray(packets.size)
+        var samples = 0L
+        for (i in packets.indices) {
+            startMs[i] = samples * 1000L / SAMPLE_RATE_HZ
+            samples += packetSamples[i]
+        }
+        var index = 0
+        while (index < packets.size) {
+            val end = minOf(index + perCluster, packets.size)
+            val clusterMs = startMs[index]
+            val payload = ByteArrayOutputStream()
+            payload.write(element(ID_CLUSTER_TIMECODE, clusterMs))
+            for (i in index until end) {
+                val relative = (startMs[i] - clusterMs).coerceIn(Short.MIN_VALUE.toLong(), Short.MAX_VALUE.toLong()).toInt()
+                payload.write(simpleBlock(packets[i], relative))
+            }
+            clusters.write(element(ID_CLUSTER, payload.toByteArray()))
+            index = end
+        }
+        val clusterBytes = clusters.toByteArray()
+        val segmentPayloadSize = info.size + tracks.size + clusterBytes.size
+        val out = ByteArrayOutputStream(ebmlHeader.size + 12 + segmentPayloadSize)
+        out.write(ebmlHeader)
+        out.write(ID_SEGMENT)
+        out.write(encodeVint(segmentPayloadSize.toLong()))
+        out.write(info)
+        out.write(tracks)
+        out.write(clusterBytes)
+        return out.toByteArray()
+    }
+
+    /**
      * The exact length [build] would write, kept packet by packet - a recording stops before the
      * packet that would carry it past its byte ceiling, without rebuilding the file each time.
      */

@@ -52,23 +52,134 @@ object ImagePrep {
         return out.toByteArray()
     }
 
-    /** The on-chain photo budget for [prepareForChatMessage]. 20 KB since the binary media frame
-     *  ([ContextualMediaFrame]) took one base64 layer off: a 20 KB photo now costs what a 15 KB one
-     *  did (~27 KB of payload) - iOS `defaultChatTargetBytes`. */
+    /** The default budget of [prepareForChatMessage] (small images only; chat photos go by
+     *  [PhotoTier], iOS 7c5c22e3 `defaultChatTargetBytes`). */
     const val DEFAULT_CHAT_TARGET_BYTES = 20_000
-    /** Settings > Chats > Higher quality photos: the largest photo one transaction carries with
-     *  margin - ~43 KB of payload, ~87,000 of the 100,000 mass a standard transaction may have at
-     *  2 grams per byte (iOS `highQualityChatTargetBytes`). */
-    const val HIGH_QUALITY_CHAT_TARGET_BYTES = 32_000
+
+    // MARK: - Quality tiers (on-chain chat photos, iOS 7c5c22e3)
+
+    /** Long edges tried for a tier, largest first: a big budget buys a big image at a decent
+     *  quality, not a small one at quality 1 (iOS `tierEdges`). */
+    val TIER_EDGES = intArrayOf(3000, 2560, 2240, 2048, 1920, 1600, 1440, 1280, 1080, 960, 800, 640, 480, 360)
+    /** The JPEG quality range searched at each edge (iOS 0.5...0.85). */
+    private const val TIER_MAX_QUALITY = 85
+    private const val TIER_MIN_QUALITY = 50
 
     /**
-     * Rough estimate of the final wire payload size for a picked-but-not-yet-compressed 1:1
-     * photo, used only for the live "fee so far" preview - the real send always measures actual
-     * bytes. The binary media frame carries the raw bytes; only the payload's own base64 remains
-     * (frame header + cipher overhead ~150 bytes, then 4/3) - iOS `estimatedWirePayloadSize`.
+     * The best-looking JPEG within each of [budgets] bytes, by budget (iOS
+     * `prepareJPEGForTiers`): the LARGEST long edge (never upscaled) at which quality 0.5 fits,
+     * then the highest quality up to 0.85 that still fits there. Only when nothing fits at 0.5
+     * even at the smallest edge does the quality go lower. The image is re-rendered into a fresh
+     * bitmap, orientation applied, so none of the original's metadata (EXIF, GPS, camera) is
+     * carried. The quality-0.5 size measured at one edge predicts the others (size ~ edge
+     * squared), so a small budget skips the big edges. Heavy: call it off the main thread.
      */
-    fun estimatedWirePayloadSize(targetBytes: Int = DEFAULT_CHAT_TARGET_BYTES): Int =
-        ((targetBytes + 150) * 4.0 / 3.0).toInt() + 80
+    fun prepareJpegForTiers(context: Context, uri: Uri, budgets: Collection<Int>): Map<Int, ByteArray> {
+        val original = decodeOriented(context, uri, TIER_EDGES[0])
+        val originalEdge = maxOf(original.width, original.height)
+        val edges = ArrayList<Int>()
+        edges.add(minOf(originalEdge, TIER_EDGES[0]))
+        TIER_EDGES.filter { it < originalEdge && it != edges[0] }.forEach { edges.add(it) }
+
+        var renderedEdge = -1
+        var rendered: Bitmap? = null
+        fun render(edge: Int): Bitmap {
+            rendered?.let { if (renderedEdge == edge) return it }
+            val scale = edge.toFloat() / originalEdge
+            val scaled = if (edge >= originalEdge) original else Bitmap.createScaledBitmap(
+                original,
+                (original.width * scale).toInt().coerceAtLeast(1),
+                (original.height * scale).toInt().coerceAtLeast(1),
+                true
+            )
+            rendered?.let { if (it !== original && it !== scaled) it.recycle() }
+            renderedEdge = edge
+            rendered = scaled
+            return scaled
+        }
+        val minQualitySize = HashMap<Int, Int>()
+        fun atMinQuality(edge: Int): ByteArray {
+            val data = jpeg(render(edge), TIER_MIN_QUALITY)
+            minQualitySize[edge] = data.size
+            return data
+        }
+        fun predicted(edge: Int): Int? {
+            val known = minQualitySize.maxByOrNull { it.key } ?: return null
+            return (known.value.toDouble() * edge * edge / (known.key.toDouble() * known.key)).toInt()
+        }
+
+        val results = HashMap<Int, ByteArray>()
+        for (budget in budgets.toSortedSet().reversed()) {
+            var chosen: ByteArray? = null
+            for (edge in edges) {
+                val known = minQualitySize[edge]
+                if (known != null && known > budget) continue
+                if (known == null) {
+                    val guess = predicted(edge)
+                    if (guess != null && guess > budget * 13 / 10) continue
+                }
+                val floor = atMinQuality(edge)
+                if (floor.size > budget) continue
+                // Fits at the floor: the best quality that still fits, at this edge.
+                var best = floor
+                var low = TIER_MIN_QUALITY + 1
+                var high = TIER_MAX_QUALITY
+                while (low <= high) {
+                    val mid = (low + high) / 2
+                    val data = jpeg(render(edge), mid)
+                    if (data.size <= budget) {
+                        best = data
+                        low = mid + 1
+                    } else {
+                        high = mid - 1
+                    }
+                }
+                chosen = best
+                break
+            }
+            if (chosen == null) {
+                // Nothing fits at the quality floor: the smallest edge, below the floor.
+                chosen = compressToQualityBudget(render(edges.last()), budget)
+            }
+            results[budget] = chosen
+        }
+        return results
+    }
+
+    /** The tier's photo on a path - one JPEG within its byte budget (iOS `prepareForTier`). */
+    fun prepareForTier(context: Context, uri: Uri, tier: PhotoTier, forGroup: Boolean): PreparedChatImage {
+        val budget = tier.maxBytes(forGroup)
+        val data = prepareJpegForTiers(context, uri, listOf(budget))[budget] ?: throw IllegalStateException("Could not compress the photo")
+        return PreparedChatImage(data, "photo.jpg", "image/jpeg")
+    }
+
+    private fun jpeg(bitmap: Bitmap, quality: Int): ByteArray =
+        ByteArrayOutputStream().apply { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, this) }.toByteArray()
+
+    /** [uri] decoded with its EXIF orientation applied, its long edge at most about [maxEdge]
+     *  (ImageDecoder scales exactly; the BitmapFactory fallback only halves). */
+    private fun decodeOriented(context: Context, uri: Uri, maxEdge: Int): Bitmap {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            runCatching {
+                val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+                return android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    val w = info.size.width
+                    val h = info.size.height
+                    val scale = minOf(1f, maxEdge.toFloat() / maxOf(w, h))
+                    if (scale < 1f) decoder.setTargetSize((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1))
+                    decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+            }
+        }
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        (resolver.openInputStream(uri) ?: throw IllegalStateException("Could not read image")).use { BitmapFactory.decodeStream(it, null, bounds) }
+        var sampleSize = 1
+        while (bounds.outWidth / (sampleSize * 2) >= maxEdge || bounds.outHeight / (sampleSize * 2) >= maxEdge) sampleSize *= 2
+        return resolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sampleSize })
+        } ?: throw IllegalStateException("Could not read image")
+    }
 
     private const val CHAT_MAX_DIMENSION = 1280
     private const val MAX_SHRINK_ATTEMPTS = 4

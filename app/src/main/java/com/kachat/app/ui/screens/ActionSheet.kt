@@ -123,7 +123,7 @@ import androidx.compose.runtime.getValue
  * A message's long-press menu, as a half sheet: what the message is at the top, the message
  * itself under it when there is text to show, then a square tile per action, three to a row
  * ([ActionSheetTiles] - iOS cdac6d0), each saying what it does to TalkBack. Every bubble in every
- * kind of chat opens this - text, payment, call, chess, photo, file, voice note and link card
+ * kind of chat opens this - text, payment, chess, photo, file, voice note and link card
  * alike - so a Reply reads the same wherever it is offered. The system-style popup of bare verbs
  * was the one hold-out (iOS 1bc6ba6).
  */

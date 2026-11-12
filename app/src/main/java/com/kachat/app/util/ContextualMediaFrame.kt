@@ -22,6 +22,10 @@ import java.util.Base64
  * 0xFF can never begin UTF-8 text, so a frame is told apart from every text message without
  * ambiguity. On receipt it becomes exactly the media-file JSON the text form carried (iOS
  * `MediaFileEnvelope.json`), so storage, display, dedupe and backups are unchanged.
+ *
+ * Since iOS 7c5c22e3 group voice notes and photos are this frame too, as the `gcomm` plaintext
+ * ([GroupCipher.groupPlaintextData]), and a long voice note's part or a multi-part photo's chunk
+ * carries its `voicePart` / `mediaPart` tag ([VoicePartTag]) in the header.
  */
 object ContextualMediaFrame {
     val MAGIC = byteArrayOf(0xFF.toByte(), 0x4B, 0x43, 0x4D, 0x01)
@@ -53,8 +57,20 @@ object ContextualMediaFrame {
         val raw = try { Base64.getDecoder().decode(base64) } catch (e: IllegalArgumentException) { return null }
         if (raw.isEmpty()) return null
         val name = envelope.stringField("name") ?: "file"
-        val header = "{\"mimeType\":${jsonString(mimeType)},\"name\":${jsonString(name)},\"size\":${raw.size}}"
-            .toByteArray(Charsets.UTF_8)
+        // A long voice note's part tag rides in the header (iOS 7c5c22e3, MESSAGING.md "Long
+        // voice notes"), and a multi-part photo's chunk carries the same tag as `mediaPart`; only
+        // a valid one, under its kind's key. Sorted keys, nested object included, as iOS writes:
+        // mediaPart, mimeType, name, size, voicePart; count, id, index.
+        val tagKey = VoicePartTag.keyForMimeType(mimeType)
+        val tag = tagKey?.let { VoicePartTag.fromJson(envelope[it]) }
+        val tagJson = tag?.let { "{\"count\":${it.count},\"id\":${jsonString(it.id)},\"index\":${it.index}}" }
+        val header = buildString {
+            append('{')
+            if (tagJson != null && tagKey == VoicePartTag.MEDIA_KEY) append("\"mediaPart\":").append(tagJson).append(',')
+            append("\"mimeType\":${jsonString(mimeType)},\"name\":${jsonString(name)},\"size\":${raw.size}")
+            if (tagJson != null && tagKey == VoicePartTag.VOICE_KEY) append(",\"voicePart\":").append(tagJson)
+            append('}')
+        }.toByteArray(Charsets.UTF_8)
         val length = header.size
         val lengthBytes = byteArrayOf((length ushr 24).toByte(), (length ushr 16).toByte(), (length ushr 8).toByte(), length.toByte())
         return MAGIC + lengthBytes + header + raw
@@ -101,21 +117,40 @@ object ContextualMediaFrame {
         val mimeType = header.stringField("mimeType")?.takeIf { it.isNotEmpty() } ?: return null
         if (headerEnd >= data.size) return null
         val raw = data.copyOfRange(headerEnd, data.size)
+        // A malformed part tag is dropped: the message is then a plain single voice note or photo.
+        val tagKey = VoicePartTag.keyForMimeType(mimeType)
+        val tag = tagKey?.let { VoicePartTag.fromJson(header[it]) }
         return mediaFileJson(
             name = header.stringField("name") ?: "file",
             size = raw.size,
             mimeType = mimeType,
             dataUrlContent = "data:$mimeType;base64,${Base64.getEncoder().encodeToString(raw)}",
+            voicePart = tag.takeIf { tagKey == VoicePartTag.VOICE_KEY },
+            mediaPart = tag.takeIf { tagKey == VoicePartTag.MEDIA_KEY },
         )
     }
 
     /**
      * iOS `MediaFileEnvelope.json`, byte for byte: `type, name, size, mimeType, content` in that
      * order, only `\` and `"` escaped (no "\/", non-ASCII written as is), so a message that came
-     * as a frame is the same string as one that came as text.
+     * as a frame is the same string as one that came as text. A part tag ([voicePart] on a long
+     * voice note's part, [mediaPart] on a multi-part photo's chunk, iOS 7c5c22e3) goes between
+     * `mimeType` and `content`, so head-window sniffs ([VoicePartTag.sniff]) see it without
+     * reading the file. Without one the string is what it always was.
      */
-    fun mediaFileJson(name: String, size: Int, mimeType: String, dataUrlContent: String): String =
-        "{\"type\":\"file\",\"name\":\"${escape(name)}\",\"size\":$size,\"mimeType\":\"${escape(mimeType)}\",\"content\":\"${escape(dataUrlContent)}\"}"
+    fun mediaFileJson(
+        name: String,
+        size: Int,
+        mimeType: String,
+        dataUrlContent: String,
+        voicePart: VoicePartTag? = null,
+        mediaPart: VoicePartTag? = null,
+    ): String {
+        val part = voicePart?.let { ",\"voicePart\":${it.json}" }
+            ?: mediaPart?.let { ",\"mediaPart\":${it.json}" }
+            ?: ""
+        return "{\"type\":\"file\",\"name\":\"${escape(name)}\",\"size\":$size,\"mimeType\":\"${escape(mimeType)}\"$part,\"content\":\"${escape(dataUrlContent)}\"}"
+    }
 
     private fun escape(value: String): String = value.replace("\\", "\\\\").replace("\"", "\\\"")
 

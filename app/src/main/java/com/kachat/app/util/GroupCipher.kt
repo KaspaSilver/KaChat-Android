@@ -97,10 +97,29 @@ object GroupCipher {
     }
 
     /** Encrypts [plaintext] for the group message envelope. Returns ciphertext+tag (nonce is deterministic, recomputed on decrypt). */
-    fun encryptMessage(plaintext: String, groupRootEpoch: ByteArray, groupId: ByteArray, epoch: Long, senderId: ByteArray, msgId: ByteArray): ByteArray {
+    fun encryptMessage(plaintext: String, groupRootEpoch: ByteArray, groupId: ByteArray, epoch: Long, senderId: ByteArray, msgId: ByteArray): ByteArray =
+        encryptMessage(plaintext.toByteArray(Charsets.UTF_8), groupRootEpoch, groupId, epoch, senderId, msgId)
+
+    /** The same, for raw bytes: a group voice note's or photo's binary media frame
+     *  ([ContextualMediaFrame], iOS 7c5c22e3, MESSAGING.md "In group chats"). */
+    fun encryptMessage(plaintextData: ByteArray, groupRootEpoch: ByteArray, groupId: ByteArray, epoch: Long, senderId: ByteArray, msgId: ByteArray): ByteArray {
         val keys = deriveMessageKeys(groupRootEpoch, groupId, epoch, senderId, msgId)
         val aad = buildMessageAAD(groupId, epoch, senderId, msgId)
-        return chaChaPolyEncrypt(keys.senderKey, keys.nonce, plaintext.toByteArray(Charsets.UTF_8), aad)
+        return chaChaPolyEncrypt(keys.senderKey, keys.nonce, plaintextData, aad)
+    }
+
+    /**
+     * The bytes a group message is sealed as (iOS `GroupChatService.groupPlaintextData`): a voice
+     * note or photo (an audio or image media-file JSON) is the binary media frame since
+     * iOS 7c5c22e3 - raw bytes instead of base64, about 2 payload bytes per file byte instead of
+     * 2.67. Older clients can't read it until they're updated. Everything else stays UTF-8 text.
+     */
+    fun groupPlaintextData(content: String): ByteArray {
+        val mime = InlineMediaSniff.mimeType(content)?.lowercase()
+        if (mime != null && (mime.startsWith("audio/") || mime.startsWith("image/"))) {
+            ContextualMediaFrame.frameForEnvelope(content)?.let { return it }
+        }
+        return content.toByteArray(Charsets.UTF_8)
     }
 
     fun decryptMessage(ciphertextWithTag: ByteArray, groupRootEpoch: ByteArray, groupId: ByteArray, epoch: Long, senderId: ByteArray, msgId: ByteArray): String? {
@@ -112,6 +131,11 @@ object GroupCipher {
         } catch (e: Exception) {
             return null
         }
+        // Bytes first: a group voice note or photo is the binary media frame since iOS 7c5c22e3,
+        // read back as the same media-file JSON the text form carried. 0xFF never begins UTF-8,
+        // so a malformed frame is unreadable, never garbage text.
+        ContextualMediaFrame.envelopeText(plaintext)?.let { return it }
+        if (ContextualMediaFrame.startsWithFrameByte(plaintext)) return null
         return String(plaintext, Charsets.UTF_8)
     }
 

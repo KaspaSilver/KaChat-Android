@@ -139,6 +139,61 @@ class NotificationHelper @Inject constructor(
      *  [AddressActivityNotifier] (iOS 56b75c8) - whichever comes first is the only one. */
     fun claimForBanner(txId: String): Boolean = claimTxId(txId)
 
+    /**
+     * True for the first part of a long voice note or multi-part photo to reach this device - it
+     * may ring - and false for every later one (iOS 7c5c22e3 NotificationService
+     * `claimVoicePartBanner`). [key] is "owner|id|count" ([com.kachat.app.util.VoicePartGrouping.partKey]);
+     * the part that claimed it stays first however many paths ask about it ([txId]). Kept in
+     * preferences, since a push may start a fresh process; the newest 50 notes.
+     */
+    @Synchronized
+    fun claimPartBanner(key: String, txId: String): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_PART_BANNERS, Context.MODE_PRIVATE)
+        val ledger = decodeLedger(prefs.getString(KEY_LEDGER, null))
+        ledger[key]?.let { return it == txId }
+        ledger[key] = txId
+        while (ledger.size > PART_BANNER_LIMIT) ledger.remove(ledger.keys.first())
+        prefs.edit().putString(KEY_LEDGER, encodeLedger(ledger)).apply()
+        return true
+    }
+
+    /**
+     * True for the first payload-less push from [owner] ("dm:<address>" or "group:<blinded
+     * id>") in a while, false for one that follows another within a minute (iOS ca013fc8
+     * `claimPartBurstBanner`): parts whose chain read failed carry no tag to match, so this is
+     * what keeps a photo's or voice note's parts to one ring. Two separate large messages sent
+     * within the minute ring once too; the app still shows both.
+     */
+    @Synchronized
+    fun claimPartBurst(owner: String, nowMs: Long = System.currentTimeMillis()): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_PART_BANNERS, Context.MODE_PRIVATE)
+        val bursts = decodeLedger(prefs.getString(KEY_BURSTS, null))
+        bursts.entries.removeAll { nowMs - (it.value.toLongOrNull() ?: 0L) >= PART_BURST_WINDOW_MS }
+        val first = !bursts.containsKey(owner.lowercase())
+        bursts.remove(owner.lowercase())
+        bursts[owner.lowercase()] = nowMs.toString()
+        prefs.edit().putString(KEY_BURSTS, encodeLedger(bursts)).apply()
+        return first
+    }
+
+    private fun decodeLedger(json: String?): LinkedHashMap<String, String> {
+        val out = LinkedHashMap<String, String>()
+        if (json.isNullOrEmpty()) return out
+        runCatching {
+            val obj = org.json.JSONObject(json)
+            val names = obj.optJSONArray("k") ?: return out
+            val values = obj.optJSONArray("v") ?: return out
+            for (i in 0 until minOf(names.length(), values.length())) out[names.getString(i)] = values.getString(i)
+        }
+        return out
+    }
+
+    private fun encodeLedger(ledger: Map<String, String>): String =
+        org.json.JSONObject()
+            .put("k", org.json.JSONArray(ledger.keys.toList()))
+            .put("v", org.json.JSONArray(ledger.values.toList()))
+            .toString()
+
     /** Screens showing a 1:1 conversation, newest last. The chat thread and the chess board over
      *  it both hold the contact, and Compose Navigation disposes the thread only after the board
      *  has entered - a plain "set null on dispose" then cleared the board's hold, which stopped
@@ -212,6 +267,9 @@ class NotificationHelper @Inject constructor(
         notificationOverride: ContactNotificationMode? = null,
         dedupeTxId: String? = null,
         opensMessageRequests: Boolean = false,
+        /** A later part of a photo or voice note (iOS 7c5c22e3/ca013fc8): it updates the chat's
+         *  notification without sound, vibration or a heads-up - the note rang once already. */
+        quiet: Boolean = false,
     ) {
         if (walletManager.isLoggedOut) return // signed out: no message text on this phone (iOS bfe9f022)
         if (activeContactId.value == contactId) return // already looking at this conversation
@@ -258,7 +316,8 @@ class NotificationHelper @Inject constructor(
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             // Below API 26 there are no channels — these are what actually apply there.
-            .setSilent(!soundEnabled && !vibrationEnabled)
+            .setSilent(quiet || (!soundEnabled && !vibrationEnabled))
+            .setOnlyAlertOnce(quiet)
             .setVibrate(if (vibrationEnabled) longArrayOf(0, 250, 250, 250) else longArrayOf(0))
             .apply { if (!soundEnabled) setSound(null) }
             .build()
@@ -338,6 +397,8 @@ class NotificationHelper @Inject constructor(
         targetGroupId: String? = groupId,
         /** The line under the title (iOS `content.subtitle`), for a banner whose body doesn't name the sender. */
         subtitle: String? = null,
+        /** A later part of a photo or voice note: no sound, vibration or heads-up (see [show]). */
+        quiet: Boolean = false,
     ) {
         if (walletManager.isLoggedOut) return
         if (activeGroupId.value == groupId) return // already looking at this group's thread
@@ -372,7 +433,8 @@ class NotificationHelper @Inject constructor(
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSilent(!soundEnabled && !vibrationEnabled)
+            .setSilent(quiet || (!soundEnabled && !vibrationEnabled))
+            .setOnlyAlertOnce(quiet)
             .setVibrate(if (vibrationEnabled) longArrayOf(0, 250, 250, 250) else longArrayOf(0))
             .apply { if (!soundEnabled) setSound(null) }
             .build()
@@ -479,6 +541,13 @@ class NotificationHelper @Inject constructor(
     }
 
     companion object {
+        private const val PREFS_PART_BANNERS = "kachat_part_banners"
+        private const val KEY_LEDGER = "voice_part_banners"
+        private const val KEY_BURSTS = "part_push_bursts"
+        private const val PART_BANNER_LIMIT = 50
+        /** How long after one payload-less push from an owner the next still counts as the same
+         *  burst - parts go out one after another, a few seconds apart (iOS ca013fc8). */
+        private const val PART_BURST_WINDOW_MS = 60_000L
         private const val PREFS_ANNOUNCED_INVITES = "kachat_announced_group_invites"
         private const val PREFS_INVITE_BANNER_ADMINS = "kachat_group_invite_banner_admins"
         private const val MAX_GROUP_INVITE_NAME_LENGTH = 60

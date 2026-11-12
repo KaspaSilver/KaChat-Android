@@ -55,7 +55,6 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Circle
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -608,7 +607,6 @@ fun AddressBookEntryDetail(
     onBack: () -> Unit,
     onOpenChat: (String) -> Unit,
     walletViewModel: WalletViewModel,
-    chatViewModel: com.kachat.app.viewmodels.ChatViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     BackHandler(onBack = onBack)
     val colors = LocalAppColors.current
@@ -624,9 +622,6 @@ fun AddressBookEntryDetail(
     val otherNetwork = KaspaAddress.otherNetworkMessageRes(address)?.let { stringResource(it) }
     var showEdit by remember { mutableStateOf(false) }
     var showSend by remember { mutableStateOf(false) }
-    // Call was tapped: CallConfirmationSheets takes it from there (iOS d1844582).
-    var callRequested by remember { mutableStateOf(false) }
-    val callSession by chatViewModel.callSession.collectAsState()
     var confirmDelete by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) {
@@ -715,12 +710,6 @@ fun AddressBookEntryDetail(
                         AddressBookActionRow(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.message), enabled = otherNetwork == null) {
                             if (KaspaAddress.isValidOnActiveNetwork(entry.address)) onOpenChat(entry.address)
                         }
-                        if (!com.kachat.app.models.KaChatBot.isBot(entry.address)) {
-                            SettingsDivider()
-                            AddressBookActionRow(Icons.Outlined.Phone, stringResource(R.string.call_2), enabled = otherNetwork == null && callSession == null) {
-                                callRequested = true
-                            }
-                        }
                     }
                 }
                 if (otherNetwork != null) SettingsFooter(otherNetwork)
@@ -736,16 +725,6 @@ fun AddressBookEntryDetail(
         }
     }
 
-    if (entry != null) {
-        CallConfirmationSheets(
-            isRequested = callRequested,
-            onRequestHandled = { callRequested = false },
-            contactId = entry.address,
-            name = entry.customName ?: com.kachat.app.models.addressDisplayName(entry.address),
-            chatViewModel = chatViewModel,
-            newContactAlias = entry.customName,
-        )
-    }
     if (showEdit && entry != null) {
         AddressBookEntryEditor(
             address = entry.address,

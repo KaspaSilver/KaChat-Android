@@ -1665,8 +1665,11 @@ class KachatNamesRegistry @Inject constructor(
         fun cachedIdentityOf(address: String): Identity? = instance?.cachedIdentity(address)
 
         /** Testnet: `<label>.kachat` for an address with an active name (its primary one), null
-         *  otherwise or while it is looked up; always null on mainnet. */
-        fun kachatName(address: String): String? = cachedIdentityOf(address)?.label?.let { "$it.kachat" }
+         *  otherwise or while it is looked up; always null on mainnet. Bare `<label>` when Show
+         *  .kachat Endings is off - display only ([com.kachat.app.models.KachatNameLabel], iOS
+         *  94ed3a35 ContactsManager.identityName). */
+        fun kachatName(address: String): String? =
+            cachedIdentityOf(address)?.label?.let(com.kachat.app.models.KachatNameLabel::display)
 
         /** Counts and prices registry events ([activityTotals] without an indexer's figures), one
          *  per transaction: registrations, extensions and renewals at the registry's fixed prices

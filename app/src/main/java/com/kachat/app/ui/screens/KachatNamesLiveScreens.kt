@@ -1469,13 +1469,13 @@ fun KachatLiveProfileEditorScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(stringResource(R.string.kn_primary_name), color = colors.textPrimary, modifier = Modifier.weight(1f))
-                    Text(if (primary.isEmpty()) stringResource(R.string.kn_none) else "$primary.kachat", color = KaspaTeal)
+                    Text(if (primary.isEmpty()) stringResource(R.string.kn_none) else com.kachat.app.models.KachatNameLabel.display(primary), color = KaspaTeal)
                     Icon(Icons.Default.UnfoldMore, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                 }
                 DropdownMenu(expanded = pickPrimary, onDismissRequest = { pickPrimary = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.kn_none)) }, onClick = { primary = ""; pickPrimary = false })
                     activeNames.forEach { n ->
-                        DropdownMenuItem(text = { Text("$n.kachat") }, onClick = { primary = n; pickPrimary = false })
+                        DropdownMenuItem(text = { Text(com.kachat.app.models.KachatNameLabel.display(n)) }, onClick = { primary = n; pickPrimary = false })
                     }
                 }
             }
@@ -1605,7 +1605,7 @@ fun KachatProfileSaveSheet(
                 LabeledRow(stringResource(R.string.banner), source(p.banner, SocialSource.Kind.BANNER)); SettingsDivider()
                 LabeledRow(stringResource(R.string.bio), source(p.bio, SocialSource.Kind.BIO)); SettingsDivider()
                 LabeledRow(stringResource(R.string.kn_linktree), p.linktree?.replace("https://", "") ?: none); SettingsDivider()
-                LabeledRow(stringResource(R.string.kn_primary_name), p.primaryName?.let { "$it.kachat" } ?: none)
+                LabeledRow(stringResource(R.string.kn_primary_name), p.primaryName?.let(com.kachat.app.models.KachatNameLabel::display) ?: none)
             }
         }
         val f = fee

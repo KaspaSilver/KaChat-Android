@@ -30,13 +30,13 @@ enum class ComposerMediaKind { CAMERA, PHOTO, VOICE }
  * Nextcloud" says "Full quality." where iOS's own camera adds "or a video" - a video goes via
  * Nextcloud from Photo instead ("Send Photo or Video via Nextcloud").
  *
- * [onChainVoiceSeconds] is the on-chain voice cap of the chat that opened it (iOS caf0742): 25 s
- * in 1:1 chats (binary media frame), 10 s in groups and public chats, whose payloads are unchanged.
+ * [onChainVoiceSeconds] is the on-chain voice cap of the chat that opened it (iOS 7c5c22e3,
+ * `VoiceNotePolicy`): 170 in 1:1 chats, 110 in groups, shown as "Up to 2:50, sent on chain."
  */
 @Composable
 fun ComposerMediaRouteSheet(
     kind: ComposerMediaKind,
-    onChainVoiceSeconds: Int = 10,
+    onChainVoiceSeconds: Int = com.kachat.app.util.VoiceNotePolicy.ONE_TO_ONE.maxSeconds.toInt(),
     onChoose: (viaNextcloud: Boolean) -> Unit,
     onBack: () -> Unit,
     onDismiss: () -> Unit,
@@ -54,12 +54,12 @@ fun ComposerMediaRouteSheet(
     val onChainSubtitle = when (kind) {
         ComposerMediaKind.CAMERA -> R.string.media_take_on_chain_photo_subtitle
         ComposerMediaKind.PHOTO -> R.string.media_send_photo_on_chain_subtitle
-        ComposerMediaKind.VOICE -> if (onChainVoiceSeconds >= 25) {
-            R.string.media_record_on_chain_25s_subtitle
-        } else {
-            R.string.media_record_on_chain_subtitle
-        }
+        ComposerMediaKind.VOICE -> null
     }
+    // "Up to 2:50, sent on chain." (iOS 7c5c22e3 "Up to %@, sent on chain.").
+    val voiceSeconds = onChainVoiceSeconds.coerceAtLeast(0)
+    val onChainSubtitleText = onChainSubtitle?.let { stringResource(it) }
+        ?: stringResource(R.string.media_record_on_chain_up_to, String.format(java.util.Locale.ROOT, "%d:%02d", voiceSeconds / 60, voiceSeconds % 60))
     val nextcloudTitle = when (kind) {
         ComposerMediaKind.CAMERA -> R.string.media_take_photo_via_nextcloud
         ComposerMediaKind.PHOTO -> R.string.media_send_photo_or_video_via_nextcloud
@@ -74,7 +74,7 @@ fun ComposerMediaRouteSheet(
         ActionSheetRow(
             icon = Icons.Default.Link,
             title = stringResource(onChainTitle),
-            subtitle = stringResource(onChainSubtitle),
+            subtitle = onChainSubtitleText,
         ) { onChoose(false) }
         ActionSheetRow(
             icon = Icons.Default.Cloud,

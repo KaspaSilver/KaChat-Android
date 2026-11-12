@@ -193,8 +193,8 @@ class KaChatApplication : Application(), Configuration.Provider {
         startupStep("payment notices") { paymentNoticeOutbox.get() }
 
         // KaPosts, Public Chats, Chess Online, Portfolio, Cold Storage, Swap, the dock layouts and
-        // .kachat name reminders left the app (iOS e2f6732, d54ea87): what they kept on this phone
-        // is deleted once, off the main thread.
+        // .kachat name reminders left the app (iOS e2f6732, d54ea87), and calls with them (iOS
+        // 7c5c22e3): what they kept on this phone is deleted once, off the main thread.
         ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO + logOnly) {
             startupStep("retired feature cleanup") {
                 com.kachat.app.services.RetiredFeatureCleanup.deleteLocalFiles(this@KaChatApplication)
@@ -249,6 +249,11 @@ class KaChatApplication : Application(), Configuration.Provider {
         // runs on OkHttp threads for every request of the 2s sync loop.
         ProcessLifecycleOwner.get().lifecycleScope.launch(logOnly) {
             appSettingsRepository.get().verboseApiLogging.collect { com.kachat.app.util.ApiLogging.verbose = it }
+        }
+        // Show .kachat Endings: the display rules (KachatNameLabel) read it synchronously from
+        // plain functions like addressDisplayName, so it lives in snapshot state (iOS 94ed3a35).
+        ProcessLifecycleOwner.get().lifecycleScope.launch(logOnly) {
+            appSettingsRepository.get().showKachatNameEndings.collect { com.kachat.app.models.KachatNameLabel.showsEnding = it }
         }
 
         // Foreground/background transitions. There is deliberately NO mechanism here keeping the

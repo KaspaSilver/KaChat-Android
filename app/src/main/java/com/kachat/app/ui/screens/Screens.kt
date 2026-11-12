@@ -85,9 +85,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.layout
 import androidx.compose.material.icons.filled.PhoneEnabled
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.PhoneDisabled
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Apps
@@ -210,7 +207,7 @@ fun ChatThreadScreen(
     val isMessageRequest = contactId in messageRequestIds
     val chatRequestState by chatViewModel.chatRequestState.collectAsState()
     val isPrivateChat = contactId.lowercase() in chatRequestState.privateChats
-    // A bot only takes text and Kaspa: no call button, and + offers only Send Kaspa (iOS d1844582).
+    // A bot only takes text and Kaspa: + offers only Send Kaspa (iOS d1844582).
     val isBotChat = com.kachat.app.models.KaChatBot.isBot(contactId)
     // The thread answered at least once, so an existing bot chat never flashes the prompt below
     // on the way in (iOS hasPerformedInitialSetup).
@@ -253,7 +250,15 @@ fun ChatThreadScreen(
     // "Sent via another device" rows are backup fill-in slots, never UI (matches iOS and the
     // chess mini chat); legacy restores from pre-1d236ba builds can still hold such rows.
     // Messages this account can't decrypt are hidden the same way (isHiddenPlaceholder).
-    val messages = remember(allMessages) { allMessages.filterNot { it.isHiddenPlaceholder } }
+    val visibleMessages = remember(allMessages) { allMessages.filterNot { it.isHiddenPlaceholder } }
+    // Long voice notes' and multi-part photos' parts (iOS 7c5c22e3, MESSAGING.md "Long voice
+    // notes (multi-part)"): each shows as one row, its earliest part; the other parts are left out.
+    val mediaPartGroups = remember(visibleMessages) {
+        com.kachat.app.util.VoicePartGrouping.group(visibleMessages, com.kachat.app.repository.ChatMessagePartAccessors)
+    }
+    val messages = remember(visibleMessages, mediaPartGroups) {
+        if (mediaPartGroups.hiddenTxIds.isEmpty()) visibleMessages else visibleMessages.filterNot { it.id in mediaPartGroups.hiddenTxIds }
+    }
     // An empty bot chat, on an account with Kaspa to send a message with (iOS shouldShowBotPrompt).
     val chattingBalanceSompi by walletViewModel.balanceSompi.collectAsState()
     val shouldShowBotPrompt = isBotChat && botThreadLoaded && messages.isEmpty() && chattingBalanceSompi > 0L
@@ -328,8 +333,22 @@ fun ChatThreadScreen(
         }
     }
     val voiceRecordingState by chatViewModel.voiceRecordingState.collectAsState()
+    val voiceNoteFee by chatViewModel.voiceNoteFeeSompi.collectAsState()
     val pendingPhotoUri by chatViewModel.pendingPhotoUri.collectAsState()
     val nextcloudStaged by chatViewModel.nextcloudStaged.collectAsState()
+    // Send on an on-chain photo asks High / Medium / Low first (iOS 7c5c22e3 PhotoQualitySheet).
+    var showPhotoQualitySheet by remember { mutableStateOf(false) }
+    val photoTierFees by chatViewModel.photoTierFees.collectAsState()
+    if (showPhotoQualitySheet) {
+        PhotoQualitySheet(
+            fees = photoTierFees,
+            onChoose = { tier ->
+                showPhotoQualitySheet = false
+                chatViewModel.sendPendingPhoto(contactId, tier)
+            },
+            onDismiss = { showPhotoQualitySheet = false },
+        )
+    }
     val replyingTo by chatViewModel.replyingTo.collectAsState()
     val kaspaExplorer by chatViewModel.kaspaExplorer.collectAsState()
     val networkFeeRate by chatViewModel.networkFeeRate.collectAsState()
@@ -414,23 +433,6 @@ fun ChatThreadScreen(
     // The "+" sheet's second step for Camera / Photo / Voice Message - on chain or via Nextcloud -
     // shown only while a server is connected (iOS 8b13460 ComposerSheetStep.media).
     var composerMediaStep by remember { mutableStateOf<ComposerMediaKind?>(null) }
-    // The call button was tapped: CallConfirmationSheets takes it from there.
-    var callRequested by remember { mutableStateOf(false) }
-    val callSession by chatViewModel.callSession.collectAsState()
-    val callLastError by chatViewModel.callLastError.collectAsState()
-    // A start that failed before ringing ("Connect a Nextcloud with Talk...") says why.
-    // Why a call from this person did not ring - calls off, already over, nothing to host with,
-    // or another call up. Said once, as this chat opens or while it is open (iOS aa10cce).
-    val callChatNotice by chatViewModel.callChatNotice.collectAsState()
-    LaunchedEffect(callChatNotice, contactId) {
-        if (callChatNotice?.contactId != contactId) return@LaunchedEffect
-        // A beat, so the notice lands on the chat rather than on the transition into it.
-        delay(600)
-        chatViewModel.takeCallChatNotice(contactId)?.let { IosToasts.error(it) }
-    }
-    LaunchedEffect(callLastError) {
-        callLastError?.let { IosToasts.error(it) }
-    }
     var composerMenuAnchor by remember { mutableStateOf(Offset.Zero) }
     // Second-step menu after tapping "Play Chess": pick a time control (3|2, 2|1, 1|1) or a
     // casual untimed game (the pre-timer behavior).
@@ -493,14 +495,19 @@ fun ChatThreadScreen(
             chatViewModel.setPendingPhoto(uri, viaNextcloud = true)
         }
     }
-    val startCameraCapture = rememberCameraCaptureLauncher { uri -> chatViewModel.setPendingPhoto(uri, viaNextcloud = cameraViaNextcloud) }
+    // Camera or microphone access is off for good: the alert explains it and opens Settings,
+    // instead of a camera that never opens or a mic that does nothing (iOS ca013fc8 MediaAccess).
+    var deniedMediaAccess by remember { mutableStateOf<com.kachat.app.util.MediaAccess?>(null) }
+    com.kachat.app.util.MediaAccessAlert(deniedMediaAccess) { deniedMediaAccess = null }
+    val startCameraCapture = rememberCameraCaptureLauncher(onDenied = { deniedMediaAccess = it }) { uri -> chatViewModel.setPendingPhoto(uri, viaNextcloud = cameraViaNextcloud) }
     val startVoiceRecordingIfPermitted = { viaNextcloud: Boolean ->
         voiceViaNextcloud = viaNextcloud
         if (chatViewModel.voiceRecordingSupported) {
             if (ContextCompat.checkSelfPermission(micContext, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                 chatViewModel.startVoiceRecording(contactId, viaNextcloud = viaNextcloud)
             } else {
-                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                // A fresh Don't Allow just stops: they've only now said no.
+                com.kachat.app.util.MediaAccess.MICROPHONE.request(micContext, recordAudioPermissionLauncher) { deniedMediaAccess = it }
             }
         }
     }
@@ -673,7 +680,7 @@ fun ChatThreadScreen(
                     )
             ) {
             // iOS 26's bar: Back on a 44pt glass disc leading, the trailing items on one piece of
-            // glass - the call button, then the chess shortcut, or Cancel/Delete while selecting.
+            // glass - the chess shortcut, or Cancel/Delete while selecting.
             ChatNavBar(onBack = { navController.popBackStack() }) {
                 if (isSelectingMessages) {
                     ToolbarGlassGroup {
@@ -694,61 +701,32 @@ fun ChatThreadScreen(
                     // Entry point into select mode is a message's long-press "Select" menu
                     // item, not a toolbar button.
                     // The connection dot is gone from inside a 1:1 chat (the chat list and
-                    // group chats still have it) - the call button is always there, a chat
-                    // with yourself included, as on iOS (hidden only while a call is already
-                    // up, on a Message Request until it's accepted, and in a bot's chat). Calls
-                    // are off per contact by default, so the first tap asks "Enable calls with
-                    // this person?"; once enabled it asks voice or video. A phone with no
-                    // Nextcloud of its own asks the contact to host the call, so either side can
-                    // start one as long as one of them has Talk, which the first sheet says when
-                    // this account has no Nextcloud.
-                    val showCallButton = callSession == null && !isMessageRequest && !isBotChat
-                    if (showCallButton || activeChessGame != null) {
+                    // group chats still have it). Calls left the app (iOS 7c5c22e3), so only a
+                    // game in progress puts a button here.
+                    if (activeChessGame != null) {
                         ToolbarGlassGroup {
-                            if (showCallButton) {
-                                ToolbarIconButton(
-                                    Icons.Default.Phone,
-                                    "Call",
-                                    onClick = { callRequested = true },
-                                    iconSize = 24.dp,
-                                )
-                            }
-                            if (activeChessGame != null) {
-                                // iOS: a 22pt circle of secondary at 15% holding the caption
-                                // checkerboard glyph.
+                            // iOS: a 22pt circle of secondary at 15% holding the caption
+                            // checkerboard glyph.
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .clickable { navController.navigate("chess_game/$contactId/${activeChessGame.gameId}") },
+                            ) {
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .clickable { navController.navigate("chess_game/$contactId/${activeChessGame.gameId}") },
+                                        .size(22.dp)
+                                        .background(LocalAppColors.current.textSecondary.copy(alpha = 0.15f), CircleShape),
                                 ) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .size(22.dp)
-                                            .background(LocalAppColors.current.textSecondary.copy(alpha = 0.15f), CircleShape),
-                                    ) {
-                                        Icon(Icons.Default.Apps, stringResource(R.string.play_chess), tint = KaspaTeal, modifier = Modifier.size(13.dp))
-                                    }
+                                    Icon(Icons.Default.Apps, stringResource(R.string.play_chess), tint = KaspaTeal, modifier = Modifier.size(13.dp))
                                 }
                             }
                         }
                     }
                 }
             }
-            CallConfirmationSheets(
-                isRequested = callRequested,
-                onRequestHandled = { callRequested = false },
-                contactId = contactId,
-                // "You" for your own address, as iOS's replyDisplayName gives it.
-                name = if (myAddress?.equals(contactId, ignoreCase = true) == true) {
-                    stringResource(R.string.reactions_you)
-                } else {
-                    conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
-                },
-                chatViewModel = chatViewModel,
-            )
             ChatHeaderCard(
                 imageUrl = conversation?.contact?.knsAvatarUrl,
                 fallbackText = conversation?.contact?.avatarFallbackText ?: contactId.takeLast(8),
@@ -848,9 +826,9 @@ fun ChatThreadScreen(
                 // (iOS 8d208b2) - see SendKasSheet at the end of this screen.
                 if (pendingPhotoUri != null) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        // Show Fee Estimate covers text. A photo on chain costs enough more that
-                        // its fee always shows (iOS shouldShowFeeBubble).
-                        if ((showFeeEstimate || nextcloudStaged == null) && estimatedFee != null) {
+                        // Show Fee Estimate covers the Nextcloud link; an on-chain photo's fee is
+                        // chosen in the quality sheet at Send (iOS 7c5c22e3 shouldShowFeeBubble).
+                        if (showFeeEstimate && nextcloudStaged != null && estimatedFee != null) {
                             ComposerFeePill(
                                 feeSompi = estimatedFee,
                                 estimating = false,
@@ -873,53 +851,37 @@ fun ChatThreadScreen(
                             }
                             PendingMediaThumbnail(pendingPhotoUri, isVideo = nextcloudStaged?.isVideo == true)
                             PendingMediaLabel(nextcloudStaged)
-                            PendingMediaSendButton(nextcloudStaged, size = 32.dp) { chatViewModel.sendPendingPhoto(contactId) }
+                            PendingMediaSendButton(nextcloudStaged, size = 32.dp) {
+                                if (chatViewModel.pendingPhotoGoesOnChain) {
+                                    // On chain: the quality first.
+                                    chatViewModel.preparePhotoTiers()
+                                    showPhotoQualitySheet = true
+                                } else {
+                                    chatViewModel.sendPendingPhoto(contactId)
+                                }
+                            }
                         }
                     }
-                } else if (voiceRecordingState.status == ChatViewModel.VoiceRecordingStatus.RECORDING) {
+                } else if (voiceRecordingState.isActive) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        // So does a voice message on chain.
-                        if ((showFeeEstimate || !voiceViaNextcloud) && estimatedFee != null) {
+                        // So does a voice message on chain: the sum over the parts it goes as
+                        // (iOS 7c5c22e3); via Nextcloud, the link's fee under Show Fee Estimate.
+                        val voiceFee = if (voiceRecordingState.viaNextcloud) estimatedFee.takeIf { showFeeEstimate } else voiceNoteFee
+                        if (voiceFee != null) {
                             ComposerFeePill(
-                                feeSompi = estimatedFee,
+                                feeSompi = voiceFee,
                                 estimating = false,
                                 onTap = { openFeeEditor(it) },
                                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
                             )
                         }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 40.dp)
-                                // iOS pendingPhotoRow / the audio row: glassBackground(cornerRadius: 20)
-                                .iosGlass(cornerRadius = 20.dp)
-                                .padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            IconButton(onClick = { chatViewModel.cancelVoiceRecording() }) {
-                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cancel_recording), tint = LocalAppColors.current.danger)
-                            }
-                            Icon(Icons.Default.Mic, contentDescription = null, tint = LocalAppColors.current.danger, modifier = Modifier.size(18.dp))
-                            Text(
-                                text = "Recording... ${formatRecordingElapsed(voiceRecordingState.elapsedMs)}",
-                                color = LocalAppColors.current.textPrimary,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(
-                                onClick = { chatViewModel.stopAndSendVoiceRecording(contactId) },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .background(KaspaTeal, CircleShape)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = stringResource(R.string.send),
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                        VoiceNoteComposerRow(
+                            state = voiceRecordingState,
+                            onTrash = { chatViewModel.cancelVoiceRecording() },
+                            onStop = { chatViewModel.stopVoiceRecording() },
+                            onTogglePreview = { chatViewModel.toggleVoicePreview() },
+                            onSend = { chatViewModel.sendRecordedVoice(contactId) },
+                        )
                     }
                 } else {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -1228,9 +1190,8 @@ fun ChatThreadScreen(
                                     // photo / voice note goes (iOS ComposerMediaRouteStep).
                                     ComposerMediaRouteSheet(
                                         kind = kind,
-                                        // 1:1's on-chain voice cap (25 s); groups and public
-                                        // chats keep the sheet's 10 s default (iOS caf0742).
-                                        onChainVoiceSeconds = (VoiceRecorderService.MAX_DIRECT_ON_CHAIN_RECORDING_DURATION_MS / 1000).toInt(),
+                                        // 1:1's on-chain voice cap, 2:50 (iOS 7c5c22e3 VoiceNotePolicy).
+                                        onChainVoiceSeconds = com.kachat.app.util.VoiceNotePolicy.ONE_TO_ONE.maxSeconds.toInt(),
                                         onChoose = { viaNextcloud ->
                                             composerMediaStep = null
                                             showComposerMenu = false
@@ -1344,7 +1305,10 @@ fun ChatThreadScreen(
         val liveOlderSpinnerRows by rememberUpdatedState(olderSpinnerRows)
         var highlightedMessageId by remember { mutableStateOf<String?>(null) }
         val liveMessages by rememberUpdatedState(messages)
-        val jumpToReply: (String) -> Unit = { targetId ->
+        val jumpToReply: (String) -> Unit = { originalTargetId ->
+            // A reply to a later part of a long voice note (another client shows the parts apart)
+            // lands on the note's one bubble.
+            val targetId = mediaPartGroups.anchorTxIdByTxId[originalTargetId] ?: originalTargetId
             coroutineScope.launch {
                 // The original may sit in history that has not been paged in yet: page older
                 // rows in until it is held, rather than making the reader scroll up to find it
@@ -1619,9 +1583,14 @@ fun ChatThreadScreen(
                                 chessSourceMessages
                             )
                         }
+                        // The row standing for a whole long voice note or multi-part photo: every
+                        // part present, and the note's combined status. Reply and react target
+                        // this, its first part (iOS 7c5c22e3).
+                        val partGroupForRow = mediaPartGroups.groupsByAnchorTxId[msg.id]
                         Box {
                             MessageBubble(
-                                message = msg,
+                                message = if (partGroupForRow == null) msg else msg.copy(deliveryStatus = partGroupForRow.deliveryStatus),
+                                mediaParts = partGroupForRow,
                                 chessSummary = chessSummaryForRow,
                                 isLatestChessMessage = isLatestChessForRow,
                                 onRespondToChessInvite = { accepted ->
@@ -1642,11 +1611,18 @@ fun ChatThreadScreen(
                                 // rejected from its bar (iOS f7ca401).
                                 isPendingRequest = false,
                                 isHandshakeComplete = conversation?.contact?.conversationStatus == "active",
-                                onRetry = { chatViewModel.retrySendMessage(msg) { chatViewModel.reportSendFailure(contactId, it) } },
+                                onRetry = {
+                                    // A long voice note's Retry resends only its failed parts, in order.
+                                    if (partGroupForRow != null) {
+                                        chatViewModel.retryFailedParts(partGroupForRow.failedOutgoingParts) { chatViewModel.reportSendFailure(contactId, it) }
+                                    } else {
+                                        chatViewModel.retrySendMessage(msg) { chatViewModel.reportSendFailure(contactId, it) }
+                                    }
+                                },
                                 onReply = { chatViewModel.startReplyTo(msg) },
                                 isEdited = editForRow != null,
                                 // Offered on your own delivered text messages only - never on a
-                                // photo, voice note, chess move, call line or payment (iOS's
+                                // photo, voice note, chess move or payment (iOS's
                                 // MessageEditCodec.isEditable gate, same conditions).
                                 onEdit = if (msg.direction == "sent" && msg.type == MessageProtocol.TYPE_COMM &&
                                     msg.deliveryStatus == "sent" && com.kachat.app.util.MessageEdit.isEditable(msg.plaintextBody)) {
@@ -1814,7 +1790,8 @@ fun ChatThreadScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    chatViewModel.deleteMessages(selectedMessageIds)
+                    // A long voice note or multi-part photo goes with every part.
+                    chatViewModel.deleteMessages(mediaPartGroups.expanded(selectedMessageIds))
                     showDeleteMessagesConfirmation = false
                     isSelectingMessages = false
                     selectedMessageIds = emptySet()
@@ -2352,7 +2329,11 @@ fun MessageBubble(
     /** Tapping a payment card opens its details (View in Explorer, Copy Transaction ID - iOS
      *  80a6aae). Null where the host has no such sheet - the card then only takes the double tap
      *  to react. */
-    onOpenPayment: (() -> Unit)? = null
+    onOpenPayment: (() -> Unit)? = null,
+    /** Set on the row that stands for a whole long voice note or multi-part photo (its earliest
+     *  part, iOS 7c5c22e3): the bubble plays every part present as one recording, or shows the
+     *  joined photo once all its parts are here. [message] then carries the combined status. */
+    mediaParts: com.kachat.app.util.VoicePartCluster<MessageEntity>? = null,
 ) {
     // Retry, unless this is a chess action the game has since moved past (iOS dd03c4e).
     val retryOffered = remember(message.deliveryStatus, message.direction, message.type, message.plaintextBody, chessSummary) {
@@ -2370,7 +2351,15 @@ fun MessageBubble(
     val linkContext = LocalContext.current
     val replyContent = remember(message.plaintextBody) { MessageReply.parseOrNull(message.plaintextBody) }
     val displayBody = replyContent?.text ?: message.plaintextBody
-    val imageContent = remember(displayBody) { ImageMessage.parseOrNull(displayBody) }
+    // A long voice note's or multi-part photo's parts present (iOS 7c5c22e3), and the photo once
+    // every chunk is here: save, share and full screen then use the joined image.
+    val mediaPartsInput = remember(mediaParts?.allTxIds, mediaParts?.parts?.size) {
+        mediaParts?.let { MediaPartsInput.of(it) { part -> part.plaintextBody } }?.takeIf { it.parts.isNotEmpty() }
+    }
+    val joinedPhoto = remember(mediaPartsInput?.signature) { mediaPartsInput?.let { joinedPhotoContent(it) } }
+    val imageContent = remember(displayBody, joinedPhoto, mediaPartsInput?.isPhoto) {
+        if (mediaPartsInput?.isPhoto == true) joinedPhoto else ImageMessage.parseOrNull(displayBody)
+    }
     // Remembered like the image above, and for the same reason: parsing a voice message
     // deserializes the WHOLE payload, tens of kilobytes of base64, and this bubble asked for it
     // three separate times per recomposition - once to decide it was audio, once to build the
@@ -2378,7 +2367,6 @@ fun MessageBubble(
     // twice more despite already being remembered here.
     val voiceContent = remember(displayBody) { VoiceMessage.parseOrNull(displayBody) }
     val chessEnvelope = remember(displayBody) { com.kachat.app.util.ChessMessage.parseOrNull(displayBody) }
-    val callEnvelope = remember(displayBody) { com.kachat.app.util.CallCodec.parseOrNull(displayBody) }
     // Only the plain, non-truncated text bubble ever shows a link preview - hoisted up here
     // (rather than computed inline where it's used) so `separateLinkPreviewUrl`'s card can be
     // placed as a sibling *after* the whole message-content Box below, matching iOS's structure:
@@ -2389,7 +2377,6 @@ fun MessageBubble(
     val isPlainTextMessage = message.type != "pay" &&
         message.type != MessageProtocol.TYPE_HANDSHAKE &&
         chessEnvelope == null &&
-        callEnvelope == null &&
         voiceContent == null &&
         imageContent == null &&
         bodyText.length <= MESSAGE_TEXT_TRUNCATION_THRESHOLD
@@ -2625,9 +2612,6 @@ fun MessageBubble(
                         )
                     }
                 }
-            } else if (callEnvelope != null) {
-                // Calls leave a compact history line, like a phone's recents.
-                CallBubble(envelope = callEnvelope, isSent = isSent, onLongPress = { showMenu = true })
             } else if (chessEnvelope != null) {
                 ChessBubble(
                     envelope = chessEnvelope,
@@ -2638,6 +2622,22 @@ fun MessageBubble(
                     onRespond = onRespondToChessInvite,
                     onOpen = { onOpenChessGame(chessEnvelope.gameId) },
                     onLongPress = { showMenu = true }
+                )
+            } else if (mediaPartsInput != null && mediaPartsInput.isPhoto && joinedPhoto == null) {
+                // A multi-part photo still arriving.
+                PhotoPartsPlaceholderBubble(
+                    input = mediaPartsInput,
+                    isSent = isSent,
+                    onLongPress = { showMenu = true },
+                    onDoubleClick = { QuickReactionBarState.activeId = message.id }
+                )
+            } else if (mediaPartsInput != null && !mediaPartsInput.isPhoto) {
+                // A long voice note: every part present, played as one recording.
+                MultipartAudioBubble(
+                    input = mediaPartsInput,
+                    isSent = isSent,
+                    onLongPress = { showMenu = true },
+                    onDoubleClick = { QuickReactionBarState.activeId = message.id }
                 )
             } else if (voiceContent != null) {
                 AudioBubble(
@@ -2796,7 +2796,6 @@ fun MessageBubble(
                         imageContent != null -> stringResource(R.string.photo)
                         voiceContent != null -> stringResource(R.string.composer_voice_message)
                         chessEnvelope != null -> stringResource(R.string.chess_menu_title)
-                        callEnvelope != null -> stringResource(R.string.call_2)
                         message.type == "pay" -> stringResource(R.string.payment)
                         else -> stringResource(R.string.message)
                     },
@@ -3688,9 +3687,6 @@ fun ChatActionButton(icon: ImageVector, onClick: () -> Unit = {}, size: Dp = 40.
     }
 }
 
-/** "0:07" — the composer's live recording timer. */
-fun formatRecordingElapsed(elapsedMs: Long): String = VoiceMessage.formatDuration(elapsedMs.toInt())
-
 /**
  * Profile is only your profile (iOS d1844582, bfe9f022 `ProfileView`): the hero, then Your Domains,
  * Notifications, Chatting Address (its QR code), Share Profile and Log Out as square cards, with
@@ -3879,8 +3875,9 @@ fun ProfileScreen(
                     // your own label for the account, not what anyone sees you as (iOS 3041164).
                     // Your .kas name isn't your name here since 5.2 (iOS 509c0fe); that will be
                     // your .kachat name.
-                    // On testnet your .kachat label comes first (iOS 5df42b4).
-                    val heroName = kachatLabel?.let { "$it.kachat" }
+                    // On testnet your .kachat label comes first (iOS 5df42b4), ending as Show
+                    // .kachat Endings says (iOS 94ed3a35).
+                    val heroName = kachatLabel?.let(com.kachat.app.models.KachatNameLabel::display)
                         ?: activeProfileDomainName?.takeIf { com.kachat.app.services.KnsService.SHOWS_DOMAIN_NAMES_AS_IDENTITY }
                         ?: address?.let { com.kachat.app.util.KaspaAddress.shortDisplay(it) } ?: ""
                     // iOS: the avatar row is pulled 38 up into the banner (.padding(.top, -38)),
@@ -9531,8 +9528,13 @@ fun SettingsScreen(
             }
 
             if (sectionKey == "customization") {
-                // iOS customizationPage: one section - the three pickers and Show Fee Estimate.
-                SettingsFormSection(title = stringResource(R.string.customization)) {
+                val showKachatNameEndings by settingsViewModel.showKachatNameEndings.collectAsState()
+                // iOS customizationPage: one section - the three pickers, Show Fee Estimate and
+                // Show .kachat Endings, with the endings' footer (iOS 94ed3a35).
+                SettingsFormSection(
+                    title = stringResource(R.string.customization),
+                    footer = stringResource(R.string.turn_off_to_show_names_like_alice_instead),
+                ) {
                     // Appearance / Language / Currency are shared with the accounts screen's App
                     // Settings (iOS AppWideCustomizationPickers); the fee estimate belongs to this
                     // account's Settings only.
@@ -9542,6 +9544,12 @@ fun SettingsScreen(
                     // which is a display preference, not a chat behaviour.
                     SettingsSwitchItem(stringResource(R.string.show_fee_estimate), showFeeEstimate) { enabled ->
                         settingsViewModel.setShowFeeEstimate(enabled)
+                    }
+                    SettingsDivider()
+                    // Off shows .kachat names bare ("alice"); on by default, because the ending is
+                    // how a registered name tells itself apart from a name you gave someone.
+                    SettingsSwitchItem(stringResource(R.string.show_kachat_endings), showKachatNameEndings) { enabled ->
+                        settingsViewModel.setShowKachatNameEndings(enabled)
                     }
                 }
             }
@@ -9635,14 +9643,9 @@ fun SettingsScreen(
 
             if (sectionKey == "chats") {
                 SettingsFormSection(title = stringResource(R.string.chats)) {
-                    val higherQualityPhotos by settingsViewModel.higherQualityPhotos.collectAsState()
                     val quickReactionEmojis by settingsViewModel.quickReactionEmojis.collectAsState()
-                    // iOS f5f6a11: 1:1 on-chain photos at the largest size one transaction carries.
-                    SettingsSwitchItem(stringResource(R.string.higher_quality_photos), higherQualityPhotos) { enabled ->
-                        settingsViewModel.setHigherQualityPhotos(enabled)
-                    }
-                    SettingsDivider()
-                    // The emojis in iOS's caption, in the label colour.
+                    // Higher quality photos is gone: Send asks a quality for each on-chain photo
+                    // (iOS 7c5c22e3). The emojis in iOS's caption, in the label colour.
                     SettingsNavigationItem(
                         stringResource(R.string.quick_reactions),
                         Icons.Outlined.EmojiEmotions,
@@ -13526,7 +13529,7 @@ fun ChatInfoScreen(
                                 // .kachat name, else the short address - never your alias or its
                                 // Address Book name (iOS displayName(for:)), as the chat header.
                                 if (isSelf) Text(
-                                    text = kachatLabel?.let { "$it.kachat" } ?: com.kachat.app.models.addressDisplayName(contactId),
+                                    text = kachatLabel?.let(com.kachat.app.models.KachatNameLabel::display) ?: com.kachat.app.models.addressDisplayName(contactId),
                                     color = LocalAppColors.current.textPrimary,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
                                     maxLines = 1,
@@ -13902,8 +13905,10 @@ fun ChatInfoScreen(
                                 .padding(horizontal = 16.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // Shown as Show .kachat Endings says; the copy above keeps the
+                            // ending either way (iOS 94ed3a35).
                             Text(
-                                full,
+                                com.kachat.app.models.KachatNameLabel.display(name),
                                 color = LocalAppColors.current.textPrimary,
                                 fontSize = 17.sp,
                                 modifier = Modifier.weight(1f),

@@ -65,6 +65,11 @@ interface GroupDao {
     @Query("SELECT COUNT(*) FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress AND isOutgoing = 0 AND (:lastReadAt IS NULL OR blockTimestamp > :lastReadAt)")
     fun countUnread(groupId: String, walletAddress: String, lastReadAt: Long?): Flow<Int>
 
+    /** The rows [countUnread] counts, for counting a long voice note's parts once (iOS 7c5c22e3
+     *  `unreadUnits`) - read only when there is more than one. */
+    @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress AND isOutgoing = 0 AND (:lastReadAt IS NULL OR blockTimestamp > :lastReadAt) ORDER BY blockTimestamp ASC")
+    suspend fun getUnreadOnce(groupId: String, walletAddress: String, lastReadAt: Long?): List<GroupMessageEntity>
+
     /** One-shot variant for backup export (no Flow subscription). */
     @Query("SELECT * FROM group_messages WHERE groupId = :groupId AND walletAddress = :walletAddress ORDER BY blockTimestamp ASC")
     suspend fun getMessagesOnce(groupId: String, walletAddress: String): List<GroupMessageEntity>

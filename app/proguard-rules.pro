@@ -89,6 +89,3 @@
     public static int v(...);
     public static int d(...);
 }
-
-# WebRTC (calls): the native library calls back into these Java classes by name.
--keep class org.webrtc.** { *; }

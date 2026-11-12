@@ -72,8 +72,6 @@ class WalletViewModel @Inject constructor(
     private val paymentNoticeOutbox: dagger.Lazy<com.kachat.app.services.PaymentNoticeOutbox>,
     private val addressActivityNotifier: dagger.Lazy<com.kachat.app.services.AddressActivityNotifier>,
     private val notificationHelper: dagger.Lazy<com.kachat.app.services.NotificationHelper>,
-    /** Log Out ends a call in progress (iOS 4f8e14bb). Lazy: nothing else here reaches it. */
-    private val callService: dagger.Lazy<com.kachat.app.services.CallService>,
 ) : ViewModel() {
 
     /** Refreshes what the active account owns on .k and .kaspa. */
@@ -1322,8 +1320,6 @@ class WalletViewModel @Inject constructor(
 
     fun logout() {
         walletManager.isLoggedOut = true
-        // Log Out doesn't change activeAddressFlow, so a call in progress wouldn't otherwise hear.
-        callService.get().onSignedOut()
         // Mirrors iOS's WalletManager.logout(): a logged-out device must stop receiving pushes
         // for the account, even though the wallet data stays on the device. Signing material is
         // captured synchronously, and the wallet isn't being destroyed here anyway.

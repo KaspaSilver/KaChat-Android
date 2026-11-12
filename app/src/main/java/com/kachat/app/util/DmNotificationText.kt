@@ -49,7 +49,6 @@ fun dmNotificationText(plaintext: String, labels: DmNotificationLabels = DmNotif
     // shows one (iOS paymentNoticePreviewText, IOS-080). One naming a payment to anything but our
     // chatting address never gets this far: both callers keep it silent (XP-023).
     if (PaymentPoolProtocol.parse(plaintext) is PaymentPoolProtocol.Envelope.Notice) return labels.receivedPayment
-    CallCodec.parseOrNull(plaintext)?.let { return CallCodec.notificationPreview(it) }
     // A reply says its own words, or "Sent a photo" when it is one, never what it quotes (iOS
     // MessageReplyCodec.unwrappedText in formatNotificationBody, NotificationService.unwrapReplyText).
     MessageReply.parseOrNull(plaintext)?.let { reply -> return dmNotificationText(reply.text, labels) }

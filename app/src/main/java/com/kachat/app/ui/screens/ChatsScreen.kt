@@ -1424,7 +1424,6 @@ private fun messagePreviewText(message: MessageEntity?, context: android.content
             context.getString(R.string.chess_game_2)
         }
     }
-    com.kachat.app.util.CallCodec.parseOrNull(unwrapped)?.let { return com.kachat.app.util.CallCodec.listPreview(it) }
     return com.kachat.app.util.NextcloudShareSniff.linkSafePreview(unwrapped)
 }
 

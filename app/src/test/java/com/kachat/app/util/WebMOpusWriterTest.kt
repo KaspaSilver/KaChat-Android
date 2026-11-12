@@ -1,6 +1,5 @@
 package com.kachat.app.util
 
-import com.kachat.app.services.VoiceRecorderService
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,7 +49,7 @@ class WebMOpusWriterTest {
         val case = cases.first { it.name == "p1250" }
         val file = write(case)
         assertEquals(26_651, file.size)
-        assertTrue(file.size <= VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES)
+        assertTrue(file.size <= VoiceNotePolicy.ONE_TO_ONE.maxBytes)
         val parsed = parse(file)
         assertEquals(1250, parsed.packets.size)
         for (i in case.packets.indices) assertArrayEquals(case.packets[i], parsed.packets[i])
@@ -127,7 +126,55 @@ class WebMOpusWriterTest {
     fun `the 1-1 fee preview sizes the own WebM at its real rate`() {
         assertEquals(26_652, VoiceMessage.estimatedRecordingBytes(25_000))
         assertEquals(10_752, VoiceMessage.estimatedRecordingBytes(10_000))
-        assertTrue(VoiceMessage.estimatedRecordingBytes(25_000) < VoiceRecorderService.MAX_DIRECT_ON_CHAIN_VOICE_BYTES)
+        assertTrue(VoiceMessage.estimatedRecordingBytes(25_000) < VoiceNotePolicy.ONE_TO_ONE.maxBytes)
+    }
+
+    // ---- Long voice note parts: 16 kbps in 60 ms packets (iOS 7c5c22e3 encodeRange) ----
+
+    @Test
+    fun `a full 1-1 part is 242 packets of 60 ms, under the 31,000-byte cap`() {
+        val part = packets(242) { 120 }
+        val file = WebMOpusWriter.encodePart(part, List(242) { 2880 }, contentSamples = 696_000L, preSkip = 312, maxBytes = 31_000, trackUid = 7)
+        // MESSAGING.md: 155 + 126 N + 10 ceil(N / 16) = 30,807, give or take a few header bytes.
+        assertTrue(file.size in 30_790..30_807)
+        val parsed = parse(file)
+        assertEquals(242, parsed.packets.size)
+        // The Info Duration is the part's own length, not the look-ahead its packets also hold.
+        assertEquals(14_500.0, parsed.durationMs, 0.0)
+        // 16 packets per Cluster (1000 / 60), blocks 60 ms apart.
+        assertEquals((0 until 16).map { it * 960L }, parsed.clusterTimecodes)
+        assertEquals((0 until 16).map { it * 60 }, parsed.blockRelativeMs.take(16))
+    }
+
+    @Test
+    fun `a part over its cap loses trailing packets, never the first, and says what it kept`() {
+        val part = packets(244) { 120 }
+        val file = WebMOpusWriter.encodePart(part, List(244) { 2880 }, contentSamples = 244L * 2880, maxBytes = 31_000, trackUid = 7)
+        assertTrue(file.size <= 31_000)
+        val parsed = parse(file)
+        assertEquals(243, parsed.packets.size)
+        assertEquals(243 * 60.0, parsed.durationMs, 0.0)
+    }
+
+    @Test
+    fun `mixed 60 and 20 ms packets sit at their running time`() {
+        val part = packets(4) { 40 }
+        val file = WebMOpusWriter.encodePart(part, listOf(2880, 960, 960, 2880), contentSamples = 7680L, trackUid = 1)
+        val parsed = parse(file)
+        assertEquals(listOf(0, 60, 80, 100), parsed.blockRelativeMs)
+    }
+
+    @Test
+    fun `the part reader gets back the head, the packets and the duration`() {
+        val part = packets(30) { i -> 100 + i % 30 }
+        val file = WebMOpusWriter.encodePart(part, List(30) { 2880 }, contentSamples = 80_000L, preSkip = 312, trackUid = 9)
+        val read = WebMOpusReader.parse(file)!!
+        assertEquals(312, read.preSkip)
+        assertEquals(1, read.channels)
+        assertEquals(30, read.packets.size)
+        for (i in part.indices) assertArrayEquals(part[i], read.packets[i])
+        assertEquals(80_000.0 / 48.0, read.durationMs!!, 1e-6)
+        assertEquals(null, WebMOpusReader.parse(byteArrayOf(1, 2, 3)))
     }
 
     // ---- iOS `WebMOpusDecoder.parseWebM` (MessageBubbleView.swift), ported to read the file back ----

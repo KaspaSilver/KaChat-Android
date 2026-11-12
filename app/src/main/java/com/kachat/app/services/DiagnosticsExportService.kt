@@ -80,12 +80,6 @@ class DiagnosticsExportService @Inject constructor(
             zip.write(logs.toByteArray())
             zip.closeEntry()
 
-            // What the call machinery did this process - every Talk request and answer, every
-            // state change - independent of logcat's short buffer. See CallDiagnostics.
-            zip.putNextEntry(ZipEntry("calls.log"))
-            zip.write(CallDiagnostics.dump().toByteArray())
-            zip.closeEntry()
-
             // The system's crash log buffer holds this app's fatal entries - Java and native -
             // from EARLIER processes too, which the pid-filtered app.log above cannot see.
             zip.putNextEntry(ZipEntry("crash-buffer.log"))
@@ -149,11 +143,8 @@ class DiagnosticsExportService @Inject constructor(
             "activeAddress" to (settingsRepository.activeAddress.first()
                 ?: runCatching { walletManager.getAddress() }.getOrDefault("none")),
             "notificationsEnabled" to settingsRepository.notificationsEnabled.first().toString(),
-            // Calls: whether this side can host one, and why not when it cannot.
             "nextcloudConnected" to (nextcloudService.account.value != null).toString(),
             "nextcloudServer" to (nextcloudService.account.value?.server ?: "none"),
-            "talkCallsAvailable" to nextcloudService.talkCallsAvailable.value.toString(),
-            "talkAvailabilityReason" to nextcloudService.talkAvailabilityReason.value,
             "backupRetention" to settingsRepository.backupRetention.first().name,
             // Push diagnostics — background DM delivery is push-only (no polling fallback), so
             // this is the state to check when notifications don't arrive.
