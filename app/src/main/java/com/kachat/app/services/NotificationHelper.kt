@@ -88,6 +88,15 @@ class NotificationHelper @Inject constructor(
         }
     }
 
+    /**
+     * Every KaChat notification on the phone, gone: Log Out and Delete Account (iOS 83806b3d
+     * `clearNotificationsForSignedOutAccount`). Decrypted message text would otherwise outlive the
+     * account that could read it. The launcher badge follows the notifications on Android.
+     */
+    fun clearAllNotifications() {
+        runCatching { NotificationManagerCompat.from(context).cancelAll() }
+    }
+
     /** See [appForeground] — driven by KaChatApplication's ProcessLifecycleOwner observer. */
     fun setAppForeground(foreground: Boolean) {
         appForeground.value = foreground

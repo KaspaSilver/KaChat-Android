@@ -41,6 +41,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import com.kachat.app.ui.theme.IosRoundedFontFamily
 import com.kachat.app.ui.theme.iosGlass
+import com.kachat.app.ui.theme.mirrorInRtl
 import com.kachat.app.ui.theme.iosShadow
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -372,6 +373,8 @@ fun ChatThreadScreen(
     var paymentNote by remember { mutableStateOf("") }
     /** Why the payment could not be sent - shown in the Send KAS sheet, which is still up. */
     var paymentError by remember { mutableStateOf<String?>(null) }
+    /** [paymentError] is a payment that may have gone (outcome unknown): Not confirmed, Done only. */
+    var paymentOutcomeUnknown by remember { mutableStateOf(false) }
     var paymentSending by remember { mutableStateOf(false) }
     /** The Send KAS sheet's confirmation: set once the payment went out, shown by the swipe-up
      *  send screen until Done (iOS 7abc06e). */
@@ -461,6 +464,10 @@ fun ChatThreadScreen(
     var showDeleteMessagesConfirmation by remember { mutableStateOf(false) }
     var showFeeEditor by remember { mutableStateOf(false) }
     var feeEditorInput by remember { mutableStateOf("") }
+    // The fee editor's guards (iOS 83806b3d, MessageFeeLimit): above 1 KAS "Fee Too High", above
+    // 0.01 KAS "Use a High Fee?" with the fee waiting here for Use It.
+    var showFeeTooHigh by remember { mutableStateOf(false) }
+    var pendingHighFeeSompi by remember { mutableStateOf<Long?>(null) }
     // The live fee preview already reflects whatever's currently being composed (text/photo/voice/
     // payment, each a different mass) — dividing it back out by the rate that produced it recovers
     // that mass without duplicating any of estimatedFeeSompi's own calculation here.
@@ -829,11 +836,13 @@ fun ChatThreadScreen(
                         // Show Fee Estimate covers the Nextcloud link; an on-chain photo's fee is
                         // chosen in the quality sheet at Send (iOS 7c5c22e3 shouldShowFeeBubble).
                         if (showFeeEstimate && nextcloudStaged != null && estimatedFee != null) {
+                            // Text only can take a custom fee (iOS 83806b3d `feeIsAdjustable`).
                             ComposerFeePill(
                                 feeSompi = estimatedFee,
                                 estimating = false,
                                 onTap = { openFeeEditor(it) },
                                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+                                adjustable = false,
                             )
                         }
                         Row(
@@ -868,11 +877,14 @@ fun ChatThreadScreen(
                         // (iOS 7c5c22e3); via Nextcloud, the link's fee under Show Fee Estimate.
                         val voiceFee = if (voiceRecordingState.viaNextcloud) estimatedFee.takeIf { showFeeEstimate } else voiceNoteFee
                         if (voiceFee != null) {
+                            // Its own fee, not adjustable: text only can take a custom fee (iOS
+                            // 83806b3d `feeIsAdjustable`).
                             ComposerFeePill(
                                 feeSompi = voiceFee,
                                 estimating = false,
                                 onTap = { openFeeEditor(it) },
                                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp),
+                                adjustable = false,
                             )
                         }
                         VoiceNoteComposerRow(
@@ -899,7 +911,7 @@ fun ChatThreadScreen(
                                 Icon(Icons.Default.Edit, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Editing message", color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.editing_message), color = KaspaTeal, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     // What the user sees (and is editing) is the message's newest
                                     // text, not the row as it was originally sent.
                                     val editingPreview = remember(editing, editsByTxId[editing.id]) {
@@ -922,7 +934,7 @@ fun ChatThreadScreen(
                                     },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Cancel editing", tint = LocalAppColors.current.textSecondary)
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel_editing), tint = LocalAppColors.current.textSecondary)
                                 }
                             }
                         }
@@ -939,7 +951,7 @@ fun ChatThreadScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        "Replying to ${if (reply.direction == "sent") "yourself" else (conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId))}",
+                                        stringResource(R.string.replying_to, if (reply.direction == "sent") "yourself" else (conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId))),
                                         color = KaspaTeal,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
@@ -1712,6 +1724,64 @@ fun ChatThreadScreen(
         }
     }
 
+    /** The fee pill's custom fee, as a rate: the fee shown divided back by the rate that priced it
+     *  gives the message's mass. */
+    fun applyFeeOverride(desiredFeeSompi: Long) {
+        val currentFeeSompi = estimatedFee ?: 0L
+        if (currentFeeSompi > 0 && effectiveRate > 0) {
+            val impliedMass = currentFeeSompi / effectiveRate
+            chatViewModel.setFeeRateOverride(kotlin.math.ceil(desiredFeeSompi / impliedMass).toLong())
+        } else {
+            chatViewModel.setFeeRateOverride(null)
+        }
+    }
+
+    if (showFeeTooHigh) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showFeeTooHigh = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.fee_too_high), color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    KaspaUnit.label(stringResource(R.string.a_message_fee_can_be_at_most_1_kas)),
+                    color = LocalAppColors.current.textSecondary,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showFeeTooHigh = false }) {
+                    Text(stringResource(R.string.ok), color = KaspaTeal)
+                }
+            },
+        )
+    }
+
+    pendingHighFeeSompi?.let { highFee ->
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { pendingHighFeeSompi = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.use_a_high_fee), color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    KaspaUnit.label(stringResource(R.string.message_fee_much_more_than_network_needs, KaspaUnit.plain(highFee))),
+                    color = LocalAppColors.current.textSecondary,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    applyFeeOverride(highFee)
+                    pendingHighFeeSompi = null
+                }) {
+                    Text(stringResource(R.string.use_it), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingHighFeeSompi = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
+                }
+            },
+        )
+    }
+
     if (showFeeEditor) {
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showFeeEditor = false },
@@ -1747,14 +1817,17 @@ fun ChatThreadScreen(
                 TextButton(onClick = {
                     // The one exact parser for typed KAS (iOS 16b64bc): "1,5" or "1.5", never a crash.
                     val desiredFeeSompi = KaspaUnit.sompiFromUserText(feeEditorInput)
-                    val currentFeeSompi = estimatedFee ?: 0L
-                    if (desiredFeeSompi != null && desiredFeeSompi > 0 && currentFeeSompi > 0 && effectiveRate > 0) {
-                        val impliedMass = currentFeeSompi / effectiveRate
-                        chatViewModel.setFeeRateOverride(kotlin.math.ceil(desiredFeeSompi / impliedMass).toLong())
-                    } else {
-                        chatViewModel.setFeeRateOverride(null)
-                    }
                     showFeeEditor = false
+                    // Messages don't ask for the device lock, so this is their guard (iOS
+                    // 83806b3d commitFeeOverride): nothing typed changes nothing, above the cap it
+                    // refuses, above the warning it asks first. Below the network minimum the
+                    // send raises it.
+                    when {
+                        desiredFeeSompi == null || desiredFeeSompi <= 0L -> Unit
+                        desiredFeeSompi > com.kachat.app.util.MessageFeeLimit.MAX_SOMPI -> showFeeTooHigh = true
+                        desiredFeeSompi > com.kachat.app.util.MessageFeeLimit.WARN_SOMPI -> pendingHighFeeSompi = desiredFeeSompi
+                        else -> applyFeeOverride(desiredFeeSompi)
+                    }
                 }) {
                     Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
                 }
@@ -1778,13 +1851,13 @@ fun ChatThreadScreen(
             containerColor = LocalAppColors.current.surface,
             title = {
                 Text(
-                    "Delete ${selectedMessageIds.size} Message${if (selectedMessageIds.size == 1) "" else "s"}?",
+                    if (selectedMessageIds.size == 1) stringResource(R.string.delete_one_message) else stringResource(R.string.delete_n_messages, selectedMessageIds.size),
                     color = LocalAppColors.current.textPrimary
                 )
             },
             text = {
                 Text(
-                    "This only deletes the message from this device - the recipient still has their own copy, and the encrypted transaction remains permanently on the Kaspa blockchain, visible to anyone but unreadable without your keys. This cannot be undone.",
+                    stringResource(R.string.this_only_deletes_the_message_recipient),
                     color = LocalAppColors.current.textSecondary
                 )
             },
@@ -1796,7 +1869,7 @@ fun ChatThreadScreen(
                     isSelectingMessages = false
                     selectedMessageIds = emptySet()
                 }) {
-                    Text("Delete", color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete), color = LocalAppColors.current.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1861,14 +1934,29 @@ fun ChatThreadScreen(
                     conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
                 )
             } else null,
-            maxKas = {
+            // When it can, what that notice costs: its own transaction from the chatting address,
+            // shown, never part of the fee the payment is held to (iOS 83806b3d).
+            fromNote = if (paymentFrom != SendSource.Chatting && !fundingGate.active) {
+                remember(amountSompi, paymentNote, paymentFrom, contactId) {
+                    chatViewModel.paymentNoticeFeeSompi(contactId, amountSompi, paymentNote)
+                }?.let { noticeFee ->
+                    KaspaUnit.label(
+                        stringResource(
+                            R.string.payment_notice_fee_from_chatting_address,
+                            KaspaUnit.plain(noticeFee),
+                            conversation?.contact?.displayName ?: com.kachat.app.util.KaspaAddress.shortDisplay(contactId)
+                        )
+                    )
+                }
+            } else null,
+            maxSompi = {
                 // Same source the send will use: the From address - or just the coins picked in
                 // coin control. Leaves room for the base fee (KaspaWalletEngine's mass model and
                 // rate) and the speed / custom extra (iOS 62c2773), the extra worked out from
                 // Max's own base - the one here is 0 while the amount is empty.
                 // Capped: what one transaction's largest coins carry, said on the Review (iOS d23e6f7a).
                 chatViewModel.paymentMaxSompi(paymentFeeTier.multiplier, paymentCustomExtraFeeSompi).let { max ->
-                    max.amountSompi.toDouble() / 100_000_000.0 to max.cappedAtInputLimit
+                    max.amountSompi to max.cappedAtInputLimit
                 }
             },
             // The memo rides in the payment and From is what pays, so either changes Max too.
@@ -1915,6 +2003,7 @@ fun ChatThreadScreen(
                 paymentBaseFeeSompi?.let { base -> paymentCustomExtraFeeSompi = (typed - base).coerceAtLeast(0L) }
             },
             error = paymentError,
+            errorOutcomeUnknown = paymentOutcomeUnknown,
             feeError = paymentFeeError,
             // Try Again reads the From's coins again, and the fee is worked out from them.
             onRetryFee = { chatViewModel.refreshSpendingUtxos() },
@@ -1925,6 +2014,7 @@ fun ChatThreadScreen(
                 if (paymentAmount.isNotEmpty() && !paymentSending) {
                     paymentSending = true
                     paymentError = null
+                    paymentOutcomeUnknown = false
                     if (SendFailureSimulation.isEnabled) {
                         coroutineScope.launch {
                             kotlinx.coroutines.delay(SendFailureSimulation.DELAY_MS)
@@ -1963,6 +2053,8 @@ fun ChatThreadScreen(
                             // Shown under "Failed" on the swipe-up screen (which plays the error
                             // haptic), and on the form after Try Again. A payment that never
                             // reached the network leaves no row in the thread.
+                            // Not ok with a transaction id: it may have gone (outcome unknown).
+                            paymentOutcomeUnknown = txId != null
                             paymentError = message ?: "The payment could not be sent."
                             // Try Again goes back to a Review with the fee of today's coins (iOS
                             // 4f8e14bb, on a fee that changed; the reason isn't told apart here).
@@ -2236,7 +2328,7 @@ internal fun PaymentCardBubble(
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = if (isSent) "Sent" else "Received",
+                text = if (isSent) stringResource(R.string.sent) else stringResource(R.string.payment_received),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (isSent) Color.White.copy(alpha = 0.85f) else LocalAppColors.current.textSecondary
@@ -2512,7 +2604,7 @@ fun MessageBubble(
                         // Ours says "You"; anyone else is named, not called "Them" (iOS
                         // replyDisplayName). The short address is the last resort, for a reply
                         // to someone who is not this chat's contact.
-                        if (replyContent.replyToSender == message.walletAddress) "You"
+                        if (replyContent.replyToSender == message.walletAddress) stringResource(R.string.reactions_you)
                         else contactDisplayName.ifBlank { KaspaAddress.shortDisplay(replyContent.replyToSender) },
                         color = KaspaTeal,
                         fontSize = 11.sp,
@@ -2566,7 +2658,7 @@ fun MessageBubble(
                             modifier = Modifier.widthIn(max = 280.dp).combinedClickable(onClick = {}, onLongClick = { showMenu = true })
                         ) {
                             Text(
-                                text = message.plaintextBody ?: "Payment",
+                                text = message.plaintextBody ?: stringResource(R.string.payment),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                 color = if (isSent) LocalAppColors.current.onOutgoingBubble else LocalAppColors.current.textPrimary,
                                 fontWeight = FontWeight.Bold
@@ -2698,7 +2790,7 @@ fun MessageBubble(
                             onCopy = {
                                 clipboardManager.setText(AnnotatedString(bodyText))
                                 fullTextCopyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                IosToasts.show("Message copied to clipboard.")
+                                IosToasts.show(linkContext.getString(R.string.message_copied_to_clipboard))
                             }
                         )
                     }
@@ -2812,7 +2904,7 @@ fun MessageBubble(
                         showMenu = false
                         // iOS MessageBubbleView.handleCopy: a haptic and the chat's toast.
                         copyHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                        IosToasts.show("Message copied to clipboard.")
+                        IosToasts.show(linkContext.getString(R.string.message_copied_to_clipboard))
                     }
                     ActionSheetRow(
                         icon = Icons.AutoMirrored.Filled.Reply,
@@ -2936,7 +3028,7 @@ fun MessageBubble(
         // "edited" under the bubble - the mark every platform shows on an edited message.
         if (isEdited) {
             Text(
-                text = "edited",
+                text = stringResource(R.string.edited_mark),
                 color = LocalAppColors.current.textSecondary,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(top = 2.dp)
@@ -3088,7 +3180,7 @@ private fun ChessInviteBubble(
                 Text(stringResource(R.string.str_2), fontSize = 18.sp)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (isSent) "Chess game invite sent" else "Invited you to a game of chess",
+                    if (isSent) stringResource(R.string.chess_invite_sent) else stringResource(R.string.chess_invited_you),
                     color = LocalAppColors.current.textPrimary,
                     fontSize = 14.sp
                 )
@@ -4231,7 +4323,7 @@ fun KnsDomainsScreen(viewModel: WalletViewModel, onBack: () -> Unit, onOpenChat:
         contentWindowInsets = WindowInsets(0),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Your Domains", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.kns_domains), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     SheetBarBackButton(onClick = onBack, modifier = Modifier.padding(start = 12.dp))
                 },
@@ -4658,7 +4750,7 @@ fun KnsDomainSendScreen(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.send_domain), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick = onBack, enabled = !inFlight, modifier = Modifier.padding(start = 12.dp), tint = LocalAppColors.current.textPrimary)
+                    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), onClick = onBack, enabled = !inFlight, modifier = Modifier.padding(start = 12.dp), tint = LocalAppColors.current.textPrimary)
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)
             )
@@ -4667,7 +4759,7 @@ fun KnsDomainSendScreen(
             if (transferState.status != WalletViewModel.KnsInscribeUiStatus.SUCCESS) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Button(
-                        // A domain never leaves on a tap alone, as Kaspa never leaves on the swipe alone.
+                        // A domain never leaves on a tap alone: giving it away still asks for the device lock (iOS 83806b3d).
                         onClick = {
                             context.authenticateWithDeviceCredential(
                                 title = context.getString(R.string.confirm_sending_domain),
@@ -4722,7 +4814,7 @@ fun KnsDomainSendScreen(
                             .clickable { result?.revealTxId?.let { uriHandler.openUri(kaspaExplorer.txUrl(it)) } }
                             .padding(16.dp)
                     ) {
-                        Text("Transaction ID · tap to view in ${kaspaExplorer.displayName}", color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
+                        Text(stringResource(R.string.transaction_id_tap_to_view_in, kaspaExplorer.displayName), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                         Text(result?.revealTxId ?: "", color = KaspaTeal, style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(20.dp))
@@ -4760,8 +4852,10 @@ fun KnsDomainSendScreen(
                     com.kachat.app.ui.theme.IosTextField(
                         value = recipientInput,
                         onValueChange = {
-                            recipientInput = it
-                            viewModel.checkTransferRecipient(it, sourceAddress)
+                            // "KASPA:QR..." (a compact QR code) is read as the address it is (iOS 83806b3d).
+                            val v = if (KaspaAddress.hasAddressPrefix(it.trim())) KaspaAddress.normalizedCase(it) else it
+                            recipientInput = v
+                            viewModel.checkTransferRecipient(v, sourceAddress)
                         },
                         placeholder = { Text(stringResource(R.string.kaspa_qr_or_domain)) },
                         singleLine = true,
@@ -4805,7 +4899,7 @@ fun KnsDomainSendScreen(
                     )
 
                     Spacer(Modifier.height(8.dp))
-                    Text("FEE", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.fee_label).uppercase(), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     Row(
                         modifier = Modifier
@@ -4902,7 +4996,8 @@ fun ManageAddressesScreen(
 ) {
     val addresses by viewModel.manageAddresses.collectAsState()
     val chattingAddress by viewModel.address.collectAsState()
-    val chattingBalanceSompi by viewModel.balanceSompi.collectAsState()
+    // Null until the chatting balance has answered: "--", never "0 KAS" (iOS 83806b3d).
+    val knownChattingSompi by viewModel.knownChattingSompi.collectAsState()
     val loading by viewModel.manageAddressesLoading.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -5034,7 +5129,9 @@ fun ManageAddressesScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(stringResource(R.string.total_balance), color = LocalAppColors.current.textSecondary, fontSize = 12.sp)
                             Text(
-                                "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (chattingBalanceSompi + addresses.sumOf { it.balanceSompi }) / 100_000_000.0),
+                                knownChattingSompi?.let { known ->
+                                    "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, (known + addresses.sumOf { it.balanceSompi }) / 100_000_000.0)
+                                } ?: "-- ${KaspaUnit.symbol}",
                                 color = LocalAppColors.current.textPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
@@ -5083,7 +5180,7 @@ fun ManageAddressesScreen(
                 item {
                     ManageChattingAddressRow(
                         address = chatting,
-                        balanceSompi = chattingBalanceSompi,
+                        balanceSompi = knownChattingSompi,
                         onClick = onOpenChattingAddress,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                     )
@@ -5120,7 +5217,7 @@ fun ManageAddressesScreen(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = LocalAppColors.current.textSecondary)
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.mirrorInRtl())
                     }
                 }
             }
@@ -5690,7 +5787,8 @@ private fun AddressVisibilityChainList(
                     Icon(
                         Icons.Default.ChevronLeft,
                         stringResource(R.string.previous_page),
-                        tint = if (page > 0) KaspaTeal else LocalAppColors.current.textSecondary.copy(alpha = 0.4f)
+                        tint = if (page > 0) KaspaTeal else LocalAppColors.current.textSecondary.copy(alpha = 0.4f),
+                        modifier = Modifier.mirrorInRtl(),
                     )
                 }
                 // The numbers on this page. The legacy chain's first page also holds #0, the
@@ -5703,7 +5801,7 @@ private fun AddressVisibilityChainList(
                     style = MaterialTheme.typography.bodySmall
                 )
                 IconButton(onClick = { page += 1 }) {
-                    Icon(Icons.Default.ChevronRight, stringResource(R.string.next_page), tint = KaspaTeal)
+                    Icon(Icons.Default.ChevronRight, stringResource(R.string.next_page), tint = KaspaTeal, modifier = Modifier.mirrorInRtl())
                 }
             }
         }
@@ -5943,6 +6041,8 @@ fun SpendingAddressSendFlow(
     /// Why the last send failed: under "Failed" on the swipe-up screen, and on the form after Try
     /// Again (iOS errorMessage).
     var sendError by remember { mutableStateOf<String?>(null) }
+    /// [sendError] is a send that may have gone (its answer was lost): Not confirmed, Done only.
+    var sendOutcomeUnknown by remember { mutableStateOf(false) }
     // This presentation's own sends (iOS's per-sheet isSending/sentTransaction): one closed
     // mid-send leaves its send running in the view model, and its outcome is never shown here
     // or on the next send screen.
@@ -6119,6 +6219,7 @@ fun SpendingAddressSendFlow(
             }
         } else {
             val error = result.exceptionOrNull()
+            sendOutcomeUnknown = error is com.kachat.app.services.SendOutcomeUnknownException
             sendError = when (error) {
                 is com.kachat.app.services.SendOutcomeUnknownException -> context.getString(R.string.send_outcome_unknown)
                 is com.kachat.app.services.SendFeeChangedException ->
@@ -6213,13 +6314,14 @@ fun SpendingAddressSendFlow(
                     // a newer Max (another speed tapped meanwhile) decides the amount
                     if (maxRequest != request) return@launch
                     manualUtxos = chunk
-                    fiatAmountState.setMaxKas(maxSompi / 100_000_000.0, fiatPriceInCurrency)
+                    // Exact to the sompi (iOS 83806b3d setMaxSompi), never through a Double.
+                    fiatAmountState.setExactKas(KaspaUnit.plain(maxSompi), fiatPriceInCurrency)
                     // iOS SpendingAddressWithdrawView's Compound says nothing of the cap
                     maxCapped = false
                 } else {
                     val max = viewModel.estimateMaxSendableAmount(sourceAddress, sourceIndex, manualUtxos, maxTier.multiplier, maxCustomExtra, recipientScriptLen)
                     if (maxRequest != request) return@launch
-                    fiatAmountState.setMaxKas(max.amountSompi / 100_000_000.0, fiatPriceInCurrency)
+                    fiatAmountState.setExactKas(KaspaUnit.plain(max.amountSompi), fiatPriceInCurrency)
                     maxCapped = max.cappedAtInputLimit && !(isCompoundMode && coinsPickedByHand)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -6318,6 +6420,9 @@ fun SpendingAddressSendFlow(
                                 viewModel.sends.finish(
                                     sendId,
                                     if (ok && txId != null) Result.success(txId)
+                                    // Not ok with a transaction id: it may have gone, so it stays
+                                    // an unknown outcome (Not confirmed, no Try Again).
+                                    else if (txId != null) Result.failure(com.kachat.app.services.SendOutcomeUnknownException(txId, IllegalStateException(error)))
                                     else Result.failure(IllegalStateException(error ?: context.getString(R.string.withdrawal_failed)))
                                 )
                             }
@@ -6461,7 +6566,9 @@ fun SpendingAddressSendFlow(
                                 applyRequest(pasted)
                                 go(afterRecipient)
                             } else {
-                                recipientInput = input
+                                // An all-caps address (a compact QR code's "KASPA:QR...") is kept
+                                // lowercase, as it is sent and saved (iOS 83806b3d `normalizedCase`).
+                                recipientInput = if (KaspaAddress.hasAddressPrefix(input.trim())) KaspaAddress.normalizedCase(input) else input
                             }
                         },
                         isResolving = isResolvingKns,
@@ -6582,6 +6689,7 @@ fun SpendingAddressSendFlow(
                 recipient = if (isCompoundMode) null else (knsResolvedDomain ?: trimmedRecipient),
                 sent = sentTransaction,
                 failureMessage = sendError,
+                outcomeUnknown = sendError != null && sendOutcomeUnknown,
                 explorer = kaspaExplorer,
                 onDone = {
                     sentTransaction = null
@@ -8267,7 +8375,7 @@ private fun ManageAddressActionsSheet(
  * "Used", and a chevron - it opens the chatting address's own screen.
  */
 @Composable
-private fun ManageChattingAddressRow(address: String, balanceSompi: Long, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ManageChattingAddressRow(address: String, balanceSompi: Long?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -8295,7 +8403,7 @@ private fun ManageChattingAddressRow(address: String, balanceSompi: Long, onClic
                 maxLines = 1
             )
             Text(
-                text = "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, balanceSompi / 100_000_000.0),
+                text = balanceSompi?.let { "%.8f ${KaspaUnit.symbol}".format(java.util.Locale.US, it / 100_000_000.0) } ?: "-- ${KaspaUnit.symbol}",
                 color = LocalAppColors.current.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
@@ -8312,7 +8420,7 @@ private fun ManageChattingAddressRow(address: String, balanceSompi: Long, onClic
             Icons.Default.ChevronRight,
             contentDescription = null,
             tint = LocalAppColors.current.textSecondary,
-            modifier = Modifier.size(20.dp).offset(x = 6.dp)
+            modifier = Modifier.size(20.dp).offset(x = 6.dp).mirrorInRtl()
         )
     }
 }
@@ -8413,7 +8521,7 @@ fun QuickReactionBar(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = "More reactions",
+                    contentDescription = stringResource(R.string.more_reactions),
                     tint = LocalAppColors.current.textSecondary,
                     modifier = Modifier.size(15.dp),
                 )
@@ -8711,20 +8819,22 @@ fun EditKnsProfileScreen(
 
     // What "Save" is actually about to submit — each entry becomes its own on-chain commit/reveal
     // transaction, so this doubles as both the confirm dialog's change list and its cost count.
+    val profileFieldContext = LocalContext.current
     val pendingChanges = remember(bio, x, website, telegram, discord, email, github, redirect, pendingAvatarUri, pendingBannerUri, avatarCleared, bannerCleared, knsProfile) {
+        val res = profileFieldContext
         buildList {
-            if (pendingAvatarUri != null) add("Avatar")
-            else if (avatarCleared && !knsProfile?.avatarUrl.isNullOrEmpty()) add("Avatar (removed)")
-            if (pendingBannerUri != null) add("Banner")
-            else if (bannerCleared && !knsProfile?.bannerUrl.isNullOrEmpty()) add("Banner (removed)")
-            if (bio.trim() != (knsProfile?.bio ?: "")) add("Bio")
+            if (pendingAvatarUri != null) add(res.getString(R.string.avatar))
+            else if (avatarCleared && !knsProfile?.avatarUrl.isNullOrEmpty()) add(res.getString(R.string.profile_field_removed, res.getString(R.string.avatar)))
+            if (pendingBannerUri != null) add(res.getString(R.string.banner))
+            else if (bannerCleared && !knsProfile?.bannerUrl.isNullOrEmpty()) add(res.getString(R.string.profile_field_removed, res.getString(R.string.banner)))
+            if (bio.trim() != (knsProfile?.bio ?: "")) add(res.getString(R.string.bio))
             if (x.trim() != (knsProfile?.x ?: "")) add("X")
-            if (website.trim() != (knsProfile?.website ?: "")) add("Website")
+            if (website.trim() != (knsProfile?.website ?: "")) add(res.getString(R.string.website))
             if (telegram.trim() != (knsProfile?.telegram ?: "")) add("Telegram")
             if (discord.trim() != (knsProfile?.discord ?: "")) add("Discord")
-            if (email.trim() != (knsProfile?.contactEmail ?: "")) add("Email")
+            if (email.trim() != (knsProfile?.contactEmail ?: "")) add(res.getString(R.string.email))
             if (github.trim() != (knsProfile?.github ?: "")) add("GitHub")
-            if (redirect.trim() != (knsProfile?.redirectUrl ?: "")) add("Redirect")
+            if (redirect.trim() != (knsProfile?.redirectUrl ?: "")) add(res.getString(R.string.redirect))
         }
     }
 
@@ -8873,7 +8983,7 @@ fun EditKnsProfileScreen(
             title = {
                 Text(
                     when (editState.step) {
-                        WalletViewModel.EditProfileStep.IDLE -> "Confirm Changes"
+                        WalletViewModel.EditProfileStep.IDLE -> stringResource(R.string.confirm_changes)
                         WalletViewModel.EditProfileStep.SUCCESS -> "Saved"
                         WalletViewModel.EditProfileStep.PARTIAL_FAILURE -> "Some Changes Failed"
                         WalletViewModel.EditProfileStep.FAILED -> "Save Failed"
@@ -8886,7 +8996,7 @@ fun EditKnsProfileScreen(
                 when (editState.step) {
                     WalletViewModel.EditProfileStep.IDLE -> Column {
                         Text(
-                            "${pendingChanges.size} change${if (pendingChanges.size == 1) "" else "s"}. Each is submitted as its own on-chain transaction from your chatting address:",
+                            profileFieldContext.resources.getQuantityString(R.plurals.kns_profile_changes_count, pendingChanges.size, pendingChanges.size),
                             color = LocalAppColors.current.textPrimary,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -8906,8 +9016,8 @@ fun EditKnsProfileScreen(
                         Spacer(Modifier.height(12.dp))
                         Text(
                             when (editState.step) {
-                                WalletViewModel.EditProfileStep.UPLOADING_AVATAR -> "Uploading avatar..."
-                                WalletViewModel.EditProfileStep.UPLOADING_BANNER -> "Uploading banner..."
+                                WalletViewModel.EditProfileStep.UPLOADING_AVATAR -> stringResource(R.string.uploading_avatar)
+                                WalletViewModel.EditProfileStep.UPLOADING_BANNER -> stringResource(R.string.uploading_banner)
                                 else -> "Submitting ${editState.currentFieldLabel}..."
                             },
                             color = LocalAppColors.current.textSecondary,
@@ -10386,7 +10496,8 @@ private fun Modifier.profilePulledUp(amount: Dp): Modifier = layout { measurable
 @Composable
 private fun ProfileChevron(height: Dp, stroke: Dp) {
     val color = LocalAppColors.current.textSecondary
-    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = height * 0.55f, height = height)) {
+    // chevron.right flips in right-to-left languages, as the SF Symbol does.
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = height * 0.55f, height = height).mirrorInRtl()) {
         val inset = stroke.toPx() / 2f
         val path = androidx.compose.ui.graphics.Path().apply {
             moveTo(inset, inset)
@@ -10820,6 +10931,8 @@ fun BalanceLabelRow(
     Row(
         modifier = modifier.then(
             if (copyOnTap) Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                // Nothing to copy while the balance is unknown ("--", iOS 83806b3d).
+                if (balance.startsWith("--")) return@clickable
                 balanceClipboard.setText(AnnotatedString(balance.substringBefore(' ')))
                 balanceHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
                 IosToasts.show(context.getString(R.string.balance_copied_to_clipboard))
@@ -12524,10 +12637,11 @@ fun CreateChatScreen(
         com.kachat.app.ui.theme.IosAlertDialog(
             onDismissRequest = { showCreateGroupConfirm = false },
             containerColor = LocalAppColors.current.surface,
-            title = { Text("Create group", color = LocalAppColors.current.textPrimary) },
+            title = { Text(stringResource(R.string.create_group), color = LocalAppColors.current.textPrimary) },
             text = {
                 Text(
-                    "Create \"${groupName.trim()}\" and invite $k member${if (k == 1) "" else "s"}?\n\nEstimated network fee ≈ ${com.kachat.app.repository.ChatRepository.formatKas(fee)} ${KaspaUnit.symbol} across $txCount transaction${if (txCount == 1) "" else "s"}.",
+                    LocalContext.current.resources.getQuantityString(R.plurals.create_group_and_invite, k, groupName.trim(), k) +
+                        "\n\n" + stringResource(R.string.create_group_fee_estimate, com.kachat.app.repository.ChatRepository.formatKas(fee), KaspaUnit.symbol, txCount),
                     color = LocalAppColors.current.textSecondary
                 )
             },
@@ -12555,7 +12669,7 @@ fun CreateChatScreen(
                 windowInsets = if (onCancel != null) WindowInsets(0, 0, 0, 0) else TopAppBarDefaults.windowInsets,
                 title = {
                     Text(
-                        if (isGroupMode) "New Group Chat" else "Create chat",
+                        if (isGroupMode) stringResource(R.string.chats_new_group_chat) else stringResource(R.string.create_chat),
                         color = LocalAppColors.current.textPrimary,
                         fontWeight = FontWeight.Bold
                     )
@@ -12590,7 +12704,7 @@ fun CreateChatScreen(
                                 // address field (it clears when the input changes) instead of
                                 // the tap looking like it did nothing.
                                 chatViewModel.addContact(
-                                    address = resolvedAddress,
+                                    rawAddress = resolvedAddress,
                                     name = null,
                                     knsName = if (looksLikeKnsDomain) com.kachat.app.services.KnsService.normalizeDomain(address) else null,
                                     deliberate = true,
@@ -12715,10 +12829,10 @@ fun CreateChatScreen(
                         CreateChatActionItem(ContactsIcon, stringResource(R.string.ab_address_book)) {
                             showGroupAddressBook = true
                         }
-                        CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
+                        CreateChatActionItem(Icons.Default.ContentPaste, stringResource(R.string.paste)) {
                             clipboardManager.getText()?.text?.let { address = KaspaAddress.fromScanned(it) }
                         }
-                        CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
+                        CreateChatActionItem(Icons.Default.QrCodeScanner, stringResource(R.string.scan_qr)) { showScanner = true }
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     // iOS's .borderedProminent: a capsule at the small control height.
@@ -12740,7 +12854,7 @@ fun CreateChatScreen(
                             disabledContentColor = LocalAppColors.current.textTertiary,
                         )
                     ) {
-                        Text("Add to Group", fontSize = 17.sp)
+                        Text(stringResource(R.string.add_to_group), fontSize = 17.sp)
                     }
                     },
                     errorMessage = createGroupError
@@ -12805,7 +12919,7 @@ fun CreateChatScreen(
                         Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Resolved: ${knsResolvedDomain ?: com.kachat.app.services.KnsService.normalizeDomain(address.trim())}",
+                            text = stringResource(R.string.resolved_name, knsResolvedDomain ?: com.kachat.app.services.KnsService.normalizeDomain(address.trim())),
                             color = LocalAppColors.current.success,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -12868,10 +12982,10 @@ fun CreateChatScreen(
                     CreateChatActionItem(ContactsIcon, stringResource(R.string.ab_address_book)) {
                         showAddressBookPicker = true
                     }
-                    CreateChatActionItem(Icons.Default.ContentPaste, "Paste") {
+                    CreateChatActionItem(Icons.Default.ContentPaste, stringResource(R.string.paste)) {
                         clipboardManager.getText()?.text?.let { address = KaspaAddress.fromScanned(it) }
                     }
-                    CreateChatActionItem(Icons.Default.QrCodeScanner, "Scan QR") { showScanner = true }
+                    CreateChatActionItem(Icons.Default.QrCodeScanner, stringResource(R.string.scan_qr)) { showScanner = true }
                 }
 
                 importErrorMessage?.let { message ->
@@ -13021,7 +13135,8 @@ data class GroupAddressRow(
     val isResolvingKns: Boolean = false,
     val knsError: String? = null
 ) {
-    val trimmedText: String get() = text.trim()
+    /** Trimmed, with an all-caps address lowercased (iOS 83806b3d `normalizedCase`). */
+    val trimmedText: String get() = text.trim().let { if (KaspaAddress.hasAddressPrefix(it)) KaspaAddress.normalizedCase(it) else it }
     val looksLikeDomain: Boolean get() = com.kachat.app.services.NameServicesClient.looksLikeName(trimmedText)
 
     /** The actual address this row resolves to - resolved KNS owner address, or the raw typed/scanned address. Null while a domain hasn't resolved yet. */
@@ -13164,7 +13279,7 @@ fun GroupChatCreationFields(
     // A collapsed drawer: the roster can run to dozens of rows, and open it would push the
     // address field below out of sight.
     GroupDisclosure(
-        title = if (selectedAddresses.isEmpty()) "Members" else "Members (${selectedAddresses.size})",
+        title = if (selectedAddresses.isEmpty()) stringResource(R.string.group_invite_members) else stringResource(R.string.group_info_members_count, selectedAddresses.size),
         expanded = membersExpanded,
         onToggle = { onMembersExpandedChange(!membersExpanded) },
     ) {
@@ -13197,7 +13312,7 @@ fun GroupChatCreationFields(
                     IconButton(onClick = { onToggleMember(candidate.address) }, modifier = Modifier.size(28.dp)) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Remove from group",
+                            contentDescription = stringResource(R.string.remove_from_group),
                             tint = colors.textSecondary,
                             modifier = Modifier.size(18.dp),
                         )
@@ -13466,22 +13581,39 @@ fun ChatInfoScreen(
             if (!isBot) {
                 val shareContext = LocalContext.current
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(58.dp)
-                            .iosGlass(cornerRadius = 29.dp)
-                            .clickable {
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, KaChatLink.profileWebUrl(contactId))
-                                    // Titles the share sheet only, as iOS's SharePreview does; not pasted.
-                                    putExtra(Intent.EXTRA_TITLE, conversation?.contact?.displayName ?: com.kachat.app.models.addressDisplayName(contactId))
-                                }
-                                runCatching { shareContext.startActivity(Intent.createChooser(send, null)) }
-                            },
+                    // The words are part of the button: tapping them shares too (iOS 413f6d6d).
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, KaChatLink.profileWebUrl(contactId))
+                                // Titles the share sheet only, as iOS's SharePreview does; not pasted.
+                                putExtra(Intent.EXTRA_TITLE, conversation?.contact?.displayName ?: com.kachat.app.models.addressDisplayName(contactId))
+                            }
+                            runCatching { shareContext.startActivity(Intent.createChooser(send, null)) }
+                        },
                     ) {
-                        Icon(Icons.Default.IosShare, contentDescription = stringResource(R.string.share_this_profile), tint = KaspaTeal, modifier = Modifier.size(26.dp))
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(58.dp)
+                                .iosGlass(cornerRadius = 29.dp)
+                                // a whole point, inside the edge (iOS 413f6d6d)
+                                .border(1.dp, Color.White.copy(alpha = 0.22f), CircleShape),
+                        ) {
+                            Icon(Icons.Default.IosShare, contentDescription = stringResource(R.string.share_this_profile), tint = KaspaTeal, modifier = Modifier.size(26.dp))
+                        }
+                        Text(
+                            stringResource(R.string.profile_share_profile),
+                            color = KaspaTeal,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
                 Spacer(Modifier.height(35.dp))
@@ -13571,7 +13703,7 @@ fun ChatInfoScreen(
                                     ) {
                                         Icon(
                                             Icons.Default.Edit,
-                                            contentDescription = "Edit name",
+                                            contentDescription = stringResource(R.string.edit_name),
                                             tint = KaspaTeal,
                                             modifier = Modifier.size(15.dp),
                                         )
@@ -13590,7 +13722,7 @@ fun ChatInfoScreen(
                                         onLongClick = {
                                             clipboardManager.setText(AnnotatedString(text))
                                             infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                            IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Bio"))
+                                            IosToasts.show(context.getString(R.string.field_copied_to_clipboard, context.getString(R.string.bio)))
                                         },
                                     )
                                 }
@@ -13665,12 +13797,12 @@ fun ChatInfoScreen(
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     val socialLinks = listOfNotNull(
                                         knsFields?.x?.takeIf { it.isNotBlank() }?.let { "X" to it },
-                                        knsFields?.website?.takeIf { it.isNotBlank() }?.let { "Website" to it },
+                                        knsFields?.website?.takeIf { it.isNotBlank() }?.let { context.getString(R.string.website) to it },
                                         knsFields?.telegram?.takeIf { it.isNotBlank() }?.let { "Telegram" to it },
                                         knsFields?.discord?.takeIf { it.isNotBlank() }?.let { "Discord" to it },
-                                        knsFields?.contactEmail?.takeIf { it.isNotBlank() }?.let { "Email" to it },
+                                        knsFields?.contactEmail?.takeIf { it.isNotBlank() }?.let { context.getString(R.string.email) to it },
                                         knsFields?.github?.takeIf { it.isNotBlank() }?.let { "GitHub" to it },
-                                        knsFields?.redirectUrl?.takeIf { it.isNotBlank() }?.let { "Redirect" to it }
+                                        knsFields?.redirectUrl?.takeIf { it.isNotBlank() }?.let { context.getString(R.string.redirect) to it }
                                     )
                                     socialLinks.forEachIndexed { index, (label, value) ->
                                         Row(
@@ -13899,7 +14031,7 @@ fun ChatInfoScreen(
                                     onLongClick = {
                                         clipboardManager.setText(AnnotatedString(full))
                                         infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                        IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
+                                        IosToasts.show(context.getString(R.string.field_copied_to_clipboard, context.getString(R.string.domain_label)))
                                     },
                                 )
                                 .padding(horizontal = 16.dp, vertical = 11.dp),
@@ -13911,15 +14043,46 @@ fun ChatInfoScreen(
                                 com.kachat.app.models.KachatNameLabel.display(name),
                                 color = LocalAppColors.current.textPrimary,
                                 fontSize = 17.sp,
-                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
                             )
                             if (name == kachatLabel) {
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     stringResource(R.string.primary),
                                     color = KaspaTeal,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                 )
+                            }
+                            Spacer(Modifier.weight(1f).widthIn(min = 8.dp))
+                            // Set as Name: puts this .kachat name, in full ("alice.kachat"), in
+                            // this screen's name field. Nothing is saved until Save; Cancel leaves
+                            // their name as it was. Shown as set once the field holds it (iOS 413f6d6d).
+                            if (!isSelf && !isBot) {
+                                if (contactName.trim() == full) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = LocalAppColors.current.textSecondary, modifier = Modifier.size(14.dp))
+                                        Text(stringResource(R.string.their_name), color = LocalAppColors.current.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                } else {
+                                    Text(
+                                        stringResource(R.string.set_as_name),
+                                        color = KaspaTeal,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .background(KaspaTeal.copy(alpha = 0.15f))
+                                            .clickable {
+                                                infoHaptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                                                contactName = full
+                                                infoSheet = null
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -13948,7 +14111,7 @@ fun ChatInfoScreen(
                                 .clickable {
                                     clipboardManager.setText(AnnotatedString(domain))
                                     infoHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                    IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
+                                    IosToasts.show(context.getString(R.string.field_copied_to_clipboard, context.getString(R.string.domain_label)))
                                 }
                                 .padding(horizontal = 16.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -13970,7 +14133,7 @@ fun ChatInfoScreen(
                             )
                             if (isPrimary) {
                                 Text(
-                                    "PRIMARY",
+                                    stringResource(R.string.primary_badge),
                                     color = KaspaTeal,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -14011,10 +14174,19 @@ fun ChatInfoScreen(
                 val removedToast = stringResource(R.string.ab_removed_toast)
                 AddressBookEntryEditor(
                     address = contactId,
-                    suggestedName = conversation?.contact?.alias?.takeIf { it.isNotBlank() }
-                        ?: conversation?.contact?.displayName
-                        ?: com.kachat.app.models.addressDisplayName(contactId),
+                    // the name in this screen's field, saved or just typed (iOS 413f6d6d)
+                    presetName = contactName.trim().takeIf { it.isNotEmpty() },
                     onDone = { result ->
+                        // The editor gave them a name (or took it away) on the chat and the entry.
+                        // Take it here too, or this screen's Save would write its older name back
+                        // over both (iOS 413f6d6d).
+                        // Saved: the chat now goes by the entry's name (applyNameToChat). Removed:
+                        // the chat keeps the name it had.
+                        contactName = if (result == AddressBookEditResult.SAVED) {
+                            com.kachat.app.services.AddressBookManager.shared?.entry(contactId)?.customName ?: ""
+                        } else {
+                            conversation?.contact?.alias?.trim()?.takeIf { it.isNotEmpty() } ?: ""
+                        }
                         IosToasts.show(if (result == AddressBookEditResult.SAVED) savedToast else removedToast)
                     },
                     onDismiss = { infoSheet = null },
@@ -14029,13 +14201,18 @@ fun ChatInfoScreen(
                 ) {
                     val notificationOverride = com.kachat.app.models.ContactNotificationMode
                         .fromName(conversation?.contact?.notificationOverride)
-                    SheetChoiceRow(label = "Default", selected = notificationOverride == null) {
+                    val notifSettings: com.kachat.app.viewmodels.SettingsViewModel = hiltViewModel()
+                    val defaultNotificationsOn by notifSettings.notificationsEnabled.collectAsState()
+                    val defaultSoundOn by notifSettings.notificationSoundEnabled.collectAsState()
+                    val defaultMode = com.kachat.app.models.ContactNotificationMode.globalDefault(defaultNotificationsOn, defaultSoundOn)
+                    // iOS ChatInfoView: "Default (Sound)" - the row names what Default means now.
+                    SheetChoiceRow(label = stringResource(R.string.notification_mode_default, stringResource(defaultMode.labelRes)), selected = notificationOverride == null) {
                         chatViewModel.updateContactNotificationOverride(contactId, null)
                         infoSheet = null
                     }
                     com.kachat.app.models.ContactNotificationMode.entries.forEach { mode ->
                         SheetChoiceRow(
-                            label = mode.displayName,
+                            label = stringResource(mode.labelRes),
                             selected = notificationOverride == mode,
                         ) {
                             chatViewModel.updateContactNotificationOverride(contactId, mode)
@@ -14104,7 +14281,7 @@ fun ContactNotificationSettingsScreen(contactId: String, onBack: () -> Unit, cha
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(mode.displayName, color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text(stringResource(mode.labelRes), color = LocalAppColors.current.textPrimary, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                         if (notificationOverride == mode) {
                             Icon(Icons.Default.Check, null, tint = KaspaTeal)
                         }
@@ -14202,7 +14379,7 @@ fun ContactDomainsScreen(
                             .clickable {
                                 clipboardManager.setText(AnnotatedString(domain))
                                 domainsHaptic(com.kachat.app.util.IosHaptic.SUCCESS)
-                                IosToasts.show(context.getString(R.string.field_copied_to_clipboard, "Domain"))
+                                IosToasts.show(context.getString(R.string.field_copied_to_clipboard, context.getString(R.string.domain_label)))
                             }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -14453,7 +14630,8 @@ internal fun ChatHeaderChipLayout(
 @Composable
 internal fun ChatChevronGlyph(height: Dp, stroke: Dp) {
     val color = LocalAppColors.current.textSecondary
-    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = height * 0.58f, height = height)) {
+    // chevron.right flips in right-to-left languages, as the SF Symbol does.
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(width = height * 0.58f, height = height).mirrorInRtl()) {
         val inset = stroke.toPx() / 2f
         val path = androidx.compose.ui.graphics.Path().apply {
             moveTo(inset, inset)
@@ -14665,19 +14843,19 @@ private fun ManageAddressesActionsSheet(
                         Spacer(Modifier.height(8.dp))
                         com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(32.dp))
                         Text(
-                            "Checking address #${progress?.checkingIndex ?: 0}",
+                            stringResource(R.string.checking_address_n, progress?.checkingIndex ?: 0),
                             color = colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp,
                         )
                         Text(
-                            if ((progress?.foundCount ?: 0) == 0) "No addresses with a balance or domain yet"
-                            else "${progress?.foundCount} found so far",
+                            if ((progress?.foundCount ?: 0) == 0) stringResource(R.string.no_addresses_with_balance_or_domain_yet)
+                            else stringResource(R.string.n_found_so_far, progress?.foundCount ?: 0),
                             color = colors.textSecondary,
                             fontSize = 12.sp,
                         )
                         Text(
-                            "Checks the first thousand addresses whatever the gaps, then keeps going while it keeps finding.",
+                            stringResource(R.string.checks_the_first_thousand_addresses),
                             color = colors.textSecondary,
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center,
@@ -14738,14 +14916,22 @@ private fun DomainTransferProgressSheet(
     status: WalletViewModel.KnsInscribeUiStatus,
 ) {
     val colors = LocalAppColors.current
-    val (label, fraction) = when (status) {
-        WalletViewModel.KnsInscribeUiStatus.CHECKING_AVAILABILITY -> "Preparing transfer" to 0.1f
-        WalletViewModel.KnsInscribeUiStatus.FETCHING_FEE -> "Working out the fee" to 0.2f
-        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_COMMIT -> "Submitting commit transaction" to 0.4f
-        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL -> "Submitting reveal transaction" to 0.75f
-        WalletViewModel.KnsInscribeUiStatus.VERIFYING -> "Confirming the new owner" to 0.95f
-        else -> "Working" to 0.1f
+    val (labelRes, fraction) = when (status) {
+        WalletViewModel.KnsInscribeUiStatus.CHECKING_AVAILABILITY -> R.string.domain_transfer_stage_preparing to 0.1f
+        WalletViewModel.KnsInscribeUiStatus.FETCHING_FEE -> R.string.domain_transfer_stage_fee to 0.2f
+        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_COMMIT -> R.string.domain_transfer_stage_commit to 0.4f
+        WalletViewModel.KnsInscribeUiStatus.SUBMITTING_REVEAL -> R.string.domain_transfer_stage_reveal to 0.75f
+        WalletViewModel.KnsInscribeUiStatus.VERIFYING -> R.string.domain_transfer_stage_verifying to 0.95f
+        else -> R.string.domain_transfer_stage_working to 0.1f
     }
+    val label = stringResource(labelRes)
+    // Held open for the duration (iOS `.interactiveDismissDisabled(true)`): no swipe, scrim tap or
+    // Back hides it, so no half-gone sheet is left over the app. It goes when the caller stops
+    // composing it, once the transfer is no longer in flight.
+    val transferSheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != androidx.compose.material3.SheetValue.Hidden },
+    )
 
     com.kachat.app.ui.theme.IosSheetColors {
         val colors = LocalAppColors.current
@@ -14757,20 +14943,27 @@ private fun DomainTransferProgressSheet(
             // Held open for the duration: the work keeps running either way, and a dismissed sheet
             // would leave an on-chain transfer with nothing reporting on it.
             onDismissRequest = {},
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            sheetState = transferSheetState,
+            properties = androidx.compose.material3.ModalBottomSheetProperties(
+                securePolicy = androidx.compose.ui.window.SecureFlagPolicy.Inherit,
+                isFocusable = true,
+                shouldDismissOnBackPress = false,
+            ),
             containerColor = colors.background,
             dragHandle = null,
         ) {
             // The sheet runs down behind the navigation bar, as iOS's does behind the home indicator;
             // its content stays above it.
             Column(Modifier.navigationBarsPadding()) {
+                // Back in the sheet's own window does nothing while the transfer runs.
+                SheetWindowBack {}
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp, top = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Text(
-                        "Sending $domainName",
+                        stringResource(R.string.domain_transfer_sending, domainName),
                         color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
@@ -14784,7 +14977,7 @@ private fun DomainTransferProgressSheet(
                     )
                     Text(label, color = colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Text(
-                        "A domain transfer is two transactions, so this takes a moment. Keep the app open until it finishes.",
+                        stringResource(R.string.domain_transfer_footer),
                         color = colors.textSecondary,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,

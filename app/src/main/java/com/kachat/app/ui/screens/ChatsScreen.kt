@@ -218,7 +218,13 @@ fun ChatsScreen(
     // you are on chain), the raw address (so pasting part of an address you recognize still
     // finds it), or any of its messages. The messages are read from the database off the main
     // thread; until that answers the previous answer stays.
+    // Debounced: typing, or a sync landing mid-search, restarts this before it reads anything.
     val messageMatchIds by produceState<Set<String>>(initialValue = emptySet(), searchQuery, conversations) {
+        if (searchQuery.isBlank()) {
+            value = emptySet()
+            return@produceState
+        }
+        kotlinx.coroutines.delay(250)
         value = chatViewModel.contactIdsWithMessageMatching(searchQuery)
     }
     // The chats pinned up into the circles row, by pin id. Empty while searching: the results are
@@ -893,7 +899,8 @@ fun ChatsScreen(
             addressBookTarget?.let { contact ->
                 AddressBookEntryEditor(
                     address = contact.id,
-                    suggestedName = contact.alias?.takeIf { it.isNotBlank() } ?: contact.displayName,
+                    // only a name you gave them, never their domain or address (iOS 413f6d6d)
+                    presetName = contact.alias?.trim()?.takeIf { it.isNotEmpty() },
                     onDone = {},
                     onDismiss = { addressBookTarget = null },
                 )

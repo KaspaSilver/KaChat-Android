@@ -94,7 +94,7 @@ fun CacheSettingsScreen(
 
     Scaffold(
         containerColor = colors.background,
-        topBar = { SettingsSubpageBar(title = "Cache", onBack = onBack) }
+        topBar = { SettingsSubpageBar(title = stringResource(R.string.cache), onBack = onBack) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -128,7 +128,7 @@ fun CacheSettingsScreen(
                 }
             }
 
-            SettingsFormSection(title = "What's Cached") {
+            SettingsFormSection(title = stringResource(R.string.whats_cached)) {
                 CacheManager.Category.entries.forEachIndexed { index, category ->
                     if (index > 0) SettingsDivider(54.dp)
                     val bytes = sizes[category] ?: 0L
@@ -162,7 +162,7 @@ fun CacheSettingsScreen(
             // Clear All Cache: red text, no icon; dimmed while there is nothing to clear (iOS).
             SettingsFormSection(title = null) {
                 Text(
-                    "Clear All Cache",
+                    stringResource(R.string.clear_all_cache),
                     color = colors.danger,
                     fontSize = 17.sp,
                     modifier = Modifier

@@ -82,7 +82,7 @@ object KaspaAddress {
      */
     fun isValid(address: String): Boolean {
         return try {
-            if (address.substringBefore(':', "") !in KNOWN_HRPS) return false
+            if (address.substringBefore(':', "").lowercase() !in KNOWN_HRPS) return false
             val (version, payload) = decode(address)
             hasValidPayload(version, payload)
         } catch (e: Exception) {
@@ -99,7 +99,21 @@ object KaspaAddress {
      * coins on the wrong network.
      */
     fun isValidOnNetwork(address: String, hrp: String = KaspaNetwork.hrp): Boolean =
-        isValid(address) && address.substringBefore(':') == hrp
+        isValid(address) && address.substringBefore(':').lowercase() == hrp
+
+    /**
+     * Typed, pasted or scanned input with an address's case fixed: an all-uppercase string (a
+     * compact QR code's "KASPA:QR...") comes back lowercased; anything else is returned as it is,
+     * so a mixed-case string stays invalid (iOS 83806b3d `normalizedCase`).
+     */
+    fun normalizedCase(input: String): String = if (input == input.uppercase()) input.lowercase() else input
+
+    /** The input starts with a Kaspa address prefix, in either single case (iOS 83806b3d
+     *  `hasAddressPrefix`). */
+    fun hasAddressPrefix(input: String): Boolean {
+        val normalized = normalizedCase(input)
+        return normalized.startsWith("kaspa:") || normalized.startsWith("kaspatest:")
+    }
 
     /** [isValidOnNetwork] for the network the app runs on. */
     fun isValidOnActiveNetwork(address: String): Boolean = isValidOnNetwork(address)
@@ -153,7 +167,12 @@ object KaspaAddress {
      * @return Pair(version, payload)
      */
     fun decode(address: String): Pair<Byte, ByteArray> {
-        val parts = address.split(":")
+        // Bech32 is single-case: all lower, or all upper (compact QR codes use "KASPA:QR..."). A
+        // mixed-case string isn't a valid address (iOS 83806b3d).
+        if (address != address.lowercase() && address != address.uppercase()) {
+            throw IllegalArgumentException("Mixed-case address")
+        }
+        val parts = address.lowercase().split(":")
         if (parts.size != 2) throw IllegalArgumentException("Invalid address format")
         
         val prefix = parts[0]
@@ -185,6 +204,9 @@ object KaspaAddress {
      * Returns the scriptPublicKey hex for a given address.
      */
     fun getScriptPublicKey(address: String): String {
+        // Only a known prefix (iOS 83806b3d `KaspaAddress(address:)`): the script is built from the
+        // payload alone, so any other prefix would still yield a script.
+        require(address.substringBefore(':', "").lowercase() in KNOWN_HRPS) { "Unknown address prefix" }
         val (version, payload) = decode(address)
         // A payload that doesn't fit its version builds a malformed script (AND-011).
         require(hasValidPayload(version, payload)) { "Invalid address payload for version $version" }

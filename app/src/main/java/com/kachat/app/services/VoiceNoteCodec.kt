@@ -185,7 +185,11 @@ object VoiceNoteCodec {
                     var mono = decodePart(parsed, maxPartSamples) ?: continue
                     // Cut to the part's own length: its packets also hold the next part's start.
                     parsed.durationMs?.let { ms ->
-                        val wanted = Math.round(ms / 1000.0 * SAMPLE_RATE).toInt()
+                        // The header comes from the sender: clamped before converting, so an
+                        // absurd value (e.g. 1e300) can't overflow into a short cut - no genuine
+                        // part runs past the cap (iOS 83806b3d).
+                        val cappedMs = minOf(ms, (VoicePartTag.MAX_PART_SECONDS + 1) * 1000.0)
+                        val wanted = Math.round(cappedMs / 1000.0 * SAMPLE_RATE).toInt()
                         if (wanted in 1 until mono.size) mono = mono.copyOf(wanted)
                     }
                     if (mono.isEmpty()) continue

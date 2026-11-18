@@ -144,28 +144,48 @@ fun MultipartAudioBubble(input: MediaPartsInput, isSent: Boolean, onLongPress: (
     var seekFraction by remember { mutableFloatStateOf(0f) }
     var playRequested by remember { mutableStateOf(false) }
 
-    // Decoded again whenever a part arrives (unless playing: the next Play picks it up).
-    LaunchedEffect(input.signature, playRequested) {
-        if (loadedSignature == input.signature && player != null) {
-            if (playRequested) {
-                playRequested = false
-                player?.let { it.start(); isPlaying = true }
-            }
-            return@LaunchedEffect
-        }
+    // The length, kept without the audio (iOS MessageBubbleView `preload`): worked out again
+    // whenever a part arrives (unless playing: the next Play picks it up). Nothing is decoded to a
+    // file or held in a player until Play - a chat with several long notes held a MediaPlayer
+    // and a WAV of up to 16 MB for every one on screen.
+    LaunchedEffect(input.signature) {
         if (isPlaying) return@LaunchedEffect
         isLoading = true
+        val total = withContext(Dispatchers.Default) { partsDurationMs(context.cacheDir, input) }
+        if (total != null && total > 0L) durationMs = total
+        isLoading = false
+    }
+
+    // Play: the parts as one WAV and a player for it, made now (iOS `togglePlayback`), and again
+    // when parts arrived since.
+    LaunchedEffect(playRequested) {
+        if (!playRequested) return@LaunchedEffect
         val signature = input.signature
-        val decoded = withContext(Dispatchers.Default) {
-            val parts = input.partBytes()
-            if (parts.isEmpty()) null
-            else VoiceNoteCodec.decodePartsToWav(parts, java.io.File(context.cacheDir, "voice_parts_${System.nanoTime()}.wav"))
+        player?.takeIf { loadedSignature == signature }?.let {
+            playRequested = false
+            it.start()
+            isPlaying = true
+            return@LaunchedEffect
+        }
+        isLoading = true
+        val output = java.io.File(context.cacheDir, "voice_parts_${System.nanoTime()}.wav")
+        val decoded = try {
+            withContext(Dispatchers.Default) {
+                val parts = input.partBytes()
+                if (parts.isEmpty()) null else VoiceNoteCodec.decodePartsToWav(parts, output)
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // scrolled away or a part arrived mid-decode: the finished file is no one's
+            output.delete()
+            throw e
         }
         player?.let { runCatching { it.release() } }
         playerFile?.delete()
         player = null
         playerFile = null
+        loadedSignature = null
         if (decoded == null) {
+            playRequested = false
             isLoading = false
             return@LaunchedEffect
         }
@@ -184,16 +204,14 @@ fun MultipartAudioBubble(input: MediaPartsInput, isSent: Boolean, onLongPress: (
             loadedSignature = signature
             durationMs = mediaPlayer.duration.toLong().takeIf { it > 0 } ?: decoded.durationMs
             if (seekFraction > 0f) mediaPlayer.seekTo((seekFraction * durationMs).toInt())
-            if (playRequested) {
-                playRequested = false
-                mediaPlayer.start()
-                isPlaying = true
-            }
+            mediaPlayer.start()
+            isPlaying = true
         } catch (e: Exception) {
             android.util.Log.e("MultipartAudioBubble", "Could not prepare the voice note for playback", e)
             runCatching { mediaPlayer.release() }
             decoded.file.delete()
         }
+        playRequested = false
         isLoading = false
     }
 
@@ -278,4 +296,28 @@ fun MultipartAudioBubble(input: MediaPartsInput, isSent: Boolean, onLongPress: (
             }
         }
     }
+}
+
+/** The voice note's length from its parts' own Duration, without decoding them; a part that
+ *  doesn't carry one is decoded once and the file dropped at once (iOS `preload`). Null when no
+ *  part reads. */
+private fun partsDurationMs(cacheDir: java.io.File, input: MediaPartsInput): Long? {
+    val parts = input.partBytes()
+    if (parts.isEmpty()) return null
+    var totalMs = 0.0
+    for (part in parts.take(com.kachat.app.util.VoicePartTag.MAX_PARTS)) {
+        val parsed = com.kachat.app.util.WebMOpusReader.parse(part) ?: continue
+        val ms = parsed.durationMs
+        if (ms == null) {
+            val scratch = java.io.File(cacheDir, "voice_parts_len_${System.nanoTime()}.wav")
+            return try {
+                VoiceNoteCodec.decodePartsToWav(parts, scratch)?.durationMs
+            } finally {
+                scratch.delete()
+            }
+        }
+        // The header comes from the sender: no genuine part runs past the cap (iOS 83806b3d).
+        totalMs += minOf(ms, (com.kachat.app.util.VoicePartTag.MAX_PART_SECONDS + 1) * 1000.0)
+    }
+    return if (totalMs > 0.0) Math.round(totalMs) else null
 }

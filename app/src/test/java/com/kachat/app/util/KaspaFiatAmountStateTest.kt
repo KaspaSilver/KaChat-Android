@@ -56,4 +56,16 @@ class KaspaFiatAmountStateTest {
         state.toggleMode(price)
         assertEquals(held, state.displayText)
     }
+
+    @Test
+    fun `Max from sompi is exact at any balance`() {
+        var held = ""
+        val state = KaspaFiatAmountState { held = it }
+        // 90,000,000.12345679 KAS: past where a Double can be a sompi off (iOS 83806b3d)
+        assertEquals("90000000.12345679", state.setMaxSompi(9_000_000_012_345_679L, price))
+        assertEquals("90000000.12345679", held)
+        assertEquals("90000000.12345679", state.displayText)
+        assertEquals("0.00000001", state.setMaxSompi(1L, price))
+        assertEquals("35", state.setMaxSompi(3_500_000_000L, price))
+    }
 }

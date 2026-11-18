@@ -114,6 +114,10 @@ class AddressActivityNotifier @Inject constructor(
 
     private fun walletAddressOrNull(): String? = try { walletManager.getAddress() } catch (e: Exception) { null }
 
+    /** [walletAddress] is still the signed-in account's. */
+    private fun isStillCurrent(walletAddress: String): Boolean =
+        !walletManager.isLoggedOut && walletAddressOrNull() == walletAddress
+
     // --- Core diff pass ---------------------------------------------------------------
 
     private suspend fun runDiffPass() = runMutex.withLock {
@@ -144,6 +148,9 @@ class AddressActivityNotifier @Inject constructor(
             val balance = try { api.getBalance(address).balance } catch (e: Exception) { return@withLock }
             currentBalances[address] = balance
         }
+        // Signed out or switched while fetching: these balances aren't the current account's
+        // (iOS 83806b3d).
+        if (!isStillCurrent(walletAddress)) return@withLock
 
         val baselines = loadBaselines(walletAddress).toMutableMap()
         val isFirstRun = baselines.isEmpty()
@@ -180,6 +187,9 @@ class AddressActivityNotifier @Inject constructor(
                     featureOn = featureOn,
                     api = api
                 )
+                // Switched account meanwhile: stop, and save nothing more for this one now; the
+                // next catch-up for it starts from the saved baseline (iOS 83806b3d).
+                if (!isStillCurrent(walletAddress)) return@withLock
             }
             baselines[address] = balance
         }

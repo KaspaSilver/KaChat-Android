@@ -215,7 +215,9 @@ class MediaPartsTest {
     )
 
     @Test
-    fun `parts collapse into one row at the earliest, the others hidden`() {
+    fun `parts collapse into one row at the lowest part, the others hidden`() {
+        // iOS 83806b3d: anchored on the lowest part present, not the earliest row, so the bubble
+        // doesn't hop while a note's parts confirm out of order.
         val rows = listOf(
             Row("a", "alice", "hi"),
             Row("p2", "alice", voicePart(2, 3)),
@@ -224,13 +226,25 @@ class MediaPartsTest {
             Row("p3", "alice", voicePart(3, 3)),
         )
         val result = VoicePartGrouping.group(rows, accessors)
-        val cluster = result.groupsByAnchorTxId.getValue("p2")
+        val cluster = result.groupsByAnchorTxId.getValue("p1")
+        assertEquals("p1", cluster.anchor.txId)
         assertEquals(3, cluster.count)
         assertTrue(cluster.isComplete)
         assertEquals(listOf("p1", "p2", "p3"), cluster.parts.map { it.txId })
-        assertEquals(setOf("p1", "p3"), result.hiddenTxIds)
-        assertEquals("p2", result.anchorTxIdByTxId["p3"])
-        assertEquals(setOf("p1", "p2", "p3", "a"), result.expanded(listOf("p2", "a")))
+        assertEquals(setOf("p2", "p3"), result.hiddenTxIds)
+        assertEquals("p1", result.anchorTxIdByTxId["p3"])
+        assertEquals(setOf("p1", "p2", "p3", "a"), result.expanded(listOf("p1", "a")))
+    }
+
+    @Test
+    fun `with the first part missing the lowest present part anchors`() {
+        val rows = listOf(
+            Row("p3", "alice", voicePart(3, 3)),
+            Row("p2", "alice", voicePart(2, 3)),
+        )
+        val result = VoicePartGrouping.group(rows, accessors)
+        assertEquals(setOf("p2"), result.groupsByAnchorTxId.keys)
+        assertEquals(setOf("p3"), result.hiddenTxIds)
     }
 
     @Test

@@ -252,8 +252,8 @@ private fun NextcloudAudioBubble(
                 }
                 Spacer(Modifier.width(10.dp))
                 Column {
-                    Text(if (failed) "Voice message unavailable" else "Voice message", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
-                    Text(if (failed) "Tap to retry" else "Loading…", color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall)
+                    Text(if (failed) stringResource(R.string.voice_message_unavailable) else stringResource(R.string.voice_message), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+                    Text(if (failed) stringResource(R.string.tap_to_retry) else stringResource(R.string.loading_ellipsis), color = LocalAppColors.current.textSecondary, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -327,7 +327,7 @@ private fun RevokedShareTile(
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            "This file is no longer shared",
+            stringResource(R.string.file_no_longer_shared),
             color = LocalAppColors.current.textSecondary,
             fontSize = 12.sp,
         )
@@ -654,7 +654,7 @@ private fun NextcloudAttachmentCard(data: LinkPreviewData, url: String, txId: St
         Spacer(Modifier.width(10.dp))
         Column {
             Text(
-                data.title ?: "File",
+                data.title ?: stringResource(R.string.composer_file),
                 color = LocalAppColors.current.textPrimary,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.bodyMedium,

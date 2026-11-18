@@ -156,7 +156,18 @@ data class NameResolution(
     /** The service isn't live on this network yet (.kachat on mainnet before its launch): listed,
      *  first as always, but nothing can resolve there (iOS 6ac48a7). */
     val notLive: Boolean = false,
-)
+) {
+    companion object {
+        /**
+         * A service's answer is outside data (iOS 83806b3d `NameResolution.init`): an address
+         * that isn't a valid one on the network the app runs on (a wrong length, the other
+         * network, garbage) is dropped here, so no name can put it into a send or the Address
+         * Book. Trimmed and lowercased; null for no address or a bad one.
+         */
+        fun validatedAddress(raw: String?): String? =
+            raw?.trim()?.lowercase()?.takeIf { it.isNotEmpty() && KaspaAddress.isValidOnActiveNetwork(it) }
+    }
+}
 
 /** One name an address owns on a service other than KNS. */
 data class OwnedServiceName(
@@ -401,7 +412,7 @@ class NameServicesClient @Inject constructor(
                 if (record.name != canonical) throw KachatNames.Failure("the indexer answered for another name")
                 registry.confirmOnChain(record)
             }
-            NameResolution(NameServiceTLD.KACHAT, display, owner?.let { KachatNamesRegistry.address(it) }, failed = false)
+            NameResolution(NameServiceTLD.KACHAT, display, answer(display, owner?.let { KachatNamesRegistry.address(it) }), failed = false)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -412,8 +423,10 @@ class NameServicesClient @Inject constructor(
 
     private suspend fun resolveKas(label: String): NameResolution? {
         val canonical = KnsService.normalizeDomainLabel(label) ?: return null
-        val owner = knsService.resolve("$canonical.kas")
-        return NameResolution(NameServiceTLD.KAS, "$canonical.kas", owner, failed = false)
+        val display = "$canonical.kas"
+        // A KNS that can't be reached is "couldn't check", not "No .kas domain found" (iOS 83806b3d).
+        val (owner, failed) = knsService.resolveChecked(display)
+        return NameResolution(NameServiceTLD.KAS, display, answer(display, owner), failed = failed)
     }
 
     private suspend fun resolveDotk(label: String): NameResolution? {
@@ -421,7 +434,7 @@ class NameServicesClient @Inject constructor(
         val base = NameServiceTLD.K.apiBaseUrl(mainnet) ?: return null
         val display = "$canonical.k"
         return when (val outcome = getJsonOrMissing("$base/names/$canonical")) {
-            is Lookup.Found -> NameResolution(NameServiceTLD.K, display, outcome.body.stringOrNull("address"), failed = false)
+            is Lookup.Found -> NameResolution(NameServiceTLD.K, display, answer(display, outcome.body.stringOrNull("address")), failed = false)
             Lookup.Missing -> NameResolution(NameServiceTLD.K, display, null, failed = false)
             Lookup.Failed -> NameResolution(NameServiceTLD.K, display, null, failed = true)
         }
@@ -432,10 +445,17 @@ class NameServicesClient @Inject constructor(
         val base = NameServiceTLD.KASPA.apiBaseUrl(mainnet) ?: return null
         val display = "$canonical.kaspa"
         return when (val outcome = getJsonOrMissing("$base/resolve/$canonical")) {
-            is Lookup.Found -> NameResolution(NameServiceTLD.KASPA, display, outcome.body.stringOrNull("address"), failed = false)
+            is Lookup.Found -> NameResolution(NameServiceTLD.KASPA, display, answer(display, outcome.body.stringOrNull("address")), failed = false)
             Lookup.Missing -> NameResolution(NameServiceTLD.KASPA, display, null, failed = false)
             Lookup.Failed -> NameResolution(NameServiceTLD.KASPA, display, null, failed = true)
         }
+    }
+
+    /** [NameResolution.validatedAddress], with a log line when a service's address is dropped. */
+    private fun answer(display: String, raw: String?): String? {
+        val address = NameResolution.validatedAddress(raw)
+        if (address == null && !raw.isNullOrBlank()) Log.w(TAG, "$display answered an address that isn't valid here; ignored")
+        return address
     }
 
     private sealed class Lookup {

@@ -140,7 +140,7 @@ fun ZeroBalanceFundingCard(walletAddress: String?, modifier: Modifier = Modifier
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text(
-            title ?: "Fund your chatting address to start chatting",
+            title ?: stringResource(R.string.fund_your_chatting_address_to_start),
             color = colors.textPrimary,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,

@@ -63,8 +63,9 @@ class ChatPaymentSender @Inject constructor(
         val extraFeeSompi: Long,
         val manualUtxos: List<UtxoEntry>?,
         /** The fee the Review showed (iOS 4f8e14bb, as `sendWithdrawal`): a build that would pay
-         *  more sends nothing. Null holds it to nothing - a deferred retry has no Review on screen
-         *  to go back to. */
+         *  more sends nothing. A deferred retry rebuilds from the coins of that later moment and is
+         *  held to it too, as the swipe was (iOS 83806b3d `paymentExpectedFeeSompi`). Null holds it
+         *  to nothing. */
         val expectedFeeSompi: Long? = null,
     )
 
@@ -74,7 +75,10 @@ class ChatPaymentSender @Inject constructor(
         /** No confirmed coins yet: the bubble is in the chat and the timer owns it. */
         data object Deferred : Outcome()
 
-        data class Failed(val message: String?) : Outcome()
+        /** Not sent, or [unknownTxId] set: it may have gone and the network never confirmed it
+         *  (no Try Again: it could pay twice). Told apart by type, never by the message's text,
+         *  which is translated (iOS d23e6f7a). */
+        data class Failed(val message: String?, val unknownTxId: String? = null) : Outcome()
     }
 
     /** Sends [request]. A caller that goes away does not stop it. */
@@ -180,8 +184,9 @@ class ChatPaymentSender @Inject constructor(
         return if (isInsufficientFundsError(refused)) insufficient else refused.message
     }
 
-    /** One try of the payment whose bubble is [pendingId]: sent, deferred, or marked failed. */
-    private suspend fun attempt(request: Request, pendingId: String, owner: String): Outcome {
+    /** One try of the payment whose bubble is [pendingId]: sent, deferred, or marked failed.
+     *  [deferredRetry]: a timer's try ([scheduleRetry]), with no Review on screen. */
+    private suspend fun attempt(request: Request, pendingId: String, owner: String, deferredRetry: Boolean = false): Outcome {
         try {
             val myAddress = walletManager.getAddress()
             // It runs when its turn comes, and the person may have switched accounts since: refused
@@ -223,6 +228,8 @@ class ChatPaymentSender @Inject constructor(
                     payloadBytes = payload,
                     manualUtxos = request.manualUtxos,
                     extraFeeSompi = request.extraFeeSompi,
+                    // The Review's fee, held to from every From (iOS sendPaymentInternal).
+                    expectedFeeSompi = request.expectedFeeSompi,
                 )
             } else {
                 // [WalletService.sendKaspa]'s chat-payment call, with the Review's fee held to.
@@ -279,8 +286,16 @@ class ChatPaymentSender @Inject constructor(
             Log.w(TAG, "Payment outcome unknown: marked not confirmed")
             finalizeUnconfirmed(request, pendingId, unknown.txId)
             clearNoInputRetryState(pendingId)
-            return Outcome.Failed(context.getString(com.kachat.app.R.string.send_outcome_unknown))
+            return Outcome.Failed(context.getString(com.kachat.app.R.string.send_outcome_unknown), unknownTxId = unknown.txId)
         } catch (changed: SendFeeChangedException) {
+            if (deferredRetry) {
+                // A deferred retry: no Review is on screen to show the new fee, so the bubble
+                // stays as a Failed payment rather than vanishing; nothing went out (iOS 83806b3d).
+                Log.i(TAG, "Deferred payment not sent: the fee is now above the Review's")
+                chatRepository.updateMessageStatus(pendingId, "failed")
+                clearNoInputRetryState(pendingId)
+                return Outcome.Failed(KaspaUnit.label(context.getString(com.kachat.app.R.string.send_fee_changed, KaspaUnit.plain(changed.feeSompi))))
+            }
             // Nothing went out and the Review shows the new fee: the next swipe makes its own
             // bubble, so this one goes rather than staying behind as a Failed payment (iOS 4f8e14bb).
             Log.i(TAG, "Payment not sent: the fee changed since the Review")
@@ -341,8 +356,9 @@ class ChatPaymentSender @Inject constructor(
                 return@launch
             }
             chatRepository.updateMessageStatus(pendingId, "pending")
-            // Individual attempts decide whether to reschedule or fail. No Review to hold it to.
-            attempt(request.copy(expectedFeeSompi = null), pendingId, owner)
+            // Individual attempts decide whether to reschedule or fail. Held to the Review's fee,
+            // as the swipe was (iOS 83806b3d).
+            attempt(request, pendingId, owner, deferredRetry = true)
         }
     }
 

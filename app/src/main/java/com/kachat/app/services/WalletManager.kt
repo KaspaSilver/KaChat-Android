@@ -100,6 +100,8 @@ class WalletManager @Inject constructor(
         private const val SECURE_PREFS_NAME = "kachat_secure_prefs"
         private const val PREF_ACCOUNTS = "accounts"
         private const val PREF_ACTIVE_ADDRESS = "active_address"
+        /** Deleted accounts' addresses whose local data wipe hasn't finished yet. */
+        private const val PREF_PENDING_ACCOUNT_WIPES = "pending_account_wipes"
         private const val PREF_LOGGED_OUT = "logged_out"
         private const val PREF_HIDDEN_SPENDING_ADDRESSES = "hidden_spending_addresses"
         private const val PREF_SPENDING_ADDRESS_LABELS = "spending_address_labels"
@@ -858,7 +860,25 @@ class WalletManager @Inject constructor(
      *  `logoutFlagKey`); its biometric gate, when turned on, stands in front of the saved accounts. */
     var isLoggedOut: Boolean
         get() = sharedPrefs.getBoolean(PREF_LOGGED_OUT, false)
-        set(value) = sharedPrefs.edit().putBoolean(PREF_LOGGED_OUT, value).apply()
+        set(value) {
+            // Signed out: the identity key held in memory goes too (iOS `cachedPrivateKey = nil`).
+            if (value) clearIdentityKeyCache()
+            sharedPrefs.edit().putBoolean(PREF_LOGGED_OUT, value).apply()
+        }
+
+    /**
+     * Delivered banners (decrypted message text) and the badge they carry, when the signed-in
+     * account leaves: Log Out and Delete Account (iOS 83806b3d `clearNotificationsForSignedOutAccount`).
+     * A banner left behind would show the old account's messages, and its Reply would send from
+     * whichever account signs in next.
+     */
+    fun clearNotificationsForSignedOutAccount() {
+        try {
+            androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
+        } catch (e: Exception) {
+            android.util.Log.w("WalletManager", "Couldn't clear notifications: ${e.message}")
+        }
+    }
 
     /** BIP39 checksum/wordlist validity — true if [mnemonic] is a well-formed phrase. */
     fun isValidMnemonic(mnemonic: List<String>): Boolean = try {
@@ -947,6 +967,7 @@ class WalletManager @Inject constructor(
      * Wipes all wallets from the device.
      */
     fun wipe() {
+        clearIdentityKeyCache()
         sharedPrefs.edit().clear().apply()
         accountsCache = null
         spendingAddressCacheMemo = null
@@ -955,10 +976,30 @@ class WalletManager @Inject constructor(
         refreshActiveAddressFlow()
     }
 
+    /** Deleted accounts' addresses (each variant) whose local data is still being wiped: written
+     *  before the account record goes, cleared once the wipe is done, so a wipe the process died
+     *  in finishes on the next launch (iOS awaits it before the record is removed). */
+    fun pendingAccountWipes(): Set<String> =
+        sharedPrefs.getStringSet(PREF_PENDING_ACCOUNT_WIPES, null)?.toSet() ?: emptySet()
+
+    @Synchronized
+    fun addPendingAccountWipes(addresses: Collection<String>) {
+        sharedPrefs.edit().putStringSet(PREF_PENDING_ACCOUNT_WIPES, pendingAccountWipes() + addresses).commit()
+    }
+
+    @Synchronized
+    fun removePendingAccountWipe(address: String) {
+        val left = pendingAccountWipes() - address
+        sharedPrefs.edit().apply {
+            if (left.isEmpty()) remove(PREF_PENDING_ACCOUNT_WIPES) else putStringSet(PREF_PENDING_ACCOUNT_WIPES, left)
+        }.commit()
+    }
+
     /**
      * Deletes a specific account.
      */
     fun deleteAccount(address: String) {
+        clearIdentityKeyCache()
         updateAccounts { accounts -> accounts.filterNot { com.kachat.app.util.KaspaNetwork.isSameAccount(it.address, address) } }
         val active = sharedPrefs.getString(PREF_ACTIVE_ADDRESS, null)
         if (active != null && com.kachat.app.util.KaspaNetwork.isSameAccount(active, address)) {
@@ -1245,12 +1286,49 @@ class WalletManager @Inject constructor(
      * signing) funnels through here.
      */
     fun getPrivateKeyBytes(): ByteArray {
+        // Signed out: no key at all, not one read back from the stored seed (iOS 83806b3d) - a
+        // send, decrypt or push still running after Log Out must not sign as the old account.
+        if (isLoggedOut) throw IllegalStateException("Signed out")
         val account = getActiveAccount() ?: throw IllegalStateException("No active account")
-        val mnemonic = account.mnemonic.split(" ")
         val family = WalletSourceFamily.fromRaw(account.sourceFamily)
-        val baseNode = identityBaseNode(mnemonic, account.passphrase ?: "", family, passphraseFormOf(account))
-        return identityPrivateKeyBytes(baseNode, account.chattingAddressIndex, family)
+        val form = passphraseFormOf(account)
+        // Derived once per account and kept in memory (iOS WalletManager `cachedPrivateKey`): the
+        // seed's PBKDF2 ran on every call - about three times per message send, on the main
+        // thread, and once per contact in a sweep. Keyed by everything the key is made of, so a
+        // switch of account, chatting address or wallet type derives again.
+        val fingerprint = identityKeyFingerprint(account.mnemonic, account.passphrase ?: "", family, form, account.chattingAddressIndex)
+        cachedIdentityKey?.let { (cachedFor, key) -> if (cachedFor.contentEquals(fingerprint)) return key.copyOf() }
+        val mnemonic = account.mnemonic.split(" ")
+        val baseNode = identityBaseNode(mnemonic, account.passphrase ?: "", family, form)
+        val key = identityPrivateKeyBytes(baseNode, account.chattingAddressIndex, family)
             ?: throw IllegalStateException("This wallet type has no address at index ${account.chattingAddressIndex}.")
+        cachedIdentityKey = fingerprint to key.copyOf()
+        return key
+    }
+
+    /** The active identity key and what it was derived from ([identityKeyFingerprint]); dropped
+     *  whenever an account is removed or the wallet wiped. */
+    @Volatile
+    private var cachedIdentityKey: Pair<ByteArray, ByteArray>? = null
+
+    private fun identityKeyFingerprint(
+        mnemonic: String,
+        passphrase: String,
+        family: WalletSourceFamily,
+        form: PassphraseForm,
+        index: Int,
+    ): ByteArray {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        listOf(mnemonic, passphrase, family.name, form.name, index.toString()).forEach {
+            val bytes = it.toByteArray(Charsets.UTF_8)
+            digest.update(java.nio.ByteBuffer.allocate(4).putInt(bytes.size).array())
+            digest.update(bytes)
+        }
+        return digest.digest()
+    }
+
+    private fun clearIdentityKeyCache() {
+        cachedIdentityKey = null
     }
 
     // --- Spending address (accountIndex=1 branch) ---------------------------------------

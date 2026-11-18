@@ -110,10 +110,14 @@ fun SendKasSheet(
     /** A warning on the Review (iOS 710fdc0, IOS-086): a chat payment From a spending address
      *  while the chatting address is empty, which can't tell the payee about it yet. */
     fromWarning: String? = null,
-    /** The most this payment can be, in KAS - fee-aware, from the funds it actually spends - and
+    /** A note on the Review (iOS 83806b3d): a chat payment From a spending address, whose chat
+     *  notice the chatting address pays for as its own transaction - what that costs. */
+    fromNote: String? = null,
+    /** The most this payment can be, in sompi - fee-aware, from the funds it actually spends - and
      *  whether that is only what one transaction's largest coins can carry (iOS d23e6f7a
-     *  `cappedAtInputLimit`). */
-    maxKas: () -> Pair<Double, Boolean>,
+     *  `cappedAtInputLimit`). Exact: never through a Double, which is off by a sompi at large
+     *  balances (iOS 83806b3d `setMaxSompi`). */
+    maxSompi: () -> Pair<Long, Boolean>,
     /** Changes whenever the fee Max leaves room for may have changed (the speed, a custom fee,
      *  the extra the send will pay, From, the memo). While the amount is still what Max filled
      *  in, Max is worked out again, so a change after Max cannot push the payment past the
@@ -130,6 +134,8 @@ fun SendKasSheet(
     /** The fee editor's Confirm: the whole fee typed, in sompi. */
     onFeeTyped: (Long) -> Unit,
     error: String?,
+    /** [error] is a payment that may have gone (its answer was lost): Not confirmed, no Try Again. */
+    errorOutcomeUnknown: Boolean = false,
     /** Why the fee couldn't be worked out: shown under the fee with Try Again ([onRetryFee]), and
      *  the swipe waits (iOS d23e6f7a `paymentFeeError`). */
     feeError: String? = null,
@@ -150,12 +156,13 @@ fun SendKasSheet(
         onAmountKasChange(text)
     })
     val applyMax: () -> Unit = {
-        val (kas, capped) = maxKas()
+        val (sompi, capped) = maxSompi()
         // The fee eats the balance: the amount stays as it is (iOS setPaymentMax's failure).
-        if (kas > 0.0) {
-            maxFilledKasText = com.kachat.app.util.formatKasAmount(kas)
+        if (sompi > 0L) {
+            val exact = KaspaUnit.plain(sompi)
+            maxFilledKasText = exact
             maxCapped = capped
-            fiatAmountState.setMaxKas(kas, priceInCurrency)
+            fiatAmountState.setExactKas(exact, priceInCurrency)
         }
     }
     LaunchedEffect(maxRefreshKey) {
@@ -265,6 +272,7 @@ fun SendKasSheet(
                     recipient = recipientName,
                     sent = sent,
                     failureMessage = error,
+                    outcomeUnknown = error != null && errorOutcomeUnknown,
                     explorer = explorer,
                     onDone = close,
                     action = submit,
@@ -280,6 +288,7 @@ fun SendKasSheet(
                         note = note,
                         onNoteChange = onNoteChange,
                         fromWarning = fromWarning,
+                        fromNote = fromNote,
                         feeControls = {
                             feeControls {
                                 totalFeeSompi?.let { total ->
@@ -328,6 +337,7 @@ private fun SendKasReview(
     note: String,
     onNoteChange: (String) -> Unit,
     fromWarning: String?,
+    fromNote: String?,
     feeControls: @Composable () -> Unit,
     error: String?,
     feeError: String?,
@@ -397,6 +407,15 @@ private fun SendKasReview(
             )
         }
 
+        if (fromNote != null) {
+            // iOS: footnote, secondary, leading.
+            Text(
+                fromNote,
+                color = colors.textSecondary,
+                fontSize = 13.sp,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         if (fromWarning != null) {
             // iOS: Label(systemImage: "exclamationmark.triangle.fill"), footnote, orange, leading.
             Row(

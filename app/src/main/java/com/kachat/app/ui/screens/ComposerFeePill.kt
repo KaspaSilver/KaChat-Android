@@ -34,6 +34,10 @@ import com.kachat.app.util.KaspaUnit
  * "fee: 0.00001234 KAS" underlined, which opens the fee editor; while a re-price waits for its
  * pause (see [com.kachat.app.util.TypingFeeGate]), "fee: -------- KAS" under a light sweeping
  * across it, and not tappable; "fee: -- KAS" when there is no fee to show.
+ *
+ * Only a text message's fee can be adjusted (iOS 83806b3d `feeIsAdjustable`): a voice note or
+ * photo prices its own parts, so with [adjustable] false the pill shows that fee, not underlined,
+ * and can't be tapped.
  */
 @Composable
 fun ComposerFeePill(
@@ -41,6 +45,7 @@ fun ComposerFeePill(
     estimating: Boolean,
     onTap: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    adjustable: Boolean = true,
 ) {
     val colors = LocalAppColors.current
     val shape = RoundedCornerShape(14.dp)
@@ -53,13 +58,13 @@ fun ComposerFeePill(
         KaspaUnit.label(text),
         color = colors.textSecondary,
         fontSize = 11.sp,
-        textDecoration = if (!estimating && feeSompi != null) TextDecoration.Underline else null,
+        textDecoration = if (adjustable && !estimating && feeSompi != null) TextDecoration.Underline else null,
         modifier = modifier
             .sendKaspaGlass(14.dp)
             .clip(shape)
             .then(if (estimating) Modifier.feeShimmer() else Modifier)
             .clickable(
-                enabled = !estimating && feeSompi != null,
+                enabled = adjustable && !estimating && feeSompi != null,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
             ) { feeSompi?.let(onTap) }

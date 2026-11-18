@@ -218,7 +218,7 @@ fun NextcloudPickerDialog(
                     modifier = Modifier.weight(1f)
                 )
                 if (startFolder.isNotEmpty() && pathStack.first().isNotEmpty()) {
-                    SheetBarButton("All Files", onClick = { pathStack = listOf("") })
+                    SheetBarButton(stringResource(R.string.pnc_all_files), onClick = { pathStack = listOf("") })
                 }
             }
 
@@ -286,7 +286,7 @@ fun NextcloudPickerDialog(
                     if (!isLoading && folders.isEmpty() && media.isEmpty() && otherFiles.isEmpty() && errorMessage == null) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Text(
-                                "This folder is empty.",
+                                stringResource(R.string.pnc_folder_empty),
                                 color = LocalAppColors.current.textSecondary,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -466,7 +466,7 @@ fun NextcloudFolderSelectDialog(
                     if (pathStack.size > 1) pathStack = pathStack.dropLast(1) else onDismiss()
                 })
                 Text(
-                    text = currentPath.substringAfterLast('/').ifEmpty { "All Files" },
+                    text = currentPath.substringAfterLast('/').ifEmpty { stringResource(R.string.pnc_all_files) },
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp,
@@ -476,7 +476,7 @@ fun NextcloudFolderSelectDialog(
                     modifier = Modifier.weight(1f)
                 )
                 SheetBarButton(
-                    if (currentPath.isEmpty()) "Use All Files" else "Use This Folder",
+                    if (currentPath.isEmpty()) stringResource(R.string.nc_use_all_files) else stringResource(R.string.nc_use_this_folder),
                     onClick = { onSelect(currentPath.takeIf { it.isNotEmpty() }) },
                     emphasized = true,
                 )
@@ -521,7 +521,7 @@ fun NextcloudFolderSelectDialog(
                     if (!isLoading && folders.isEmpty() && errorMessage == null) {
                         item {
                             Text(
-                                "No subfolders.",
+                                stringResource(R.string.nc_no_subfolders),
                                 color = LocalAppColors.current.textSecondary,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -578,7 +578,7 @@ fun NextcloudPhotoViewerDialog(
                 },
                 error = {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Could not load this file.", color = Color.White.copy(alpha = 0.7f))
+                        Text(stringResource(R.string.nc_could_not_load_file), color = Color.White.copy(alpha = 0.7f))
                     }
                 },
                 modifier = Modifier
@@ -600,7 +600,7 @@ fun NextcloudPhotoViewerDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = Color.White)
                 }
             }
         }
@@ -684,7 +684,7 @@ fun NextcloudPdfViewerDialog(
                     // almost always lost its share, and that link opened a browser onto the
                     // same dead share - a second failure dressed as an option.
                     Text(
-                        "Could not load this file.",
+                        stringResource(R.string.nc_could_not_load_file),
                         color = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.align(Alignment.Center)
                     )
@@ -702,7 +702,7 @@ fun NextcloudPdfViewerDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), tint = Color.White)
                 }
             }
         }
@@ -982,6 +982,21 @@ fun NextcloudSettingsSection(chatViewModel: ChatViewModel) {
             dismissButton = {
                 TextButton(onClick = { showDisconnectConfirm = false }) {
                     Text(stringResource(R.string.cancel), color = colors.textSecondary)
+                }
+            }
+        )
+    }
+    // The server didn't confirm the revoke: say so, and where to remove it by hand (iOS 83806b3d).
+    val revokeFailureHost by service.appPasswordRevokeFailureHost.collectAsState()
+    revokeFailureHost?.let { host ->
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { service.clearRevokeFailure() },
+            containerColor = colors.surface,
+            title = { Text(stringResource(R.string.nc_revoke_failed_title), color = colors.textPrimary) },
+            text = { Text(stringResource(R.string.nc_revoke_failed_message, host), color = colors.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = { service.clearRevokeFailure() }) {
+                    Text(stringResource(R.string.ok), color = colors.accent, fontWeight = FontWeight.Bold)
                 }
             }
         )

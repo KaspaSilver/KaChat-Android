@@ -271,6 +271,36 @@ object KachatNames {
             }
         }
 
+        /** The largest time (unix ms) a record may carry: about the year 2286. Times come from the
+         *  chain, a REST server or an indexer the user picked, so they're checked before any math
+         *  (iOS 83806b3d). */
+        const val MAX_TIME_MS: Long = 10_000_000_000_000L
+
+        /** `base + years * periodMs`, refused when it overflows or leaves 0..[MAX_TIME_MS]
+         *  (iOS 83806b3d `periodEnd`): Long math would otherwise wrap silently. */
+        fun periodEnd(base: Long, years: Long, periodMs: Long): Long {
+            val span = try {
+                Math.multiplyExact(years, periodMs)
+            } catch (e: ArithmeticException) {
+                throw Failure("a name's period is out of range")
+            }
+            val end = try {
+                Math.addExact(base, span)
+            } catch (e: ArithmeticException) {
+                throw Failure("a name's period is out of range")
+            }
+            if (base !in 0..MAX_TIME_MS || end !in 0..MAX_TIME_MS) throw Failure("a name's period is out of range")
+            return end
+        }
+
+        /** `a + b`, stopping at Long's limits instead of wrapping (iOS 83806b3d). */
+        fun saturatingAdd(a: Long, b: Long): Long {
+            val r = a + b
+            // overflow only when both operands share a sign the result doesn't
+            if (((a xor r) and (b xor r)) < 0) return if (b > 0) Long.MAX_VALUE else Long.MIN_VALUE
+            return r
+        }
+
         /** Little-endian sign-magnitude bytes -> Long. */
         fun scriptNum(b: ByteArray): Long {
             if (b.isEmpty()) return 0
@@ -493,11 +523,11 @@ class NameFields(
 
     /** What `extend(years)` leaves: the same period start, the expiry [years] periods later (iOS e1e3455). */
     fun extended(years: Long, periodMs: Long): NameFields =
-        NameFields(key, paddedName, owner, price, periodStart, expiresAt + years * periodMs)
+        NameFields(key, paddedName, owner, price, periodStart, KachatNames.Codec.periodEnd(expiresAt, years, periodMs))
 
     /** What `renew(years)` leaves: a new period from the old expiry, so no time is lost or gained. */
     fun renewed(years: Long, periodMs: Long): NameFields =
-        NameFields(key, paddedName, owner, price, expiresAt, expiresAt + years * periodMs)
+        NameFields(key, paddedName, owner, price, expiresAt, KachatNames.Codec.periodEnd(expiresAt, years, periodMs))
 
     override fun equals(other: Any?): Boolean =
         other is NameFields && key.contentEquals(other.key) && paddedName.contentEquals(other.paddedName) &&

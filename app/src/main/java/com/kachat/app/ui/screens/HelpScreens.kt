@@ -70,7 +70,7 @@ fun InAppBrowserScreen(url: String, title: String, notice: String? = null, onClo
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = KaspaTeal)
+                Icon(Icons.Default.Close, contentDescription = androidx.compose.ui.res.stringResource(com.kachat.app.R.string.close), tint = KaspaTeal)
             }
             Text(title, color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
@@ -147,7 +147,7 @@ fun HelpScreen(
                 Column {
                     HelpRow(
                         androidx.compose.material.icons.Icons.Default.AutoAwesome,
-                        "Welcome Guide",
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.welcome_guide),
                         androidx.compose.ui.res.stringResource(com.kachat.app.R.string.kg_welcome_body),
                         onWelcomeGuide,
                     )

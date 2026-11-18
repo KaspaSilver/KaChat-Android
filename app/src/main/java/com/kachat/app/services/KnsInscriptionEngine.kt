@@ -56,7 +56,7 @@ class KnsInscriptionEngine @Inject constructor(
     private suspend fun savePending(commit: PendingKnsCommit) {
         settings.setPendingKnsCommit(commit)
         savedThisRun.add(commit.commitTxId)
-        recoveryPrefs.edit().putString(KEY_SAVED_ID, commit.commitTxId).putLong(KEY_SAVED_AT, System.currentTimeMillis()).apply()
+        recoveryPrefs.edit().clear().putString(KEY_SAVED_ID, commit.commitTxId).putLong(KEY_SAVED_AT, System.currentTimeMillis()).apply()
     }
 
     private suspend fun clearPending() {
@@ -68,10 +68,19 @@ class KnsInscriptionEngine @Inject constructor(
     private fun pendingAgeMs(commitTxId: String): Long {
         val now = System.currentTimeMillis()
         if (recoveryPrefs.getString(KEY_SAVED_ID, null) != commitTxId) {
-            recoveryPrefs.edit().putString(KEY_SAVED_ID, commitTxId).putLong(KEY_SAVED_AT, now).apply()
+            recoveryPrefs.edit().clear().putString(KEY_SAVED_ID, commitTxId).putLong(KEY_SAVED_AT, now).apply()
             return 0L
         }
         return now - recoveryPrefs.getLong(KEY_SAVED_AT, now)
+    }
+
+    /** The resume bookkeeping kept beside the pending commit (iOS 83806b3d `commitSeen`,
+     *  `emptyChecks`): whether its coin was ever seen unspent, and how many looks in a row since
+     *  found none. Read after [pendingAgeMs], which ties the record to [commitTxId]. */
+    private fun commitSeen(): Boolean = recoveryPrefs.getBoolean(KEY_COMMIT_SEEN, false)
+    private fun emptyChecks(): Int = recoveryPrefs.getInt(KEY_EMPTY_CHECKS, 0)
+    private fun setResumeState(seen: Boolean, emptyChecks: Int) {
+        recoveryPrefs.edit().putBoolean(KEY_COMMIT_SEEN, seen).putInt(KEY_EMPTY_CHECKS, emptyChecks).apply()
     }
 
     /** The commit whose reveal hasn't been accepted yet, when it wasn't made by this run. */
@@ -243,13 +252,23 @@ class KnsInscriptionEngine @Inject constructor(
             val commitAddress = KnsInscriptionScript.commitAddress(redeemScript, hrp)
             val utxos = nodePoolManager.getUtxosByAddress(commitAddress) ?: return@withLock false
             val isLive = utxos.any { it.outpoint.transactionId.equals(pending.commitTxId, ignoreCase = true) && it.outpoint.index == 0 }
+            val ageMs = pendingAgeMs(pending.commitTxId)
+            val seen = commitSeen()
+            val emptyChecks = emptyChecks()
             if (!isLive) {
-                // It never landed, or its reveal did.
-                if (pendingAgeMs(pending.commitTxId) <= MISSING_COMMIT_LIFETIME_MS) return@withLock false
-                Log.i("KnsInscriptionEngine", "Commit $label is gone: nothing to finish")
+                // The pending commit is the only copy of the redeem script that unlocks the coin,
+                // so it is dropped only when the commit is surely spent (iOS 83806b3d).
+                val counted = emptyChecks + 1
+                if (missingCommitVerdict(seen, counted, ageMs) == MissingCommit.KEEP) {
+                    setResumeState(seen, counted)
+                    return@withLock false
+                }
+                Log.i("KnsInscriptionEngine", if (seen) "Commit $label was spent: nothing to finish" else "Commit $label never appeared: dropped")
                 clearPending()
                 return@withLock true
             }
+            // seen unspent: any earlier empty answers were a lagging node
+            if (!seen || emptyChecks > 0) setResumeState(seen = true, emptyChecks = 0)
             val commit = CommitResult(pending.commitTxId, redeemScript, pending.commitScriptPubKeyHex, pending.commitAmountSompi, pending.revealAmountSompi)
             val signedTx = buildSignedReveal(
                 commit, pending.revealTargetAddress, pending.changeAddress ?: pending.revealTargetAddress, ownerPrivateKey, REVEAL_PRIORITY_FEE_SOMPI
@@ -392,12 +411,37 @@ class KnsInscriptionEngine @Inject constructor(
         const val MAX_TRANSFER_PRIORITY_FEE_SOMPI = 100_000_000L
 
         private const val REVEAL_ATTEMPTS = 5
-        /** A commit that can't be found is dropped after this: it never landed, or its reveal did
-         *  (iOS `missingCommitLifetime`). */
-        private const val MISSING_COMMIT_LIFETIME_MS = 24 * 60 * 60 * 1000L
+        /** A commit never seen is dropped only after this long (and [MISSING_COMMIT_CHECKS] empty
+         *  looks): the pending record is the only copy of its redeem script (iOS 83806b3d
+         *  `missingCommitLifetime`, 30 days). */
+        internal const val MISSING_COMMIT_LIFETIME_MS = 30L * 24 * 60 * 60 * 1000
         private const val RECOVERY_PREFS = "kns_reveal_recovery"
         private const val KEY_SAVED_ID = "commit_id"
         private const val KEY_SAVED_AT = "saved_at"
+        private const val KEY_COMMIT_SEEN = "commit_seen"
+        private const val KEY_EMPTY_CHECKS = "empty_checks"
+
+        /** Empty looks in a row before a seen commit counts as spent: one lagging node's empty
+         *  answer isn't enough (iOS 83806b3d). */
+        private const val SPENT_COMMIT_CHECKS = 2
+        /** Empty looks a never-seen commit also needs, past [MISSING_COMMIT_LIFETIME_MS]. */
+        private const val MISSING_COMMIT_CHECKS = 2
+
+        internal enum class MissingCommit { KEEP, DROP }
+
+        /**
+         * What a resume does with a commit whose coin it didn't find (iOS 83806b3d
+         * `KNSRevealRecovery.resume`): one seen unspent before and now gone was spent - by its
+         * reveal, normally - and is dropped after [SPENT_COMMIT_CHECKS] empty looks in a row; one
+         * never seen is dropped only once it is older than [MISSING_COMMIT_LIFETIME_MS] and has
+         * had [MISSING_COMMIT_CHECKS] empty looks - a slow commit or a node that missed it must
+         * not lose it. [emptyChecks] counts this look.
+         */
+        internal fun missingCommitVerdict(seen: Boolean, emptyChecks: Int, ageMs: Long): MissingCommit = when {
+            seen -> if (emptyChecks >= SPENT_COMMIT_CHECKS) MissingCommit.DROP else MissingCommit.KEEP
+            ageMs > MISSING_COMMIT_LIFETIME_MS && emptyChecks >= MISSING_COMMIT_CHECKS -> MissingCommit.DROP
+            else -> MissingCommit.KEEP
+        }
 
         /** Why a new commit is refused while an earlier one waits for its reveal. */
         const val PENDING_COMMIT_MESSAGE =

@@ -19,6 +19,9 @@ object SendFeeModel {
     /** Standard P2PK scriptPublicKey length, for a recipient or change output whose exact script
      *  is not known yet. */
     const val STANDARD_SCRIPT_LEN = 34
+    /** A quantum-safe (KIP-22) P2SH scriptPublicKey: `OP_BLAKE2B 0x20 <hash> OP_EQUAL`, a byte
+     *  longer than [STANDARD_SCRIPT_LEN]. A spending-address chat payment's change goes to one. */
+    const val P2SH_SCRIPT_LEN = 35
 
     /** The extra over [baseFeeSompi]: the custom extra when one is set, else what the speed adds
      *  (Fast 2x, Priority 5x the base). */

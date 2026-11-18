@@ -41,7 +41,7 @@ enum class Status(val raw: String) {
     companion object {
         fun of(expiresAt: Long, graceMs: Long, nowMs: Long): Status = when {
             nowMs < expiresAt -> ACTIVE
-            nowMs < expiresAt + graceMs -> GRACE
+            nowMs < Codec.saturatingAdd(expiresAt, graceMs) -> GRACE
             else -> LAPSED
         }
     }
@@ -744,7 +744,9 @@ class TxView(
                 val idx = num(any.get("previous_outpoint_index"))
                 if (prev == null || idx == null) throw Failure("$idHex: input without its outpoint")
                 val sig = unhex(str(any.get("signature_script")) ?: "")
-                val order = num(any.get("index"))?.toInt() ?: k
+                // A REST server's numbers are outside data: out of range is a bad answer (iOS 83806b3d).
+                if (idx !in 0..0xFFFF_FFFFL) throw Failure("$idHex: input outpoint index out of range")
+                val order = num(any.get("index"))?.takeIf { it in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() }?.toInt() ?: k
                 inputs.add(order to ViewInput(Outpoint(unhex32(prev), idx.toInt()), sig))
             }
             val outputs = ArrayList<Pair<Int, TxOutput>>()
@@ -755,11 +757,11 @@ class TxView(
                 var covenant: CovenantBinding? = null
                 val cid = str(any.get("covenant_id"))
                 if (cid != null && cid.isNotEmpty()) {
-                    val auth = num(any.get("covenant_authorizing_input"))
-                        ?: throw Failure("$idHex: covenant output without its authorizing input")
+                    val auth = num(any.get("covenant_authorizing_input"))?.takeIf { it in 0..0xFFFFL }
+                        ?: throw Failure("$idHex: covenant output without a valid authorizing input")
                     covenant = CovenantBinding(auth.toInt(), unhex32(cid))
                 }
-                val order = num(any.get("index"))?.toInt() ?: k
+                val order = num(any.get("index"))?.takeIf { it in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() }?.toInt() ?: k
                 outputs.add(order to TxOutput(value = amount, scriptVersion = 0, script = unhex(spk), covenant = covenant))
             }
             val payload = unhex(str(j.get("payload")) ?: "")
@@ -990,7 +992,7 @@ data class RegistryState(
                     val name = String(nameBytes, Charsets.UTF_8)
                     val k = KachatNames.blake3(nameBytes)
                     val padded = nameBytes.copyOf(minOf(nameBytes.size, 32)).copyOf(32)
-                    val f = NameFields(k, padded, owner, 0, now, now + years * m.params.periodMs)
+                    val f = NameFields(k, padded, owner, 0, now, Codec.periodEnd(now, years, m.params.periodMs))
                     predicted.add(i to Predicted.GapP(g.lo, hex(k)))
                     predicted.add(i to Predicted.GapP(hex(k), g.hi))
                     predicted.add(i to Predicted.NameP(f, name))
@@ -1454,6 +1456,8 @@ object IndexerApi {
             if (registered == false) return null
             val exp = expiresAt ?: return null
             val op = outpoint?.outpoint ?: return null
+            // An indexer's times are outside data: out of range would break the math on them (iOS 83806b3d).
+            if (listOf(exp, periodStart ?: 0L, registeredAt ?: 0L, updatedAt ?: 0L).any { it !in 0..Codec.MAX_TIME_MS }) return null
             val n = Codec.normalize(name)
             if (!Codec.isValid(n)) return null
             val ownerBytes = ownerKey?.let { runCatching { unhex32(it) }.getOrNull() } ?: owner?.let(keyOf) ?: return null

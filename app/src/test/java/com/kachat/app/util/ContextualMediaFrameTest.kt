@@ -302,4 +302,26 @@ class ContextualMediaFrameTest {
         val sealed = GroupCipher.encryptMessage(byteArrayOf(0xFF.toByte(), 1, 2, 3), root, groupId, 1L, senderId, msgId)
         assertNull(GroupCipher.decryptMessage(sealed, root, groupId, 1L, senderId, msgId))
     }
+
+    @Test
+    fun `a frame whose name carries control characters still reads as valid media JSON`() {
+        // iOS 83806b3d: the sender writes the header, so a name with a newline or a raw control
+        // character, or a quote in the mime type, must not leave invalid JSON (raw text in chat).
+        val header = "{\"mimeType\":\"image\\/jpeg\\\"x\",\"name\":\"a\\nb\\tc\\u0001d\\\\e\",\"size\":${jpeg.size}}"
+        val text = ContextualMediaFrame.envelopeText(frame(header, jpeg))
+        assertNotNull(text)
+        assertTrue(text!!.none { it < ' ' })
+        assertTrue(text.contains("\"name\":\"a\\nb\\tc\\u0001d\\\\e\""))
+        val json = com.google.gson.JsonParser.parseString(text).asJsonObject
+        assertEquals("a\nb\tc\u0001d\\e", json.get("name").asString)
+        assertEquals("image/jpeg\"x", json.get("mimeType").asString)
+        assertTrue(json.get("content").asString.startsWith("data:image/jpeg\"x;base64,"))
+    }
+
+    @Test
+    fun `media JSON escaping leaves plain strings untouched`() {
+        val plain = "data:image/jpeg;base64,/9j/4AAQ+=="
+        assertTrue(ContextualMediaFrame.escape(plain) === plain)
+        assertEquals("q\\\"\\\\\\n\\r\\t\\u001f", ContextualMediaFrame.escape("q\"\\\n\r\t\u001f"))
+    }
 }

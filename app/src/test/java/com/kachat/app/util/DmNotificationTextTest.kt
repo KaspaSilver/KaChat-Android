@@ -76,4 +76,14 @@ class DmNotificationTextTest {
         assertFalse(looksLikeJsonEnvelope("[1,2]"))
         assertFalse(looksLikeJsonEnvelope("plain"))
     }
+
+    @Test
+    fun `chess messages say what happened in the game, as on iOS`() {
+        org.junit.Assert.assertEquals("♟️ Invited you to a game of chess", dmNotificationText("""{"type":"chess_invite","gameId":"g","inviterColor":"white"}"""))
+        org.junit.Assert.assertEquals("♟️ Accepted your chess game", dmNotificationText("""{"type":"chess_response","gameId":"g","accepted":true}"""))
+        org.junit.Assert.assertEquals("♟️ Declined your chess game", dmNotificationText("""{"type":"chess_response","gameId":"g","accepted":false}"""))
+        org.junit.Assert.assertEquals("♟️ Played e2 → e4", dmNotificationText("""{"type":"chess_move","gameId":"g","from":"e2","to":"e4"}"""))
+        org.junit.Assert.assertEquals("♟️ Lost on time", dmNotificationText("""{"type":"chess_resign","gameId":"g","reason":"timeout"}"""))
+        org.junit.Assert.assertEquals("♟️ Resigned the chess game", dmNotificationText("""{"type":"chess_resign","gameId":"g"}"""))
+    }
 }

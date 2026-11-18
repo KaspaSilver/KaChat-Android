@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">KaChat</string>
     <string name="n_12_words">12 מילים</string>
+    <string name="n_24_words">24 מילים</string>
     <string name="a_kns_inscription_s_commit_transaction">עסקת ההתחייבות של רישום KNS עברה, אך החשיפה מעולם לא הושלמה. נסה שוב עכשיו כדי להשלים אותה; הכספים בטוחים עד שתעשה זאת.</string>
     <string name="accept">קבל</string>
     <string name="account_name">שם חשבון</string>
@@ -10,16 +12,36 @@
     <string name="added">נוסף</string>
     <string name="address">כתובת</string>
     <string name="address_actions">פעולות כתובת</string>
+    <string name="address_copied_short">הכתובת %1$s הועתקה</string>
+    <string name="tap_anywhere_to_copy">הקישו בכל מקום כדי להעתיק</string>
     <string name="adjust_network_fee">התאם עמלת רשת</string>
     <string name="admin">מנהל</string>
     <string name="amount_kas">סכום (KAS)</string>
     <string name="anyone_with_your_seed_phrase_can">כל מי שיש לו את 12 או 24 המילים שלכם יכול לגשת לחשבון. לעולם אל תשתפו אותן.</string>
     <string name="back">חזרה</string>
+    <string name="previous">הקודם</string>
     <string name="cancel">ביטול</string>
+    <string name="app_settings">הגדרות האפליקציה</string>
+    <string name="delivery_sent">נשלח</string>
+    <string name="delivery_sending">שולח</string>
+    <string name="delivery_failed">נכשל</string>
+    <string name="delivery_failed_tap_to_retry">נכשל · הקישו לניסיון חוזר</string>
+    <string name="delivery_needs_attention">דורש תשומת לב</string>
+    <string name="delivery_failed_retry_accessibility">השליחה נכשלה. הקישו כדי לנסות שוב.</string>
+    <string name="battery_rationale_title">קבלו התראות גם כש-KaChat סגור</string>
+    <string name="battery_rationale_body">חלק מהטלפונים סוגרים אפליקציות כדי לחסוך בסוללה, וזה עלול לעצור את התראות ההודעות שלכם.</string>
+    <string name="battery_rationale_allow">אפשר</string>
+    <string name="battery_rationale_allow_detail">מאפשר להודעות חדשות להעיר את KaChat כדי להודיע לכם.</string>
+    <string name="battery_rationale_not_now_detail">אפשר לשנות זאת מאוחר יותר בהגדרות > אפליקציות > KaChat > סוללה.</string>
+    <string name="open_source_licenses">רישיונות קוד פתוח</string>
+    <string name="screen_lock_required">נדרשת נעילת מסך</string>
     <string name="cancel_photo">בטל תמונה</string>
     <string name="cancel_recording">בטל הקלטה</string>
     <string name="cancel_reply">בטל תגובה</string>
     <string name="chats">צ\'אטים</string>
+    <string name="share_pick_chat">בחרו צ\'אט לשיתוף</string>
+    <string name="help">עזרה</string>
+    <string name="coinbase">Coinbase</string>
     <string name="chatting_address">כתובת צ\'אט</string>
     <string name="chess_stats">סטטיסטיקת שחמט</string>
     <string name="choose_avatar">בחר אווטאר</string>
@@ -28,6 +50,7 @@
     <string name="clear_search">נקה חיפוש</string>
     <string name="close">סגור</string>
     <string name="confirm">אישור</string>
+    <string name="confirm_selection">אישור הבחירה</string>
     <string name="connect_to_a_node">התחבר לצומת</string>
     <string name="connected_only_to_this_node">מחובר רק לצומת זה</string>
     <string name="connection_settings">הגדרות חיבור</string>
@@ -64,7 +87,8 @@
     <string name="import_account">ייבא חשבון</string>
     <string name="import_existing_account">ייבא חשבון קיים</string>
     <string name="incoming_notifications">הודעות נכנסות</string>
-    <string name="kns_domains">דומיינים KNS</string>
+    <string name="kns_domains">הדומיינים שלכם</string>
+    <string name="contact_kns_domains">דומיינים KNS</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">לוגו KaChat</string>
     <string name="kachat_needs_to_connect_to_a">KaChat צריך להתחבר לצומת. איך תרצה להתחבר?</string>
@@ -80,11 +104,16 @@
     <string name="next">הבא</string>
     <string name="no_conversations_yet">עדיין אין שיחות</string>
     <string name="no_domains_yet">עדיין אין דומיינים.</string>
+    <string name="send_domain">שליחת דומיין</string>
+    <string name="asset_id">מזהה נכס</string>
+    <string name="primary_domain">דומיין ראשי</string>
+    <string name="set_as_primary">הגדרה כראשי</string>
     <string name="no_hidden_addresses">אין כתובות מוסתרות.</string>
     <string name="no_hidden_users_in_this_group">אין משתמשים מוסתרים בקבוצה זו.</string>
     <string name="no_messages_yet">אין הודעות עדיין</string>
     <string name="no_saved_addresses">אין כתובות שמורות</string>
     <string name="no_transactions_yet">אין עדיין עסקאות.</string>
+    <string name="no_utxos">אין UTXO.</string>
     <string name="not_now">לא עכשיו</string>
     <string name="notifications">התראות</string>
     <string name="ok">אישור</string>
@@ -99,13 +128,16 @@
     <string name="promote_pawn_to">קדם רגלי ל:</string>
     <string name="qr_code">קוד QR</string>
     <string name="read">נקרא</string>
+    <string name="receive">קבלה</string>
     <string name="recipient_address">כתובת הנמען</string>
     <string name="remove">הסר</string>
     <string name="rename">שנה שם</string>
     <string name="rename_account">שנה שם חשבון</string>
     <string name="rename_address">שנה שם כתובת</string>
     <string name="rename_group">שנה שם קבוצה</string>
+    <string name="rename_utxo">שינוי שם UTXO</string>
     <string name="resign">התפטר</string>
+    <string name="chess_cancel_game">ביטול המשחק</string>
     <string name="resign_this_game">להתפטר ממשחק זה?</string>
     <string name="retry">נסה שוב</string>
     <string name="retry_inscription_reveal">נסה שוב את חשיפת הרישום</string>
@@ -137,9 +169,12 @@
     <string name="try_again">נסה שוב</string>
     <string name="unhide">בטל הסתרה</string>
     <string name="unread">לא נקרא</string>
+    <string name="use_automatic_selection">שימוש בבחירה אוטומטית</string>
     <string name="use_default">השתמש בברירת המחדל</string>
+    <string name="utxos">UTXOs</string>
     <string name="valid_address">כתובת תקפה</string>
     <string name="waiting_on_opponent">ממתין ליריב</string>
+    <string name="the_recipient_wont_see_your_messages">הנמען לא יראה את ההודעות שלכם עד שישלח לכם הודעה או עד שתשלחו לו בקשת תקשורת. בקשת תקשורת עולה 0.2 KAS, והסכום מוחזר אליכם אם הוא מאשר. שליחת בקשת תקשורת פוגעת בפרטיות שלכם.</string>
     <string name="host_port_or_grpcs_host">host:port או grpcs://host</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
@@ -157,6 +192,7 @@
     <string name="bio">ביו</string>
     <string name="biometrics_for_account_login">ביומטריה לכניסה לחשבון</string>
     <string name="biometrics_for_seed_phrase">ביומטריה ל-12 או 24 המילים</string>
+    <string name="biometrics_for_address_private_keys">ביומטריה למפתחות פרטיים של כתובות</string>
     <string name="camera">מצלמה</string>
     <string name="chat_history">היסטוריית צ\'אט</string>
     <string name="clear_connection_pool">נקה מאגר חיבורים</string>
@@ -179,6 +215,10 @@
     <string name="kns_profile">פרופיל KNS</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">צומת קספה</string>
+    <string name="default_recommended">ברירת מחדל (מומלץ)</string>
+    <string name="automatic_scan">סריקה אוטומטית</string>
+    <string name="kaspa_node_quick_access_footer">סריקה אוטומטית מאתרת את הצמתים הזמינים הטובים ביותר ומתחברת אליהם. בחירת צומת מסוים מתחברת רק אליו, בלי לעבור לצמתים אחרים. נהלו כתובות שמורות בהגדרות חיבור > פנקס כתובות IP.</string>
+    <string name="node_connections_blocked">נראה שחיבורים לצמתים חסומים ברשת הזו. קבלת הודעות עדיין עובדת דרך האינדקסר ותשלומים רגילים עדיין עוברים דרך ה-REST API, אבל שליחת הודעות צ\'אט דורשת חיבור לצומת.</string>
     <string name="last_sync">סנכרון אחרון</string>
     <string name="latency">זמן תגובה</string>
     <string name="open_chat">פתח צ\'אט</string>
@@ -196,9 +236,12 @@
     <string name="save_photo">שמור תמונה</string>
     <string name="security">אבטחה</string>
     <string name="send_handshake">שלח בקשת תקשורת</string>
+    <string name="handshake_sent">בקשת התקשורת נשלחה</string>
     <string name="show_fee_estimate">הצג הערכת עמלה</string>
     <string name="sound_vibration">צליל ורטט</string>
     <string name="storage">אחסון</string>
+    <string name="on_this_device">במכשיר הזה</string>
+    <string name="cloud_storage">אחסון בענן</string>
     <string name="submitting_commit_transaction">שולח עסקת התחייבות...</string>
     <string name="submitting_reveal_transaction">שולח עסקת חשיפה...</string>
     <string name="support_email">דוא\"ל תמיכה</string>
@@ -233,6 +276,13 @@
     <string name="currency">מטבע</string>
     <string name="choose_your_currency">בחר את המטבע שלך</string>
     <string name="select_the_currency_youd_like_prices">בחר את המטבע שבו תרצה שהמחירים יוצגו.</string>
+    <string name="default_label">ברירת מחדל</string>
+    <string name="continue_label">המשך</string>
+    <string name="change_chatting_address">שינוי כתובת הצ\'אט</string>
+    <string name="choose_your_chatting_address">בחרו את כתובת הצ\'אט שלכם</string>
+    <string name="scan_further">המשך סריקה</string>
+    <string name="scanning_addresses">סורק כתובות %1$d עד %2$d...</string>
+    <string name="scanned_the_first_addresses">נסרקו %1$d הכתובות הראשונות.</string>
     <string name="user_info">פרטי משתמש</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">שיתוף</string>
@@ -255,6 +305,7 @@
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">לא נמצא דומיין %1$s</string>
     <string name="looking_up_domain">מחפש דומיין...</string>
+    <string name="looking_up">מחפש...</string>
     <string name="no_domain">אין דומיין</string>
     <string name="other_domains">דומיינים אחרים</string>
     <string name="not_registered">לא רשום</string>
@@ -271,6 +322,7 @@
     <string name="not_available_on_this_network">לא זמין ברשת זו</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
     <string name="km_no_names">עדיין אין שמות .kachat</string>
+    <string name="kn_manage_in_wallet">קנו, חדשו, מכרו והעבירו שמות .kachat ב-KaChat Wallet.</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_welcome_body">הסיור המלא להתחלה: ארנק, צ\'אטים, תשלומים ועוד.</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
@@ -309,7 +361,7 @@
     <string name="new_message_request">בקשת הודעה חדשה</string>
     <string name="wants_to_chat_with_you">%1$s רוצה לשוחח איתך.</string>
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
-    <string name="welcome_fund_chatting_body">מומלץ להתחיל עם 50 Kaspa - מספיק כדי לקבל שם ‎.kachat ולשוחח לזמן מה. 5 Kaspa מספיקים לכ-2500 הודעות.</string>
+    <string name="welcome_fund_chatting_body">5 Kaspa מספיקים לכ-2500 הודעות.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">טסטנט</string>
     <string name="testnet_restart_to_testnet">סגרו את KaChat לגמרי ופתחו מחדש כדי לסיים את המעבר לטסטנט.</string>
@@ -432,7 +484,10 @@
     <string name="qr_chatting_address_subtitle">לשימוש בצ\'אט ולרכישת דומיינים של ‎.kachat.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">בקרת מטבעות</string>
+    <string name="compound_utxos">איחוד UTXO</string>
+    <string name="compound_utxos_description">אחדו את ה-UTXO של הכתובת הזו כדי לצמצם את מספר הקלטים ששליחה עתידית תצטרך. עסקה אחת יכולה לאחד רק כמות מוגבלת בכל פעם, ולכן אם יש בכתובת הזו מספר גדול מאוד, הקישו שוב על איחוד אחרי שהעסקה תאושר כדי להמשיך לצמצם.</string>
     <string name="automatic">אוטומטי</string>
+    <string name="automatic_clear_selection">אוטומטי (ניקוי הבחירה)</string>
     <string name="consolidating_this_address">מאחדים את הכתובת הזו</string>
     <string name="invalid_address_format">פורמט כתובת לא תקין</string>
     <string name="fee_tier_normal">רגיל</string>
@@ -443,6 +498,7 @@
     <string name="paste">הדבק</string>
     <string name="scan_qr">סרוק QR</string>
     <string name="network_fee">עמלת רשת</string>
+    <string name="nextcloud">Nextcloud</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">שליחה מ-</string>
@@ -504,6 +560,7 @@
     <string name="dm_notif_sent_file">נשלח קובץ</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">לא ניתן היה לבדוק כרגע חלק מהקישורים מהטלפון הזה. הם נשמרים כפי שהוזנו, והאפליקציות של אחרים יטענו אותם כשיוכלו.</string>
+    <string name="notification_center_wallet_empty">Kaspa שמגיע לכתובות שלכם מופיע כאן.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
@@ -514,6 +571,10 @@
     <string name="create_wallet_name_title">צור שם לארנק שלך</string>
     <string name="create_wallet_name_detail">השם הזה נשמר רק במכשיר הזה, כדי להבדיל בין הארנקים שלך. אף אחד אחר לא יראה אותו לעולם.</string>
     <string name="choose_seed_phrase_length">בחרו 12 או 24 מילים</string>
+    <string name="notification_center_empty_title">עדיין אין התראות</string>
+    <string name="notification_center_clear_all">נקה הכול</string>
+    <string name="receive_preparing_fresh_address">מכין כתובת חדשה</string>
+    <string name="composer_fee_amount">עמלה: %1$s KAS</string>
     <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <!-- Composer fee pill (iOS feeBubble) -->
@@ -523,10 +584,18 @@
     <string name="qr_point_camera">כוון את המצלמה לקוד QR</string>
     <string name="qr_camera_access_required">נדרשת גישה למצלמה</string>
     <string name="qr_enable_camera_access">אנא אפשר גישה למצלמה בהגדרות כדי לסרוק קודי QR.</string>
+    <string name="qr_requesting_camera_access">מבקש גישה למצלמה...</string>
+    <string name="no_utxos_found_at_address">לא נמצאו UTXO בכתובת הזו.</string>
+    <string name="node_removed_still_connected">הוסר מפנקס הכתובות. עדיין מחובר לצומת הזה.</string>
+    <string name="node_address_removed">הכתובת הוסרה.</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s הועתק ללוח.</string>
+    <string name="reactions_one">תגובה אחת</string>
+    <string name="reactions_count">%1$d תגובות</string>
+    <string name="reactions_one_person">אדם אחד</string>
+    <string name="reactions_people">%1$d אנשים</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">השליחה נכשלה</string>
@@ -539,6 +608,7 @@
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="original_message_not_available">ההודעה המקורית אינה זמינה</string>
+    <string name="original_message_fetching">ההודעה המקורית עדיין לא במכשיר הזה, מביא אותה.</string>
     <!-- .kachat sale tile: expiry flag -->
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">משחרר את %1$s עבורך...</string>
@@ -607,6 +677,7 @@
     <string name="ab_members_footer">בחר אנשים מאנשי הקשר שלך, או הוסף כל אחד לפי כתובת Kaspa או דומיין.</string>
     <string name="ab_members_intro">הוסיפו אנשים לקבוצה. כמנהלי הקבוצה, אתם שולטים בחברות.</string>
     <string name="ab_members_empty">עדיין אין חברים. הוסף אנשים מאנשי הקשר שלך או לפי כתובת למטה.</string>
+    <string name="ab_actions_a11y">הוספה, ייבוא או ייצוא</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">שמרו כתובת Kaspa עם שם שתזהו.</string>
     <string name="ab_import_file">ייבוא קובץ</string>
@@ -681,6 +752,7 @@
     <string name="bot_sheet_clears_unread">מסיר את תג הלא-נקרא מהצ׳אט הזה.</string>
     <string name="bot_sheet_notifications_resume">ההתראות מהבוט הזה חוזרות.</string>
     <string name="bot_sheet_no_notification">אין התראות מהבוט הזה.</string>
+    <string name="bot_sheet_delete_keeps_circle">מוחק את הודעות הצ\'אט הזה מהמכשיר הזה. הבוט נשאר בשורה.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">בקשת תשלום</string>
     <string name="pr_chatting_footer">התשלום מגיע לצ׳אט שלך עם המשלם, עם ההערה.</string>
@@ -762,6 +834,22 @@
     <string name="import_chat_history">ייבוא היסטוריית צ\'אט</string>
     <string name="export_diagnostics_archive">ייצוא ארכיון אבחון</string>
     <string name="wipe_resync_incoming">מחק וסנכרן מחדש הודעות נכנסות</string>
+    <string name="appearance">מראה</string>
+    <string name="appearance_system">מערכת</string>
+    <string name="appearance_light">בהיר</string>
+    <string name="appearance_dark">כהה</string>
+    <string name="storage_local_used">אחסון מקומי בשימוש: %1$s</string>
+    <string name="storage_on_device_footer">כמה זמן הודעות נשמרות במכשיר הזה, וכמה מקום הן תופסות. חל לפני כל אחסון בענן.</string>
+    <string name="require_photo_approval_new_contacts">דרוש אישור לתמונות מאנשי קשר חדשים</string>
+    <string name="quick_reactions">תגובות מהירות</string>
+    <string name="quick_reactions_footer">הקישו על אימוג\'י כדי להחליף אותו באחר.</string>
+    <string name="reset_to_default">איפוס לברירת מחדל</string>
+    <string name="notifications_wallet">ארנק</string>
+    <string name="address_activity">פעילות בכתובת</string>
+    <string name="address_activity_footer">קבלו התראה כשאחת מכתובות ההוצאה או האחסון הקר שלכם מקבלת Kaspa ממקור חיצוני. העברות בין הכתובות שלכם לא נכללות.</string>
+    <string name="explorer_footer">משמש ליצירת קישורי \"הצג עסקה\" בכל האפליקציה.</string>
+    <string name="verbose_api_logging">רישום API מפורט</string>
+    <string name="verbose_api_logging_footer">רושם כל בקשה לאינדקסר עם פרטי חיבור ותזמון מלאים. השאירו כבוי לשימוש רגיל: בקשות שנכשלו ובקשות איטיות תמיד נרשמות, ורישום כבד עלול לגרום ל-Android להשמיט את הודעות היומן של האפליקציה.</string>
     <string name="your_address">הכתובת שלך</string>
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">עמיד קוונטית</string>
@@ -819,7 +907,6 @@
     <string name="pr_paid_to">משולם אל</string>
     <string name="ab_empty_title">עדיין אין אנשי קשר</string>
     <string name="settings_title">הגדרות</string>
-    <string name="confirm_sending_kaspa">אשרו שליחת Kaspa</string>
     <string name="confirm_sending_domain">אישור שליחת הדומיין הזה</string>
     <string name="confirm_deleting_account">אשרו מחיקת החשבון הזה</string>
     <string name="group_invites">הזמנות לקבוצות</string>
@@ -831,7 +918,21 @@
     <string name="group_invite_explainer">לא תהיו בקבוצה הזו אלא אם תאשרו. התשובה נשלחת כעסקה מוצפנת קטנה, כדי שהקבוצה והמכשירים האחרים שלכם יידעו.</string>
     <string name="group_invite_notification">התקבלה הזמנה אל \"%1$s\"</string>
     <string name="could_not_derive_addresses">לא ניתן היה לגזור כתובות מהמילים האלה. נסו שוב.</string>
+    <string name="set_as_chatting_address">הגדרה ככתובת צ\'אט</string>
+    <string name="current_chatting_address">כתובת הצ\'אט הנוכחית</string>
     <string name="this_seed_already_has_conversations">למילים האלה כבר יש שיחות בכתובת הצ\'אט הנוכחית. ההחלפה מתחילה מחדש עם הכתובת החדשה. השיחות הקיימות שלכם נשארות עם הכתובת הישנה ולא נמחקות.</string>
+    <string name="switch_action">החלפה</string>
+    <string name="tap_the_address_to_copy_it">הקישו על הכתובת כדי להעתיק אותה</string>
+    <string name="domains_count">%1$d דומיינים</string>
+    <string name="aliases">כינויים</string>
+    <string name="receiving_alias">כינוי לקבלה</string>
+    <string name="sending_alias">כינוי לשליחה</string>
+    <string name="alias_copied">הכינוי הועתק ללוח.</string>
+    <string name="alias_unavailable">הכינוי אינו זמין.</string>
+    <string name="reveal">הצג</string>
+    <string name="share_to_kachat">שיתוף ל-KaChat</string>
+    <string name="send_to">שליחה אל</string>
+    <string name="couldnt_send_saved_as_draft">השליחה נכשלה. נשמר כטיוטה בצ\'אט הזה.</string>
     <string name="wallet_title">ארנק</string>
     <string name="wallet_total_balance">יתרה כוללת</string>
     <string name="wallet_chatting">צ\'אט</string>
@@ -1070,11 +1171,18 @@
     <string name="group_notif_reacted_emoji_other">תגובה מ-%1$s להודעה: %2$s</string>
     <string name="sent_amount_kas_memo">נשלח %1$s KAS — %2$s</string>
     <string name="address_number">כתובת #%1$d</string>
+    <string name="current">נוכחית</string>
+    <string name="switch_chatting_address_question">להחליף כתובת צ\'אט?</string>
     <string name="balance">יתרה</string>
     <string name="group_info_member_count">%1$d חברים</string>
+    <string name="group_info_members_count">חברים (%1$d)</string>
+    <string name="group_info_refresh_messages">רענון הודעות</string>
+    <string name="group_info_silent_group_chat">צ\'אט קבוצתי שקט</string>
     <string name="group_info_resend_invites_to_all">שליחת הזמנות מחדש לכולם</string>
+    <string name="group_info_remove_photo">הסרת תמונה</string>
     <string name="message_action_select">בחירה</string>
     <string name="reactions_you">את/ה</string>
+    <string name="coins_couldnt_load">לא ניתן היה לטעון את המטבעות בכתובת הזו</string>
     <string name="select_all">בחירת הכול</string>
     <string name="unlock_to_view_your_12_or_24">בטלו את הנעילה כדי להציג את 12 או 24 המילים</string>
     <string name="show">הצג</string>
@@ -1160,6 +1268,7 @@
     <string name="one_more_thing_to_know">עוד דבר שכדאי לדעת</string>
     <string name="if_you_type_the_wrong_passphrase_nothing">אם תקלידו ביטוי סיסמה שגוי, שום דבר לא יתריע על כך. פשוט תגיעו לחשבון אחר, והוא ייראה ריק. זו לא תקלה והכסף שלכם לא אבד, זה רק אומר שאתם בחשבון הלא נכון.</string>
     <string name="so_do_you_need_one">אז האם אתם צריכים אחד?</string>
+    <string name="if_you_are_not_sure_choose_no">אם אינכם בטוחים, אתם לא צריכים ביטוי סיסמה: חזרו להתחלה והקישו על צור חשבון חדש, שיוצר חשבון ללא ביטוי סיסמה. הוא עדיין מוגן על ידי 12 או 24 המילים שלכם, ותמיד תוכלו ליצור בהמשך חשבון נוסף עם ביטוי סיסמה.</string>
     <string name="if_you_never_set_one_up_choose">אם מעולם לא הגדרתם ביטוי סיסמה, בחרו לא. זה משהו שהייתם מקלידים בכוונה, כך שאם אתם שומעים על זה עכשיו לראשונה, אין לכם כזה.</string>
     <string name="my_kachat_profile">פרופיל ה-KaChat שלי</string>
     <string name="signs_out_of_this_account_wallet_and">מתנתק מהחשבון הזה. נתוני הארנק וההודעות נשארים במכשיר.</string>
@@ -1292,16 +1401,46 @@
     <string name="nfc_tap_prompt">החזיקו את הכרטיס צמוד לגב הטלפון.</string>
     <string name="copy_link_subtitle">מעתיק את הכתובת ללוח.</string>
     <string name="link_menu_title">קישור</string>
+    <string name="shared_file_menu_title">קובץ משותף</string>
     <string name="message_action_select_subtitle">בחירה של כמה הודעות בבת אחת.</string>
+    <string name="tap_to_load_preview">הקישו לטעינת תצוגה מקדימה</string>
     <string name="something_went_wrong">משהו השתבש</string>
     <string name="chats_new_group_subtitle">פתיחת קבוצה עם האנשים שתבחרו.</string>
     <string name="resync_all_chats">כן, כל הצ\'אטים</string>
-    <string name="screen_lock_required_message">הגדירו נעילת מסך בטלפון הזה (הגדרות &gt; אבטחה) כדי לשלוח Kaspa, למחוק חשבון או להציג מפתחות סודיים ב-KaChat.</string>
+    <string name="resync_all_chats_subtitle">מסיר מקומית כל הודעה נכנסת, ואז מסנכרן אותן מחדש מהבלוקצ\'יין. הודעות שנשלחו ופרטי החשבון נשמרים.</string>
+    <string name="resync_select_chats">בחר צ\'אטים...</string>
+    <string name="resync_select_chats_subtitle">בחר אילו צ\'אטים למחוק ולסנכרן מחדש. כל השאר לא ייפגע.</string>
+    <string name="resync_cancel_subtitle">השאר את ההודעות שלך כפי שהן.</string>
+    <string name="screen_lock_required_message">הגדירו נעילת מסך בטלפון הזה (הגדרות &gt; אבטחה) כדי למחוק חשבון או להציג מפתחות סודיים ב-KaChat.</string>
+    <string name="show_password">הצגת הסיסמה</string>
+    <string name="hide_password">הסתרת הסיסמה</string>
     <string name="unlock_change_seed_phrase_lock">בטלו את הנעילה כדי לשנות את הנעילה הביומטרית של 12 או 24 המילים</string>
+    <string name="unlock_change_account_login_lock">בטלו את הנעילה כדי לשנות את הנעילה הביומטרית לכניסה לחשבון</string>
+    <string name="unlock_change_private_key_lock">בטלו את הנעילה כדי לשנות את הנעילה הביומטרית של המפתח הפרטי</string>
+    <string name="nc_server">שרת</string>
+    <string name="nc_server_placeholder">cloud.example.com</string>
+    <string name="nc_username">שם משתמש</string>
+    <string name="nc_app_password">סיסמת האפליקציה</string>
+    <string name="nc_use_https">השתמשו ב-https. חיבורים לא מוצפנים אינם נתמכים.</string>
+    <string name="nc_app_password_footer">צרו סיסמת אפליקציה ב-Nextcloud תחת הגדרות → אבטחה → מכשירים והפעלות — אל תשתמשו בסיסמת החשבון שלכם. KaChat שומר אותה באחסון המוצפן של המכשיר.</string>
+    <string name="nc_connect">התחברות</string>
+    <string name="nc_connected_account">חשבון מחובר</string>
+    <string name="nc_start_folder">תיקיית התחלה</string>
+    <string name="nc_automatic_sync">סנכרון אוטומטי</string>
+    <string name="nc_auto_sync_one_service">סנכרון אוטומטי עובד עם שירות ענן אחד בכל פעם.</string>
+    <string name="nc_last_synced">סנכרון אחרון</string>
+    <string name="nc_backup_folder">תיקיית גיבוי</string>
+    <string name="nc_default_folder">%1$s (ברירת מחדל)</string>
     <string name="nc_back_up_now">גיבוי אנשי הקשר עכשיו</string>
+    <string name="nc_last_backup">גיבוי אחרון</string>
+    <string name="nc_no_backup_yet">עדיין אין גיבוי בשרת הזה.</string>
     <string name="nc_backup_uploaded">אנשי הקשר גובו.</string>
     <string name="nc_contact_backup">גיבוי אנשי קשר</string>
     <string name="nc_contact_backup_footer">כאן מגובים רק אנשי הקשר שלך, בהצפנה. ההודעות והצ׳אטים הקבוצתיים שלך חוזרים עם ביטוי השחזור שלך.</string>
+    <string name="nc_disconnect">התנתקות</string>
+    <string name="nc_disconnect_footer">הניתוק מסיר את סיסמת האפליקציה השמורה מהמכשיר הזה. שום דבר לא משתנה בשרת ה-Nextcloud שלכם.</string>
+    <string name="nc_disconnect_title">ניתוק Nextcloud</string>
+    <string name="nc_disconnect_message">סיסמת האפליקציה מוסרת מהאחסון המוצפן של המכשיר הזה. אפשר להתחבר מחדש בכל עת.</string>
     <string name="send_outcome_unknown">ייתכן שהשליחה בוצעה, אך הרשת לא אישרה אותה. בדקו את היתרה לפני ששולחים שוב.</string>
     <string name="swipe_not_confirmed">לא אושר</string>
     <string name="secure_store_title">ל-KaChat אין אפשרות לפתוח את החשבונות שלך</string>
@@ -1313,6 +1452,12 @@
     <string name="max_capped_compound">עסקה אחת יכולה לאחד %1$d מטבעות, לכן מאוחדים %2$d הגדולים ביותר. אחד שוב לשאר.</string>
     <string name="max_capped_send">מקסימום הוא מה שעסקה אחת יכולה לשאת: %1$d המטבעות הגדולים שלה. \"איחוד UTXO\" מאחד את השאר.</string>
     <string name="couldnt_load_address_balance">לא ניתן לטעון את היתרה של הכתובת הזו.</string>
+    <plurals name="pasted_words_invalid">
+        <item quantity="one">אחת מהמילים שהודבקו אינה מילה תקינה. בדקו את מה שהעתקתם ונסו שוב.</item>
+        <item quantity="two">%d מהמילים שהודבקו אינן מילים תקינות. בדקו את מה שהעתקתם ונסו שוב.</item>
+        <item quantity="many">%d מהמילים שהודבקו אינן מילים תקינות. בדקו את מה שהעתקתם ונסו שוב.</item>
+        <item quantity="other">%d מהמילים שהודבקו אינן מילים תקינות. בדקו את מה שהעתקתם ונסו שוב.</item>
+    </plurals>
     <string name="delivery_not_confirmed">לא אושר</string>
     <string name="delivery_not_confirmed_accessibility">עדיין לא אושר. ייתכן שזה עוד יעבור.</string>
     <string name="send_fee_changed">עמלת הרשת היא עכשיו %1$s KAS, יותר ממה שהוצג בסקירה. שום דבר לא נשלח: בדקו את העמלה החדשה והחליקו שוב.</string>
@@ -1322,6 +1467,7 @@
     <string name="passphrase_search_unfinished">החיפוש אחר כספים בכתובות האחרות של החשבון הזה לא הסתיים, ולכן הייבוא משתמש בכתובת מס׳ 0.</string>
     <string name="search_again">חיפוש חוזר</string>
     <string name="skip_search_import_address_0">דילוג על החיפוש: ייבוא לכתובת מס׳ 0</string>
+    <string name="archive_not_encrypted">הקובץ הזה אינו ארכיון KaChat מוצפן, ולכן אי אפשר לייבא אותו.</string>
     <string name="a_post_on_kapost">פוסט ב-KaPost</string>
     <string name="tap_to_open_it_in_kapost">הקישו כדי לפתוח אותו ב-KaPost.</string>
     <string name="shared_a_kapost">שיתף פוסט מ-KaPost</string>
@@ -1388,4 +1534,99 @@
     <string name="photo_quality_low">נמוכה</string>
     <string name="receiving_n_of_m">מתקבל… %1$d מתוך %2$d</string>
     <string name="encoding_ellipsis">מקודד…</string>
+    <string name="audio_ready">השמע מוכן</string>
+    <string name="this_only_deletes_the_message_recipient">פעולה זו מוחקת את ההודעה רק מהמכשיר הזה - למקבל עדיין יש עותק משלו, והעסקה המוצפנת נשארת לצמיתות בבלוקצ\'יין של Kaspa, גלויה לכולם אך בלתי קריאה בלי המפתחות שלכם. אי אפשר לבטל את זה.</string>
+    <string name="message_copied_to_clipboard">ההודעה הועתקה ללוח.</string>
+    <string name="edited_mark">נערכה</string>
+    <string name="chess_invite_sent">ההזמנה למשחק שחמט נשלחה</string>
+    <string name="chess_invited_you">הזמנה למשחק שחמט</string>
+    <string name="more_reactions">עוד תגובות</string>
+    <string name="confirm_changes">אישור שינויים</string>
+    <string name="uploading_avatar">מעלה דמות...</string>
+    <string name="uploading_banner">מעלה באנר...</string>
+    <string name="profile_field_removed">%1$s (הוסר)</string>
+    <string name="create_group">יצירת קבוצה</string>
+    <string name="create_group_fee_estimate">עמלת רשת משוערת ≈ %1$s %2$s על פני %3$d עסקאות.</string>
+    <string name="create_chat">צור צ\'אט</string>
+    <string name="add_to_group">הוספה לקבוצה</string>
+    <string name="edit_name">עריכת שם</string>
+    <string name="domain_label">תְחוּם</string>
+    <string name="primary_badge">ראשי</string>
+    <string name="notification_mode_off">כבוי</string>
+    <string name="notification_mode_no_sound">ללא צליל</string>
+    <string name="notification_mode_sound">צליל</string>
+    <string name="notification_mode_default">ברירת מחדל (%1$s)</string>
+    <string name="domain_transfer_sending">שולח %1$s</string>
+    <string name="domain_transfer_footer">העברת דומיין כוללת שתי עסקאות, ולכן זה לוקח רגע. השאירו את האפליקציה פתוחה עד שזה יסתיים.</string>
+    <string name="domain_transfer_stage_preparing">מכין העברה</string>
+    <string name="domain_transfer_stage_fee">מחשב את העמלה</string>
+    <string name="domain_transfer_stage_commit">שולח עסקת התחייבות</string>
+    <string name="domain_transfer_stage_reveal">שולח עסקת חשיפה</string>
+    <string name="domain_transfer_stage_verifying">מאמת את הבעלים החדש</string>
+    <string name="domain_transfer_stage_working">מעבד</string>
+    <string name="checking_address_n">בודק כתובת #%1$d</string>
+    <string name="n_found_so_far">%1$d נמצאו עד כה</string>
+    <string name="no_addresses_with_balance_or_domain_yet">עדיין אין כתובות עם יתרה או דומיין</string>
+    <string name="checks_the_first_thousand_addresses">בודק את אלף הכתובות הראשונות גם אם יש ביניהן כתובות ריקות, ואז ממשיך כל עוד הוא ממשיך למצוא.</string>
+    <string name="first_sync_all_set">הכול מוכן</string>
+    <string name="first_sync_up_to_date">הצ\'אטים וההיסטוריה שלכם מעודכנים.</string>
+    <string name="first_sync_setting_up">מגדיר את החשבון שלכם</string>
+    <string name="first_sync_downloading_footer">מוריד את כל מה שיש לחשבון הזה בשרשרת. זה לוקח זמן רק בפעם הראשונה.</string>
+    <string name="first_sync_continue_anyway">המשך בכל זאת</string>
+    <string name="nc_use_all_files">שימוש בכל הקבצים</string>
+    <string name="nc_use_this_folder">שימוש בתיקייה הזו</string>
+    <string name="nc_no_subfolders">אין תיקיות משנה.</string>
+    <string name="nc_could_not_load_file">לא ניתן היה לטעון את הקובץ הזה.</string>
+    <string name="voice_message_unavailable">הודעה קולית לא זמינה</string>
+    <string name="tap_to_retry">הקישו כדי לנסות שוב</string>
+    <string name="loading_ellipsis">טוען…</string>
+    <string name="file_no_longer_shared">הקובץ הזה כבר לא משותף</string>
+    <string name="react_title">תגובה</string>
+    <string name="no_emoji_match_that">אין אימוג׳י שמתאים לזה.</string>
+    <string name="choose_emoji">בחירת אימוג׳י</string>
+    <string name="whats_cached">מה נשמר במטמון</string>
+    <string name="clear_all_cache">ניקוי כל המטמון</string>
+    <string name="fund_your_chatting_address_to_start">הטעינו כספים בכתובת הצ\'אט שלכם כדי להתחיל לשוחח</string>
+    <string name="copied_to_clipboard">הועתק ללוח</string>
+    <string name="welcome_guide">מדריך ברוכים הבאים</string>
+    <string name="chess_notif_invite">♟️ הזמנה למשחק שחמט</string>
+    <string name="chess_notif_accepted">♟️ קיבל את משחק השחמט שלך</string>
+    <string name="chess_notif_declined">♟️ דחה את משחק השחמט שלך</string>
+    <string name="chess_notif_move">♟️ שיחק %1$s → %2$s</string>
+    <string name="chess_notif_move_generic">♟️ ביצע מהלך שחמט</string>
+    <string name="chess_notif_lost_on_time">♟️ הפסיד בזמן</string>
+    <string name="chess_notif_resigned">♟️ נכנע במשחק השחמט</string>
+    <string name="fee_label">תַשְׁלוּם</string>
+    <plurals name="kns_profile_changes_count">
+        <item quantity="one">שינוי אחד. הוא נשלח כעסקה נפרדת בשרשרת מכתובת הצ\'אט שלכם:</item>
+        <item quantity="two">%d שינויים. כל אחד נשלח כעסקה נפרדת בשרשרת מכתובת הצ\'אט שלכם:</item>
+        <item quantity="many">%d שינויים. כל אחד נשלח כעסקה נפרדת בשרשרת מכתובת הצ\'אט שלכם:</item>
+        <item quantity="other">%d שינויים. כל אחד נשלח כעסקה נפרדת בשרשרת מכתובת הצ\'אט שלכם:</item>
+    </plurals>
+    <plurals name="create_group_and_invite">
+        <item quantity="one">ליצור את \"%1$s\" ולהזמין חבר אחד?</item>
+        <item quantity="two">ליצור את \"%1$s\" ולהזמין %2$d חברים?</item>
+        <item quantity="many">ליצור את \"%1$s\" ולהזמין %2$d חברים?</item>
+        <item quantity="other">ליצור את \"%1$s\" ולהזמין %2$d חברים?</item>
+    </plurals>
+    <string name="nc_revoke_failed_title">לא ניתן להסיר את סיסמת היישום</string>
+    <string name="nc_revoke_failed_message">KaChat לא הצליח להסיר את סיסמת היישום שלו מ-%1$s. היא נמחקה מהטלפון הזה, אבל עדיין יכולה להתחבר שם: מחקו אותה ב-Nextcloud תחת הגדרות &gt; אבטחה &gt; מכשירים והפעלות.</string>
+    <string name="fee_too_high">העמלה גבוהה מדי</string>
+    <string name="a_message_fee_can_be_at_most_1_kas">עמלת הודעה יכולה להיות לכל היותר 1 KAS.</string>
+    <string name="use_a_high_fee">להשתמש בעמלה גבוהה?</string>
+    <string name="use_it">להשתמש</string>
+    <string name="message_fee_much_more_than_network_needs">%1$s KAS זה הרבה יותר ממה שהרשת צריכה כדי לשלוח הודעה.</string>
+    <string name="tap_retry_on_the_voice_message_to_send_the_rest">הקישו על „נסה שוב” בהודעה הקולית כדי לשלוח את השאר.</string>
+    <string name="tap_retry_on_the_photo_to_send_the_rest">הקישו על „נסה שוב” בתמונה כדי לשלוח את השאר.</string>
+    <string name="payment_notice_fee_from_chatting_address">כתובת הצ\'אט שלך משלמת גם %1$s KAS כדי לעדכן את %2$s על התשלום הזה.</string>
+    <string name="recording_failed_please_try_again">ההקלטה נכשלה. נסו שוב.</string>
+    <string name="message_needs_too_many_coins">ההודעה הזו צריכה יותר מדי מטבעות לעסקה אחת. השתמשו ב-Compound UTXOs בכתובת הצ\'אט שלכם ונסו שוב.</string>
+    <string name="use_their_domain_name">השתמשו בשם הדומיין שלו</string>
+    <string name="show_request_as_qr">הצגת הבקשה כ-QR</string>
+    <string name="pr_qr_scan_to_pay_in_kapay">סרקו במצלמת הטלפון כדי לשלם ב-KaPay, עם הכול כבר ממולא.</string>
+    <string name="pr_qr_scan_to_pay_in_kachat">סרקו במצלמת הטלפון כדי לשלם ב-KaChat, עם הכול כבר ממולא.</string>
+    <string name="get_a_kachat_domain">השיגו דומיין ‎.kachat</string>
+    <string name="set_as_name">הגדרה כשם</string>
+    <string name="their_name">השם שלו</string>
+    <string name="get_a_kachat_name">השיגו שם ‎.kachat</string>
 </resources>

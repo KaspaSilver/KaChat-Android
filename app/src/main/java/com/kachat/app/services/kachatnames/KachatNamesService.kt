@@ -311,7 +311,8 @@ class KachatNamesService @Inject constructor(
                                 script = unhex(u.utxoEntry.scriptPublicKey.scriptPublicKey),
                                 blockDaaScore = u.utxoEntry.blockDaaScore,
                                 isCoinbase = u.utxoEntry.isCoinbase,
-                                covenantId = null
+                                // REST reports a covenant too now (iOS 83806b3d).
+                                covenantId = u.utxoEntry.covenantId?.takeIf { it.isNotEmpty() }?.let { unhex32(it.lowercase()) }
                             )
                         )
                     }.getOrNull()
@@ -323,6 +324,8 @@ class KachatNamesService @Inject constructor(
     /** [utxos] without the coins a transaction from this app has just spent (iOS d23e6f7a
      *  `unreservedUtxos`): what a name transaction may fund itself from. */
     fun unreservedUtxos(utxos: List<Utxo>): List<Utxo> = utxos.filterNot {
+        // A covenant-bound coin is only ever spent under its covenant's rules (iOS 83806b3d).
+        it.entry.covenantId != null ||
         walletEngine.isReserved(com.kachat.app.services.Outpoint(hex(it.outpoint.txid), it.outpoint.index))
     }
 
@@ -414,7 +417,7 @@ class KachatNamesService @Inject constructor(
         // A node can accept it while its answer is lost and a raced node rejects it: looked up by
         // id before failing, so a retry never pays a price twice (iOS 9139e88, IOS-014).
         val txId = withContext(Dispatchers.IO) {
-            nodePoolManager.submitConfirmingKnown(expected, networkService.kaspaRestApi.value) {
+            nodePoolManager.submitConfirmingKnown(expected, networkService.kaspaRestApi.value, spent = spent) {
                 nodePoolManager.getBroadcastConnection().submitRpcTransaction(rpcTransaction(tx))
             }
         }

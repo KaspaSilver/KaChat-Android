@@ -271,4 +271,29 @@ class SubmitConfirmationTest {
             assertEquals(true, asked)
         }
     }
+
+    @Test
+    fun `a node's verdict against a send asks two other nodes, any other answer one (iOS 83806b3d)`() {
+        val answers = SubmitAnswers()
+        assertEquals(1, answers.holdersNeeded)
+        answers.note("a:16110", verdict = false)
+        assertEquals(1, answers.holdersNeeded)
+        answers.note("b:16110", verdict = true)
+        assertEquals(2, answers.holdersNeeded)
+        assertEquals(setOf("a:16110", "b:16110"), answers.answeredKeys)
+    }
+
+    @Test
+    fun `after a lost answer the later checks use their own look-up`() = runBlocking {
+        val lost = java.io.IOException("stream reset")
+        var laterChecks = 0
+        val id = SubmitConfirmation.submitOrConfirmKnown(
+            txId,
+            isKnown = { _, _ -> false },
+            checkDelayMs = 0,
+            isKnownAfterLostAnswer = { ++laterChecks == 2 },
+        ) { throw lost }
+        assertEquals(txId, id)
+        assertEquals(2, laterChecks)
+    }
 }

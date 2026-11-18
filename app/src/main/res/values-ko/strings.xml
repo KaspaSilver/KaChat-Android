@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">KaChat</string>
     <string name="n_12_words">12단어</string>
+    <string name="n_24_words">24개 단어</string>
     <string name="a_kns_inscription_s_commit_transaction">KNS 인스크립션의 커밋 거래가 완료되었지만 리빌이 완료되지 않았습니다. 지금 다시 시도하여 완료하세요. 완료할 때까지 자금은 안전하게 묶여 있습니다.</string>
     <string name="accept">수락</string>
     <string name="account_name">계정 이름</string>
@@ -10,16 +12,36 @@
     <string name="added">추가됨</string>
     <string name="address">주소</string>
     <string name="address_actions">주소 작업</string>
+    <string name="address_copied_short">주소 %1$s 복사됨</string>
+    <string name="tap_anywhere_to_copy">아무 곳이나 탭하여 복사</string>
     <string name="adjust_network_fee">네트워크 수수료 조정</string>
     <string name="admin">관리자</string>
     <string name="amount_kas">금액 (KAS)</string>
     <string name="anyone_with_your_seed_phrase_can">12개 또는 24개 단어를 가진 사람은 누구나 계정에 접근할 수 있습니다. 절대 다른 사람과 공유하지 마세요.</string>
     <string name="back">뒤로</string>
+    <string name="previous">이전</string>
     <string name="cancel">취소</string>
+    <string name="app_settings">앱 설정</string>
+    <string name="delivery_sent">전송된</string>
+    <string name="delivery_sending">보내는 중</string>
+    <string name="delivery_failed">실패</string>
+    <string name="delivery_failed_tap_to_retry">실패 · 탭하여 다시 시도</string>
+    <string name="delivery_needs_attention">확인 필요</string>
+    <string name="delivery_failed_retry_accessibility">전송하지 못했습니다. 탭하여 다시 시도</string>
+    <string name="battery_rationale_title">KaChat이 닫혀 있어도 알림 받기</string>
+    <string name="battery_rationale_body">일부 휴대폰은 배터리를 절약하기 위해 앱을 종료하며, 이로 인해 메시지 알림이 오지 않을 수 있습니다.</string>
+    <string name="battery_rationale_allow">허용</string>
+    <string name="battery_rationale_allow_detail">새 메시지가 오면 KaChat이 깨어나 알려 줄 수 있습니다.</string>
+    <string name="battery_rationale_not_now_detail">나중에 설정 > 앱 > KaChat > 배터리에서 변경할 수 있습니다.</string>
+    <string name="open_source_licenses">오픈 소스 라이선스</string>
+    <string name="screen_lock_required">화면 잠금 필요</string>
     <string name="cancel_photo">사진 취소</string>
     <string name="cancel_recording">녹음 취소</string>
     <string name="cancel_reply">답장 취소</string>
     <string name="chats">채팅</string>
+    <string name="share_pick_chat">공유할 채팅 선택</string>
+    <string name="help">도움말</string>
+    <string name="coinbase">Coinbase</string>
     <string name="chatting_address">채팅 주소</string>
     <string name="chess_stats">체스 전적</string>
     <string name="choose_avatar">아바타를 선택하세요</string>
@@ -28,6 +50,7 @@
     <string name="clear_search">검색 지우기</string>
     <string name="close">닫기</string>
     <string name="confirm">확인</string>
+    <string name="confirm_selection">선택 확인</string>
     <string name="connect_to_a_node">노드에 연결</string>
     <string name="connected_only_to_this_node">이 노드에만 연결됨</string>
     <string name="connection_settings">연결 설정</string>
@@ -64,7 +87,8 @@
     <string name="import_account">계정 가져오기</string>
     <string name="import_existing_account">기존 계정 가져오기</string>
     <string name="incoming_notifications">수신 알림</string>
-    <string name="kns_domains">KNS 도메인</string>
+    <string name="kns_domains">내 도메인</string>
+    <string name="contact_kns_domains">KNS 도메인</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat 로고</string>
     <string name="kachat_needs_to_connect_to_a">KaChat이 노드에 연결해야 합니다. 어떻게 연결하시겠습니까?</string>
@@ -80,11 +104,16 @@
     <string name="next">다음</string>
     <string name="no_conversations_yet">아직 대화가 없습니다</string>
     <string name="no_domains_yet">아직 도메인이 없습니다.</string>
+    <string name="send_domain">도메인 보내기</string>
+    <string name="asset_id">자산 ID</string>
+    <string name="primary_domain">기본 도메인</string>
+    <string name="set_as_primary">대표 이름으로 설정</string>
     <string name="no_hidden_addresses">숨겨진 주소가 없습니다.</string>
     <string name="no_hidden_users_in_this_group">이 그룹에 숨겨진 사용자가 없습니다.</string>
     <string name="no_messages_yet">아직 메시지가 없습니다</string>
     <string name="no_saved_addresses">저장된 주소 없음</string>
     <string name="no_transactions_yet">아직 거래가 없습니다.</string>
+    <string name="no_utxos">UTXO가 없습니다.</string>
     <string name="not_now">지금은 안 함</string>
     <string name="notifications">알림</string>
     <string name="ok">확인</string>
@@ -99,13 +128,16 @@
     <string name="promote_pawn_to">폰을 다음으로 승격:</string>
     <string name="qr_code">QR 코드</string>
     <string name="read">읽음</string>
+    <string name="receive">받기</string>
     <string name="recipient_address">수신자 주소</string>
     <string name="remove">제거</string>
     <string name="rename">이름 변경</string>
     <string name="rename_account">계정 이름 변경</string>
     <string name="rename_address">주소 이름 변경</string>
     <string name="rename_group">그룹 이름 변경</string>
+    <string name="rename_utxo">UTXO 이름 변경</string>
     <string name="resign">기권</string>
+    <string name="chess_cancel_game">게임 취소</string>
     <string name="resign_this_game">이 게임을 기권하시겠습니까?</string>
     <string name="retry">재시도</string>
     <string name="retry_inscription_reveal">인스크립션 리빌 다시 시도</string>
@@ -137,9 +169,12 @@
     <string name="try_again">다시 시도</string>
     <string name="unhide">숨김 해제</string>
     <string name="unread">안읽음</string>
+    <string name="use_automatic_selection">자동 선택 사용</string>
     <string name="use_default">기본값 사용</string>
+    <string name="utxos">UTXOs</string>
     <string name="valid_address">유효한 주소</string>
     <string name="waiting_on_opponent">상대방 대기 중</string>
+    <string name="the_recipient_wont_see_your_messages">상대가 나에게 메시지를 보내거나 내가 통신 요청을 보내기 전까지 상대는 내 메시지를 볼 수 없습니다. 통신 요청에는 0.2 KAS가 들며, 상대가 수락하면 돌려받습니다. 통신 요청을 보내면 개인 정보 보호 수준이 낮아집니다.</string>
     <string name="host_port_or_grpcs_host">host:port 또는 grpcs://host</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
@@ -157,6 +192,7 @@
     <string name="bio">바이오</string>
     <string name="biometrics_for_account_login">계정 로그인을 위한 생체 인식</string>
     <string name="biometrics_for_seed_phrase">12개 또는 24개 단어 생체 인식</string>
+    <string name="biometrics_for_address_private_keys">주소 개인 키를 위한 생체 인식</string>
     <string name="camera">카메라</string>
     <string name="chat_history">채팅 기록</string>
     <string name="clear_connection_pool">연결 풀 초기화</string>
@@ -179,6 +215,10 @@
     <string name="kns_profile">KNS 프로필</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">Kaspa 노드</string>
+    <string name="default_recommended">기본값 (권장)</string>
+    <string name="automatic_scan">자동 스캔</string>
+    <string name="kaspa_node_quick_access_footer">자동 스캔은 사용 가능한 가장 좋은 노드를 찾아 연결합니다. 특정 노드를 선택하면 해당 노드에만 연결하며 다른 노드로 전환하지 않습니다. 저장된 주소는 연결 설정 > IP 주소록에서 관리하세요.</string>
+    <string name="node_connections_blocked">이 네트워크에서는 노드 연결이 차단된 것으로 보입니다. 메시지 수신은 인덱서를 통해 계속되고 일반 결제도 REST API를 통해 전송되지만, 채팅 메시지를 보내려면 노드 연결이 필요합니다.</string>
     <string name="last_sync">마지막 동기화</string>
     <string name="latency">지연 시간</string>
     <string name="open_chat">채팅 열기</string>
@@ -196,9 +236,12 @@
     <string name="save_photo">사진 저장</string>
     <string name="security">보안</string>
     <string name="send_handshake">통신 요청 보내기</string>
+    <string name="handshake_sent">통신 요청 전송됨</string>
     <string name="show_fee_estimate">수수료 예상 표시</string>
     <string name="sound_vibration">소리 및 진동</string>
     <string name="storage">저장 공간</string>
+    <string name="on_this_device">이 기기에</string>
+    <string name="cloud_storage">클라우드 저장소</string>
     <string name="submitting_commit_transaction">커밋 거래 전송 중...</string>
     <string name="submitting_reveal_transaction">리빌 거래 전송 중...</string>
     <string name="support_email">지원 이메일</string>
@@ -233,6 +276,13 @@
     <string name="currency">통화</string>
     <string name="choose_your_currency">통화를 선택하세요</string>
     <string name="select_the_currency_youd_like_prices">가격을 표시할 통화를 선택하세요.</string>
+    <string name="default_label">기본값</string>
+    <string name="continue_label">계속</string>
+    <string name="change_chatting_address">채팅 주소 변경</string>
+    <string name="choose_your_chatting_address">채팅 주소 선택</string>
+    <string name="scan_further">더 스캔</string>
+    <string name="scanning_addresses">주소 %1$d~%2$d 스캔 중...</string>
+    <string name="scanned_the_first_addresses">처음 %1$d개 주소를 스캔했습니다.</string>
     <string name="user_info">사용자 정보</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">공유</string>
@@ -255,6 +305,7 @@
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">%1$s 도메인을 찾을 수 없음</string>
     <string name="looking_up_domain">도메인 찾는 중...</string>
+    <string name="looking_up">찾는 중...</string>
     <string name="no_domain">도메인 없음</string>
     <string name="other_domains">다른 도메인</string>
     <string name="not_registered">등록되지 않음</string>
@@ -271,6 +322,7 @@
     <string name="not_available_on_this_network">이 네트워크에서는 사용할 수 없음</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
     <string name="km_no_names">아직 .kachat 이름이 없습니다</string>
+    <string name="kn_manage_in_wallet">.kachat 이름의 구매, 갱신, 판매, 이전은 KaChat Wallet에서 하세요.</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_welcome_body">처음 사용자를 위한 전체 안내: 지갑, 채팅, 결제 등.</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
@@ -309,7 +361,7 @@
     <string name="new_message_request">새 메시지 요청</string>
     <string name="wants_to_chat_with_you">%1$s 님이 채팅을 원합니다.</string>
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
-    <string name="welcome_fund_chatting_body">시작하려면 50 Kaspa를 권장합니다. .kachat 이름을 받고 한동안 채팅하기에 충분합니다. 5 Kaspa면 약 2500개의 메시지를 보낼 수 있습니다.</string>
+    <string name="welcome_fund_chatting_body">5 Kaspa면 약 2500개의 메시지를 보낼 수 있습니다.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">테스트넷</string>
     <string name="testnet_restart_to_testnet">테스트넷 전환을 마치려면 KaChat을 완전히 종료한 뒤 다시 여세요.</string>
@@ -432,7 +484,10 @@
     <string name="qr_chatting_address_subtitle">채팅과 .kachat 도메인 획득에 사용하세요.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">코인 컨트롤</string>
+    <string name="compound_utxos">UTXO 통합</string>
+    <string name="compound_utxos_description">이 주소의 UTXO를 합쳐 앞으로 보낼 때 필요한 입력 수를 줄입니다. 한 번의 거래로 합칠 수 있는 수에는 한도가 있으므로, 이 주소의 UTXO가 매우 많다면 거래가 확인된 후 \'UTXO 통합\'을 다시 탭해 계속 줄이세요.</string>
     <string name="automatic">자동</string>
+    <string name="automatic_clear_selection">자동 (선택 해제)</string>
     <string name="consolidating_this_address">이 주소 통합 중</string>
     <string name="invalid_address_format">잘못된 주소 형식</string>
     <string name="fee_tier_normal">보통</string>
@@ -443,6 +498,7 @@
     <string name="paste">붙여넣기</string>
     <string name="scan_qr">QR 스캔</string>
     <string name="network_fee">네트워크 수수료</string>
+    <string name="nextcloud">Nextcloud</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">보내는 주소</string>
@@ -504,6 +560,7 @@
     <string name="dm_notif_sent_file">파일을 보냈습니다</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">지금 이 휴대폰에서 일부 링크를 확인하지 못했어요. 입력한 그대로 저장되며, 다른 사람들의 앱이 가능할 때 불러와요.</string>
+    <string name="notification_center_wallet_empty">내 주소로 들어오는 Kaspa가 여기에 표시됩니다.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
@@ -514,6 +571,10 @@
     <string name="create_wallet_name_title">지갑 이름 만들기</string>
     <string name="create_wallet_name_detail">이 이름은 지갑을 구분하기 위해 이 기기에만 저장됩니다. 다른 누구도 볼 수 없습니다.</string>
     <string name="choose_seed_phrase_length">12개 또는 24개 단어 선택</string>
+    <string name="notification_center_empty_title">아직 알림이 없습니다</string>
+    <string name="notification_center_clear_all">모두 지우기</string>
+    <string name="receive_preparing_fresh_address">새 주소를 준비하는 중</string>
+    <string name="composer_fee_amount">수수료: %1$s KAS</string>
     <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <!-- Composer fee pill (iOS feeBubble) -->
@@ -523,10 +584,18 @@
     <string name="qr_point_camera">QR 코드에 카메라를 향하세요</string>
     <string name="qr_camera_access_required">카메라 접근 권한 필요</string>
     <string name="qr_enable_camera_access">QR 코드를 스캔하려면 설정에서 카메라 접근을 허용하세요.</string>
+    <string name="qr_requesting_camera_access">카메라 접근 요청 중...</string>
+    <string name="no_utxos_found_at_address">이 주소에서 UTXO를 찾을 수 없습니다.</string>
+    <string name="node_removed_still_connected">주소록에서 삭제했습니다. 이 노드에는 계속 연결되어 있습니다.</string>
+    <string name="node_address_removed">주소를 삭제했습니다.</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s이 클립보드에 복사되었습니다.</string>
+    <string name="reactions_one">반응 1개</string>
+    <string name="reactions_count">반응 %1$d개</string>
+    <string name="reactions_one_person">1명</string>
+    <string name="reactions_people">%1$d명</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">전송 실패</string>
@@ -539,6 +608,7 @@
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="original_message_not_available">원본 메시지를 사용할 수 없음</string>
+    <string name="original_message_fetching">원본 메시지가 아직 이 기기에 없어 가져오는 중입니다.</string>
     <!-- .kachat sale tile: expiry flag -->
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">%1$s 해제 중...</string>
@@ -607,6 +677,7 @@
     <string name="ab_members_footer">연락처에서 사람을 고르거나 Kaspa 주소나 도메인으로 누구든 추가하세요.</string>
     <string name="ab_members_intro">그룹에 사람을 추가하세요. 그룹 관리자로서 멤버를 관리합니다.</string>
     <string name="ab_members_empty">아직 멤버가 없습니다. 연락처에서 또는 아래 주소로 추가하세요.</string>
+    <string name="ab_actions_a11y">추가, 가져오기 또는 내보내기</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">알아보기 쉬운 이름으로 Kaspa 주소를 저장하세요.</string>
     <string name="ab_import_file">파일 가져오기</string>
@@ -681,6 +752,7 @@
     <string name="bot_sheet_clears_unread">이 채팅의 읽지 않음 배지를 지웁니다.</string>
     <string name="bot_sheet_notifications_resume">이 봇의 알림이 다시 옵니다.</string>
     <string name="bot_sheet_no_notification">이 봇의 알림을 받지 않습니다.</string>
+    <string name="bot_sheet_delete_keeps_circle">이 기기에서 이 채팅의 메시지를 삭제합니다. 봇은 줄에 그대로 남습니다.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">결제 요청</string>
     <string name="pr_chatting_footer">결제는 메모와 함께 결제한 사람과의 채팅에 도착합니다.</string>
@@ -762,6 +834,22 @@
     <string name="import_chat_history">채팅 기록 가져오기</string>
     <string name="export_diagnostics_archive">진단 아카이브 내보내기</string>
     <string name="wipe_resync_incoming">수신 메시지 삭제 후 재동기화</string>
+    <string name="appearance">화면 스타일</string>
+    <string name="appearance_system">시스템</string>
+    <string name="appearance_light">라이트</string>
+    <string name="appearance_dark">다크</string>
+    <string name="storage_local_used">사용 중인 로컬 저장 공간: %1$s</string>
+    <string name="storage_on_device_footer">이 기기에 메시지를 보관하는 기간과 사용하는 공간입니다. 클라우드 저장소보다 먼저 적용됩니다.</string>
+    <string name="require_photo_approval_new_contacts">새 연락처가 보낸 사진은 승인 필요</string>
+    <string name="quick_reactions">빠른 반응</string>
+    <string name="quick_reactions_footer">이모지를 탭하면 다른 이모지로 바꿀 수 있습니다.</string>
+    <string name="reset_to_default">기본값으로 재설정</string>
+    <string name="notifications_wallet">지갑</string>
+    <string name="address_activity">주소 활동</string>
+    <string name="address_activity_footer">지출 주소나 콜드 스토리지 주소가 외부에서 Kaspa를 받으면 알립니다. 내 주소 간 이체는 무시됩니다.</string>
+    <string name="explorer_footer">앱 전체에서 \'거래 보기\' 링크를 만드는 데 사용됩니다.</string>
+    <string name="verbose_api_logging">자세한 API 로그</string>
+    <string name="verbose_api_logging_footer">모든 인덱서 요청을 연결 및 시간 정보와 함께 자세히 기록합니다. 평소에는 꺼 두세요. 실패하거나 느린 요청은 항상 기록되며, 로그가 너무 많으면 Android가 앱의 로그 메시지를 버릴 수 있습니다.</string>
     <string name="your_address">내 주소</string>
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">양자 안전</string>
@@ -819,7 +907,6 @@
     <string name="pr_paid_to">받는 주소</string>
     <string name="ab_empty_title">아직 연락처가 없습니다</string>
     <string name="settings_title">설정</string>
-    <string name="confirm_sending_kaspa">Kaspa 보내기 확인</string>
     <string name="confirm_sending_domain">이 도메인 보내기 확인</string>
     <string name="confirm_deleting_account">이 계정 삭제 확인</string>
     <string name="group_invites">그룹 초대</string>
@@ -831,7 +918,21 @@
     <string name="group_invite_explainer">수락하기 전에는 이 그룹에 참여하지 않습니다. 답변은 소액의 암호화된 거래로 전송되어 그룹과 내 다른 기기에 전달됩니다.</string>
     <string name="group_invite_notification">\"%1$s\"에 초대되었습니다</string>
     <string name="could_not_derive_addresses">이 단어로 주소를 생성하지 못했습니다. 다시 시도해 주세요.</string>
+    <string name="set_as_chatting_address">채팅 주소로 설정</string>
+    <string name="current_chatting_address">현재 채팅 주소</string>
     <string name="this_seed_already_has_conversations">이 단어들에는 현재 채팅 주소에 이미 대화가 있습니다. 전환하면 새 주소로 처음부터 시작합니다. 기존 대화는 이전 주소에 남아 있으며 삭제되지 않습니다.</string>
+    <string name="switch_action">전환</string>
+    <string name="tap_the_address_to_copy_it">주소를 탭하여 복사</string>
+    <string name="domains_count">도메인 %1$d개</string>
+    <string name="aliases">별칭</string>
+    <string name="receiving_alias">수신 별칭</string>
+    <string name="sending_alias">별칭 보내는 중</string>
+    <string name="alias_copied">별칭이 클립보드에 복사되었습니다.</string>
+    <string name="alias_unavailable">별칭을 사용할 수 없습니다.</string>
+    <string name="reveal">보기</string>
+    <string name="share_to_kachat">KaChat으로 공유</string>
+    <string name="send_to">보낼 대상</string>
+    <string name="couldnt_send_saved_as_draft">보낼 수 없습니다. 이 채팅에 임시 저장했습니다.</string>
     <string name="wallet_title">지갑</string>
     <string name="wallet_total_balance">총 잔액</string>
     <string name="wallet_chatting">채팅</string>
@@ -1067,11 +1168,18 @@
     <string name="group_notif_reacted_emoji_other">%1$s님이 메시지에 %2$s 반응을 남겼습니다</string>
     <string name="sent_amount_kas_memo">%1$s KAS 보냄 — %2$s</string>
     <string name="address_number">주소 #%1$d</string>
+    <string name="current">현재</string>
+    <string name="switch_chatting_address_question">채팅 주소를 전환할까요?</string>
     <string name="balance">잔액</string>
     <string name="group_info_member_count">멤버 %1$d명</string>
+    <string name="group_info_members_count">멤버 (%1$d)</string>
+    <string name="group_info_refresh_messages">메시지 새로고침</string>
+    <string name="group_info_silent_group_chat">알림 끈 그룹 채팅</string>
     <string name="group_info_resend_invites_to_all">모두에게 초대 다시 보내기</string>
+    <string name="group_info_remove_photo">사진 제거</string>
     <string name="message_action_select">선택</string>
     <string name="reactions_you">나</string>
+    <string name="coins_couldnt_load">이 주소의 코인을 불러올 수 없습니다</string>
     <string name="select_all">모두 선택</string>
     <string name="unlock_to_view_your_12_or_24">잠금 해제하여 12개 또는 24개 단어 보기</string>
     <string name="show">보기</string>
@@ -1157,6 +1265,7 @@
     <string name="one_more_thing_to_know">한 가지 더 알아 두세요</string>
     <string name="if_you_type_the_wrong_passphrase_nothing">잘못된 패스프레이즈를 입력해도 아무런 경고가 없습니다. 그냥 다른 계정으로 들어가고, 그 계정은 비어 있는 것처럼 보입니다. 버그가 아니며 자금을 잃은 것도 아닙니다. 다른 계정에 들어와 있다는 뜻일 뿐입니다.</string>
     <string name="so_do_you_need_one">그래서 필요할까요?</string>
+    <string name="if_you_are_not_sure_choose_no">잘 모르겠다면 패스프레이즈는 필요 없습니다. 처음 화면으로 돌아가 \'새 계정 만들기\'를 탭하면 패스프레이즈 없는 계정이 만들어집니다. 이 계정도 12개 또는 24개 단어로 보호되며, 나중에 언제든 패스프레이즈가 있는 계정을 따로 만들 수 있습니다.</string>
     <string name="if_you_never_set_one_up_choose">설정한 적이 없다면 아니요를 선택하세요. 패스프레이즈는 일부러 입력해야 하는 것이므로, 처음 듣는다면 패스프레이즈가 없는 것입니다.</string>
     <string name="my_kachat_profile">내 KaChat 프로필</string>
     <string name="signs_out_of_this_account_wallet_and">이 계정에서 로그아웃합니다. 지갑과 메시지 데이터는 이 기기에 남아 있습니다.</string>
@@ -1292,16 +1401,46 @@
     <string name="nfc_tap_prompt">카드를 휴대폰 뒷면에 평평하게 대세요.</string>
     <string name="copy_link_subtitle">주소를 클립보드에 복사합니다.</string>
     <string name="link_menu_title">링크</string>
+    <string name="shared_file_menu_title">공유 파일</string>
     <string name="message_action_select_subtitle">여러 메시지를 한 번에 선택합니다.</string>
+    <string name="tap_to_load_preview">탭하여 미리보기 불러오기</string>
     <string name="something_went_wrong">문제가 발생했습니다</string>
     <string name="chats_new_group_subtitle">선택한 사람들과 그룹을 시작합니다.</string>
     <string name="resync_all_chats">예, 모든 채팅</string>
-    <string name="screen_lock_required_message">KaChat에서 Kaspa를 보내거나 계정을 삭제하거나 비밀 키를 보려면 이 휴대폰에 화면 잠금을 설정하세요(설정 &gt; 보안).</string>
+    <string name="resync_all_chats_subtitle">수신 메시지를 모두 기기에서 삭제한 다음 블록체인에서 다시 동기화합니다. 보낸 메시지와 계정 정보는 유지됩니다.</string>
+    <string name="resync_select_chats">채팅 선택...</string>
+    <string name="resync_select_chats_subtitle">지우고 다시 동기화할 채팅을 선택하세요. 나머지는 건드리지 않습니다.</string>
+    <string name="resync_cancel_subtitle">메시지를 그대로 둡니다.</string>
+    <string name="screen_lock_required_message">KaChat에서 계정을 삭제하거나 비밀 키를 보려면 이 휴대폰에 화면 잠금을 설정하세요(설정 &gt; 보안).</string>
+    <string name="show_password">비밀번호 보기</string>
+    <string name="hide_password">비밀번호 숨기기</string>
     <string name="unlock_change_seed_phrase_lock">잠금 해제하여 12개 또는 24개 단어 생체 인식 잠금 변경</string>
+    <string name="unlock_change_account_login_lock">잠금을 해제하여 계정 로그인 생체 인식 잠금 변경</string>
+    <string name="unlock_change_private_key_lock">잠금을 해제하여 개인 키 생체 인식 잠금 변경</string>
+    <string name="nc_server">서버</string>
+    <string name="nc_server_placeholder">cloud.example.com</string>
+    <string name="nc_username">사용자 이름</string>
+    <string name="nc_app_password">앱 비밀번호</string>
+    <string name="nc_use_https">https를 사용하세요. 암호화되지 않은 연결은 지원하지 않습니다.</string>
+    <string name="nc_app_password_footer">Nextcloud의 설정 → 보안 → 장치 및 세션에서 앱 비밀번호를 만드세요. 계정 비밀번호는 사용하지 마세요. KaChat은 이를 기기의 암호화된 저장소에 보관합니다.</string>
+    <string name="nc_connect">연결</string>
+    <string name="nc_connected_account">연결된 계정</string>
+    <string name="nc_start_folder">시작 폴더</string>
+    <string name="nc_automatic_sync">자동 동기화</string>
+    <string name="nc_auto_sync_one_service">자동 동기화는 한 번에 하나의 클라우드 서비스에서만 작동합니다.</string>
+    <string name="nc_last_synced">마지막 동기화</string>
+    <string name="nc_backup_folder">백업 폴더</string>
+    <string name="nc_default_folder">%1$s(기본값)</string>
     <string name="nc_back_up_now">지금 연락처 백업</string>
+    <string name="nc_last_backup">마지막 백업</string>
+    <string name="nc_no_backup_yet">이 서버에 아직 백업이 없습니다.</string>
     <string name="nc_backup_uploaded">연락처를 백업했습니다.</string>
     <string name="nc_contact_backup">연락처 백업</string>
     <string name="nc_contact_backup_footer">여기에는 연락처만 암호화되어 백업됩니다. 메시지와 그룹 채팅은 시드 문구로 복원됩니다.</string>
+    <string name="nc_disconnect">연결 해제</string>
+    <string name="nc_disconnect_footer">연결을 해제하면 저장된 앱 비밀번호가 이 기기에서 삭제됩니다. Nextcloud 서버에서는 아무것도 바뀌지 않습니다.</string>
+    <string name="nc_disconnect_title">Nextcloud 연결 해제</string>
+    <string name="nc_disconnect_message">앱 비밀번호가 이 기기의 암호화된 저장소에서 삭제됩니다. 언제든 다시 연결할 수 있습니다.</string>
     <string name="send_outcome_unknown">전송되었을 수 있지만 네트워크에서 확인되지 않았습니다. 다시 보내기 전에 잔액을 확인하세요.</string>
     <string name="swipe_not_confirmed">확인되지 않음</string>
     <string name="secure_store_title">KaChat에서 계정을 열 수 없습니다</string>
@@ -1313,6 +1452,9 @@
     <string name="max_capped_compound">한 번의 거래로 %1$d개의 코인을 통합할 수 있어 가장 큰 %2$d개를 통합합니다. 나머지는 다시 통합하세요.</string>
     <string name="max_capped_send">최대는 한 번의 거래에 담을 수 있는 금액입니다(가장 큰 코인 %1$d개). 나머지는 \"UTXO 통합\"으로 합칠 수 있습니다.</string>
     <string name="couldnt_load_address_balance">이 주소의 잔액을 불러오지 못했습니다.</string>
+    <plurals name="pasted_words_invalid">
+        <item quantity="other">붙여 넣은 단어 중 %d개가 올바른 단어가 아닙니다. 복사한 내용을 확인하고 다시 시도하세요.</item>
+    </plurals>
     <string name="delivery_not_confirmed">확인되지 않음</string>
     <string name="delivery_not_confirmed_accessibility">아직 확인되지 않았습니다. 그래도 처리될 수 있습니다.</string>
     <string name="send_fee_changed">네트워크 수수료가 이제 %1$s KAS로, 검토 화면에 표시된 것보다 많습니다. 아무것도 전송되지 않았습니다. 새 수수료를 확인하고 다시 밀어 주세요.</string>
@@ -1322,6 +1464,7 @@
     <string name="passphrase_search_unfinished">이 계정의 다른 주소에서 자금 검색이 끝나지 않아 가져오기에 주소 #0을 사용합니다.</string>
     <string name="search_again">다시 검색</string>
     <string name="skip_search_import_address_0">검색 건너뛰기: 주소 #0으로 가져오기</string>
+    <string name="archive_not_encrypted">이 파일은 암호화된 KaChat 아카이브가 아니어서 가져올 수 없습니다.</string>
     <string name="a_post_on_kapost">KaPost 게시물</string>
     <string name="tap_to_open_it_in_kapost">탭하여 KaPost에서 엽니다.</string>
     <string name="shared_a_kapost">KaPost 게시물을 공유함</string>
@@ -1388,4 +1531,93 @@
     <string name="photo_quality_low">낮음</string>
     <string name="receiving_n_of_m">수신 중… %2$d개 중 %1$d개</string>
     <string name="encoding_ellipsis">인코딩 중…</string>
+    <string name="audio_ready">오디오 준비됨</string>
+    <string name="this_only_deletes_the_message_recipient">이 기기에서만 메시지가 삭제됩니다. 상대방은 자신의 사본을 그대로 가지고 있고, 암호화된 거래는 Kaspa 블록체인에 영구히 남습니다. 누구나 볼 수 있지만 내 키 없이는 읽을 수 없습니다. 이 작업은 되돌릴 수 없습니다.</string>
+    <string name="message_copied_to_clipboard">메시지가 클립보드에 복사되었습니다.</string>
+    <string name="edited_mark">수정됨</string>
+    <string name="chess_invite_sent">체스 초대를 보냈습니다</string>
+    <string name="chess_invited_you">체스 대국에 초대했습니다</string>
+    <string name="more_reactions">반응 더 보기</string>
+    <string name="confirm_changes">변경 사항 확인</string>
+    <string name="uploading_avatar">아바타 업로드 중...</string>
+    <string name="uploading_banner">배너 업로드 중...</string>
+    <string name="profile_field_removed">%1$s(삭제됨)</string>
+    <string name="create_group">그룹 만들기</string>
+    <string name="create_group_fee_estimate">예상 네트워크 수수료 ≈ %1$s %2$s(거래 %3$d건)</string>
+    <string name="create_chat">채팅 시작</string>
+    <string name="add_to_group">그룹에 추가</string>
+    <string name="edit_name">이름 편집</string>
+    <string name="domain_label">도메인</string>
+    <string name="primary_badge">기본</string>
+    <string name="notification_mode_off">끄기</string>
+    <string name="notification_mode_no_sound">소리 없음</string>
+    <string name="notification_mode_sound">소리</string>
+    <string name="notification_mode_default">기본값 (%1$s)</string>
+    <string name="domain_transfer_sending">%1$s 보내는 중</string>
+    <string name="domain_transfer_footer">도메인 이전은 거래 두 건으로 이루어지므로 잠시 걸립니다. 끝날 때까지 앱을 열어 두세요.</string>
+    <string name="domain_transfer_stage_preparing">이전 준비 중</string>
+    <string name="domain_transfer_stage_fee">수수료 계산 중</string>
+    <string name="domain_transfer_stage_commit">커밋 거래 전송 중</string>
+    <string name="domain_transfer_stage_reveal">리빌 거래 전송 중</string>
+    <string name="domain_transfer_stage_verifying">새 소유자 확인 중</string>
+    <string name="domain_transfer_stage_working">처리 중</string>
+    <string name="checking_address_n">주소 #%1$d 확인 중</string>
+    <string name="n_found_so_far">지금까지 %1$d개 찾음</string>
+    <string name="no_addresses_with_balance_or_domain_yet">잔액이나 도메인이 있는 주소가 아직 없습니다</string>
+    <string name="checks_the_first_thousand_addresses">중간에 빈 곳이 있어도 처음 1,000개 주소를 확인하고, 계속 발견되는 동안 이어서 확인합니다.</string>
+    <string name="first_sync_all_set">준비 완료</string>
+    <string name="first_sync_up_to_date">채팅과 기록이 최신 상태입니다.</string>
+    <string name="first_sync_setting_up">계정 설정 중</string>
+    <string name="first_sync_downloading_footer">이 계정이 체인에 가진 모든 것을 내려받는 중입니다. 이렇게 오래 걸리는 것은 처음 한 번뿐입니다.</string>
+    <string name="first_sync_continue_anyway">그래도 계속</string>
+    <string name="nc_use_all_files">모든 파일 사용</string>
+    <string name="nc_use_this_folder">이 폴더 사용</string>
+    <string name="nc_no_subfolders">하위 폴더가 없습니다.</string>
+    <string name="nc_could_not_load_file">이 파일을 불러올 수 없습니다.</string>
+    <string name="voice_message_unavailable">음성 메시지를 사용할 수 없습니다</string>
+    <string name="tap_to_retry">탭하여 다시 시도</string>
+    <string name="loading_ellipsis">불러오는 중…</string>
+    <string name="file_no_longer_shared">이 파일은 더 이상 공유되지 않습니다</string>
+    <string name="react_title">반응</string>
+    <string name="no_emoji_match_that">일치하는 이모지가 없습니다.</string>
+    <string name="choose_emoji">이모지 선택</string>
+    <string name="whats_cached">캐시된 항목</string>
+    <string name="clear_all_cache">모든 캐시 지우기</string>
+    <string name="fund_your_chatting_address_to_start">채팅을 시작하려면 채팅 주소에 입금하세요</string>
+    <string name="copied_to_clipboard">클립보드에 복사했습니다</string>
+    <string name="welcome_guide">환영 가이드</string>
+    <string name="chess_notif_invite">♟️ 체스 대국에 초대했습니다</string>
+    <string name="chess_notif_accepted">♟️ 체스 대국을 수락했습니다</string>
+    <string name="chess_notif_declined">♟️ 체스 대국을 거절했습니다</string>
+    <string name="chess_notif_move">♟️ %1$s → %2$s 수를 두었습니다</string>
+    <string name="chess_notif_move_generic">♟️ 체스 수를 두었습니다</string>
+    <string name="chess_notif_lost_on_time">♟️ 시간 초과로 패배했습니다</string>
+    <string name="chess_notif_resigned">♟️ 체스 대국에서 기권했습니다</string>
+    <string name="fee_label">요금</string>
+    <plurals name="kns_profile_changes_count">
+        <item quantity="other">변경 사항 %d개. 각 변경 사항은 채팅 주소에서 별도의 온체인 거래로 제출됩니다:</item>
+    </plurals>
+    <plurals name="create_group_and_invite">
+        <item quantity="other">\"%1$s\" 그룹을 만들고 멤버 %2$d명을 초대할까요?</item>
+    </plurals>
+    <string name="nc_revoke_failed_title">앱 비밀번호를 삭제하지 못함</string>
+    <string name="nc_revoke_failed_message">KaChat이 %1$s에서 앱 비밀번호를 삭제하지 못했습니다. 이 휴대폰에서는 삭제되었지만 그곳에서는 여전히 로그인할 수 있습니다. Nextcloud의 설정 &gt; 보안 &gt; 기기 및 세션에서 삭제하세요.</string>
+    <string name="fee_too_high">수수료가 너무 높음</string>
+    <string name="a_message_fee_can_be_at_most_1_kas">메시지 수수료는 최대 1 KAS입니다.</string>
+    <string name="use_a_high_fee">높은 수수료를 사용할까요?</string>
+    <string name="use_it">사용</string>
+    <string name="message_fee_much_more_than_network_needs">%1$s KAS는 메시지를 보내는 데 네트워크가 필요한 것보다 훨씬 많습니다.</string>
+    <string name="tap_retry_on_the_voice_message_to_send_the_rest">나머지를 보내려면 음성 메시지에서 다시 시도를 탭하세요.</string>
+    <string name="tap_retry_on_the_photo_to_send_the_rest">나머지를 보내려면 사진에서 다시 시도를 탭하세요.</string>
+    <string name="payment_notice_fee_from_chatting_address">채팅 주소가 이 결제를 %2$s에게 알리기 위해 %1$s KAS를 추가로 냅니다.</string>
+    <string name="recording_failed_please_try_again">녹음에 실패했습니다. 다시 시도하세요.</string>
+    <string name="message_needs_too_many_coins">이 메시지는 한 거래에 필요한 코인이 너무 많습니다. 채팅 주소에서 Compound UTXOs를 사용한 뒤 다시 시도하세요.</string>
+    <string name="use_their_domain_name">상대의 도메인 이름 사용</string>
+    <string name="show_request_as_qr">요청을 QR로 보기</string>
+    <string name="pr_qr_scan_to_pay_in_kapay">휴대폰 카메라로 스캔하면 모든 내용이 채워진 채로 KaPay에서 결제할 수 있습니다.</string>
+    <string name="pr_qr_scan_to_pay_in_kachat">휴대폰 카메라로 스캔하면 모든 내용이 채워진 채로 KaChat에서 결제할 수 있습니다.</string>
+    <string name="get_a_kachat_domain">.kachat 도메인 받기</string>
+    <string name="set_as_name">이름으로 설정</string>
+    <string name="their_name">상대 이름</string>
+    <string name="get_a_kachat_name">.kachat 이름 받기</string>
 </resources>

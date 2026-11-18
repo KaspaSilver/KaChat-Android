@@ -400,7 +400,7 @@ private fun ChattingAddressDetailScreen(
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    if (addressCopied) "Copied to clipboard" else stringResource(R.string.tap_the_address_to_copy_it),
+                    if (addressCopied) stringResource(R.string.copied_to_clipboard) else stringResource(R.string.tap_the_address_to_copy_it),
                     color = LocalAppColors.current.textSecondary,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center,

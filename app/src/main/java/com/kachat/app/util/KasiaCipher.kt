@@ -100,6 +100,9 @@ object KasiaCipher {
      * Decrypts a message using our own secp256k1 private key scalar.
      */
     fun decrypt(message: EncryptedMessage, privateKey: ByteArray): String {
+        // Only a compressed (33-byte) ephemeral key, as iOS requires (KaChatCipher.decrypt): a
+        // message one phone could read and the other not would make the same chat differ.
+        if (message.ephemeralPublicKey.size != COMPRESSED_KEY_SIZE) throw IllegalArgumentException("Ephemeral public key is not 33 bytes")
         val ephemeralPoint = decodePoint(message.ephemeralPublicKey)
         val sharedX = ecdhX(BigInteger(1, privateKey), ephemeralPoint)
         return open(message, hkdfSha256(sharedX, ByteArray(0), 32))
@@ -143,7 +146,44 @@ object KasiaCipher {
         // 0xFF never begins UTF-8: a frame that does not parse (cut short, a header length past
         // the end, a newer version) is unreadable, as on iOS - never text full of U+FFFD.
         if (ContextualMediaFrame.startsWithFrameByte(plaintext)) throw UnreadablePlaintextException()
-        return String(plaintext, Charsets.UTF_8)
+        // Bytes that aren't UTF-8 are unreadable, as on iOS (String(data:encoding:) fails) -
+        // never text full of U+FFFD.
+        return strictUtf8(plaintext) ?: throw UnreadablePlaintextException()
+    }
+
+    /** [bytes] as UTF-8 text, or null when they aren't valid UTF-8 (iOS `String(data:encoding:.utf8)`). */
+    fun strictUtf8(bytes: ByteArray): String? = try {
+        Charsets.UTF_8.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+            .decode(java.nio.ByteBuffer.wrap(bytes))
+            .toString()
+    } catch (e: java.nio.charset.CharacterCodingException) {
+        null
+    }
+
+    /**
+     * [hex] as bytes: hex digits only, either case, in pairs (iOS `Data(hexString:)`, 83806b3d).
+     * `"+a".toInt(16)` reads as 10 and an odd last digit was read alone, so two spellings of one
+     * value passed as two. Those, and anything else that isn't 0-9a-fA-F, are null now.
+     */
+    fun hexBytes(hex: String): ByteArray? {
+        if (hex.length % 2 != 0) return null
+        val out = ByteArray(hex.length / 2)
+        for (i in out.indices) {
+            val high = hexNibble(hex[2 * i])
+            val low = hexNibble(hex[2 * i + 1])
+            if (high < 0 || low < 0) return null
+            out[i] = ((high shl 4) or low).toByte()
+        }
+        return out
+    }
+
+    private fun hexNibble(c: Char): Int = when (c) {
+        in '0'..'9' -> c - '0'
+        in 'a'..'f' -> c - 'a' + 10
+        in 'A'..'F' -> c - 'A' + 10
+        else -> -1
     }
 
     /** A message that can't be read back with the seed: not sealed by [sentMessageKey]. */

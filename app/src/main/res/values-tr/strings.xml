@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">KaChat</string>
     <string name="n_12_words">12 kelime</string>
+    <string name="n_24_words">24 kelime</string>
     <string name="a_kns_inscription_s_commit_transaction">Bir KNS yazitinin taahhut islemi gerceklesti, ancak acilma hicbir zaman tamamlanmadi. Tamamlamak icin simdi tekrar deneyin; bunu yapana kadar fonlar guvenle baglidir.</string>
     <string name="accept">Kabul Et</string>
     <string name="account_name">Hesap Adı</string>
@@ -10,16 +12,36 @@
     <string name="added">Eklendi</string>
     <string name="address">Adres</string>
     <string name="address_actions">Adres Islemleri</string>
+    <string name="address_copied_short">%1$s adresi kopyalandı</string>
+    <string name="tap_anywhere_to_copy">Kopyalamak için herhangi bir yere dokun</string>
     <string name="adjust_network_fee">Ag Ucretini Ayarla</string>
     <string name="admin">Yonetici</string>
     <string name="amount_kas">Tutar (KAS)</string>
     <string name="anyone_with_your_seed_phrase_can">12 veya 24 kelimene sahip olan herkes hesabına erişebilir. Bunları asla kimseyle paylaşma.</string>
     <string name="back">Geri</string>
+    <string name="previous">Geri</string>
     <string name="cancel">İptal</string>
+    <string name="app_settings">Uygulama Ayarları</string>
+    <string name="delivery_sent">Gönderilmiş</string>
+    <string name="delivery_sending">Gönderiliyor</string>
+    <string name="delivery_failed">Başarısız</string>
+    <string name="delivery_failed_tap_to_retry">Başarısız · Tekrar denemek için dokunun</string>
+    <string name="delivery_needs_attention">İlgi gerekiyor</string>
+    <string name="delivery_failed_retry_accessibility">Gönderilemedi. Tekrar denemek için dokun.</string>
+    <string name="battery_rationale_title">KaChat kapalıyken de bildirim al</string>
+    <string name="battery_rationale_body">Bazı telefonlar pil tasarrufu için uygulamaları kapatır; bu da mesaj bildirimlerinin gelmesini durdurabilir.</string>
+    <string name="battery_rationale_allow">İzin Ver</string>
+    <string name="battery_rationale_allow_detail">Yeni mesajların seni bilgilendirmek için KaChat\'i uyandırmasına izin verir.</string>
+    <string name="battery_rationale_not_now_detail">Bunu daha sonra Ayarlar > Uygulamalar > KaChat > Pil bölümünden değiştirebilirsin.</string>
+    <string name="open_source_licenses">Açık Kaynak Lisansları</string>
+    <string name="screen_lock_required">Ekran Kilidi Gerekli</string>
     <string name="cancel_photo">Fotografi iptal et</string>
     <string name="cancel_recording">Kaydi iptal et</string>
     <string name="cancel_reply">Yaniti iptal et</string>
     <string name="chats">Sohbetler</string>
+    <string name="share_pick_chat">Paylaşılacak sohbeti seç</string>
+    <string name="help">Yardım</string>
+    <string name="coinbase">Coinbase</string>
     <string name="chatting_address">Sohbet Adresi</string>
     <string name="chess_stats">Satranc Istatistikleri</string>
     <string name="choose_avatar">Avatar\'ı seçin</string>
@@ -28,6 +50,7 @@
     <string name="clear_search">Aramayi temizle</string>
     <string name="close">Kapat</string>
     <string name="confirm">Onayla</string>
+    <string name="confirm_selection">Seçimi Onayla</string>
     <string name="connect_to_a_node">Bir Duguma Baglan</string>
     <string name="connected_only_to_this_node">Yalnizca bu duguma bagli</string>
     <string name="connection_settings">Bağlantı Ayarları</string>
@@ -64,7 +87,8 @@
     <string name="import_account">Hesabı İçe Aktar</string>
     <string name="import_existing_account">Mevcut Hesabı İçe Aktar</string>
     <string name="incoming_notifications">Gelen Bildirimler</string>
-    <string name="kns_domains">KNS Alan Adları</string>
+    <string name="kns_domains">Alan Adların</string>
+    <string name="contact_kns_domains">KNS Alan Adları</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat Logosu</string>
     <string name="kachat_needs_to_connect_to_a">KaChat\'in bir duguma baglanmasi gerekiyor. Nasil baglanmak istersiniz?</string>
@@ -80,11 +104,16 @@
     <string name="next">Ileri</string>
     <string name="no_conversations_yet">Henüz konuşma yok</string>
     <string name="no_domains_yet">Henüz alan adı yok.</string>
+    <string name="send_domain">Alan Adı Gönder</string>
+    <string name="asset_id">Öğe Kimliği</string>
+    <string name="primary_domain">Ana Alan Adı</string>
+    <string name="set_as_primary">Ana Ad Yap</string>
     <string name="no_hidden_addresses">Gizli adres yok.</string>
     <string name="no_hidden_users_in_this_group">Bu grupta gizli kullanici yok.</string>
     <string name="no_messages_yet">Henüz mesaj yok</string>
     <string name="no_saved_addresses">Kayitli adres yok</string>
     <string name="no_transactions_yet">Henuz islem yok.</string>
+    <string name="no_utxos">UTXO yok.</string>
     <string name="not_now">Simdi Degil</string>
     <string name="notifications">Bildirimler</string>
     <string name="ok">Tamam</string>
@@ -99,13 +128,16 @@
     <string name="promote_pawn_to">Piyonu su terfi ettir:</string>
     <string name="qr_code">QR Kodu</string>
     <string name="read">Okundu</string>
+    <string name="receive">Al</string>
     <string name="recipient_address">Alici adresi</string>
     <string name="remove">Kaldir</string>
     <string name="rename">Yeniden Adlandir</string>
     <string name="rename_account">Hesabi Yeniden Adlandir</string>
     <string name="rename_address">Adresi Yeniden Adlandir</string>
     <string name="rename_group">Grubu Yeniden Adlandir</string>
+    <string name="rename_utxo">UTXO\'yu Yeniden Adlandır</string>
     <string name="resign">Pes Et</string>
+    <string name="chess_cancel_game">Oyunu iptal et</string>
     <string name="resign_this_game">Bu oyundan cekilinsin mi?</string>
     <string name="retry">Tekrar Dene</string>
     <string name="retry_inscription_reveal">Yazit Acilmasini Tekrar Dene</string>
@@ -137,9 +169,12 @@
     <string name="try_again">Tekrar Dene</string>
     <string name="unhide">Gizlemeyi Kaldir</string>
     <string name="unread">Okunmadi</string>
+    <string name="use_automatic_selection">Otomatik Seçimi Kullan</string>
     <string name="use_default">Varsayilani Kullan</string>
+    <string name="utxos">UTXOs</string>
     <string name="valid_address">Gecerli adres</string>
     <string name="waiting_on_opponent">Rakip bekleniyor</string>
+    <string name="the_recipient_wont_see_your_messages">Alıcı, sana mesaj gönderene veya sen ona bir iletişim isteği gönderene kadar mesajlarını görmez. İletişim isteği 0,2 KAS tutar ve kabul ederse sana iade edilir. İletişim isteği gönderirsen gizliliğini kaybedersin.</string>
     <string name="host_port_or_grpcs_host">host:port veya grpcs://host</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
@@ -157,6 +192,7 @@
     <string name="bio">Biyografi</string>
     <string name="biometrics_for_account_login">Hesap Girisi icin Biyometri</string>
     <string name="biometrics_for_seed_phrase">12 veya 24 Kelime için Biyometri</string>
+    <string name="biometrics_for_address_private_keys">Adres Özel Anahtarları için Biyometri</string>
     <string name="camera">Kamera</string>
     <string name="chat_history">Sohbet Geçmişi</string>
     <string name="clear_connection_pool">Bağlantı Havuzunu Temizle</string>
@@ -179,6 +215,10 @@
     <string name="kns_profile">KNS Profili</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">Kaspa Dugumu</string>
+    <string name="default_recommended">Varsayılan (Önerilen)</string>
+    <string name="automatic_scan">Otomatik Tarama</string>
+    <string name="kaspa_node_quick_access_footer">Otomatik Tarama, kullanılabilir en iyi düğümleri bulur ve onlara bağlanır. Belirli bir düğüm seçersen yalnızca ona bağlanılır, diğerlerine geçilmez. Kayıtlı adresleri Bağlantı Ayarları > IP Adres Defteri bölümünden yönet.</string>
+    <string name="node_connections_blocked">Bu ağda düğüm bağlantıları engellenmiş görünüyor. Mesaj alma dizinleyici üzerinden çalışmaya devam eder ve normal ödemeler REST API üzerinden gitmeye devam eder, ancak sohbet mesajı göndermek için düğüm bağlantısı gerekir.</string>
     <string name="last_sync">Son Senkronizasyon</string>
     <string name="latency">Gecikme</string>
     <string name="open_chat">Sohbeti Ac</string>
@@ -196,9 +236,12 @@
     <string name="save_photo">Fotografi Kaydet</string>
     <string name="security">Guvenlik</string>
     <string name="send_handshake">Iletisim Istegi Gonder</string>
+    <string name="handshake_sent">İletişim isteği gönderildi</string>
     <string name="show_fee_estimate">Ucret Tahminini Goster</string>
     <string name="sound_vibration">Ses ve Titreşim</string>
     <string name="storage">Depolama</string>
+    <string name="on_this_device">Bu Cihazda</string>
+    <string name="cloud_storage">Bulut Depolama</string>
     <string name="submitting_commit_transaction">Taahhut islemi gonderiliyor...</string>
     <string name="submitting_reveal_transaction">Acilma islemi gonderiliyor...</string>
     <string name="support_email">Destek E-postası</string>
@@ -233,6 +276,13 @@
     <string name="currency">Para Birimi</string>
     <string name="choose_your_currency">Para Biriminizi Secin</string>
     <string name="select_the_currency_youd_like_prices">Fiyatlarin hangi para biriminde gosterilmesini istediginizi secin.</string>
+    <string name="default_label">Varsayilan</string>
+    <string name="continue_label">Devam</string>
+    <string name="change_chatting_address">Sohbet Adresini Değiştir</string>
+    <string name="choose_your_chatting_address">Sohbet Adresini Seç</string>
+    <string name="scan_further">Daha Fazla Tara</string>
+    <string name="scanning_addresses">%1$d ile %2$d arası adresler taranıyor...</string>
+    <string name="scanned_the_first_addresses">İlk %1$d adres tarandı.</string>
     <string name="user_info">Kullanıcı Bilgisi</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">Paylaş</string>
@@ -255,6 +305,7 @@
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">%1$s alan adı bulunamadı</string>
     <string name="looking_up_domain">Alan adı aranıyor...</string>
+    <string name="looking_up">Aranıyor...</string>
     <string name="no_domain">Alan adı yok</string>
     <string name="other_domains">Diğer alan adları</string>
     <string name="not_registered">Kayıtlı değil</string>
@@ -271,6 +322,7 @@
     <string name="not_available_on_this_network">Bu ağda kullanılamıyor</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
     <string name="km_no_names">Henüz .kachat adın yok</string>
+    <string name="kn_manage_in_wallet">.kachat adlarını KaChat Wallet\'ta satın al, yenile, sat ve devret.</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_welcome_body">Tam başlangıç turu: cüzdan, sohbetler, ödemeler ve daha fazlası.</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
@@ -309,7 +361,7 @@
     <string name="new_message_request">Yeni mesaj isteği</string>
     <string name="wants_to_chat_with_you">%1$s seninle sohbet etmek istiyor.</string>
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
-    <string name="welcome_fund_chatting_body">Başlamak için 50 Kaspa önerilir - bir .kachat adı almaya ve bir süre sohbet etmeye yeter. 5 Kaspa yaklaşık 2500 mesaja yeter.</string>
+    <string name="welcome_fund_chatting_body">5 Kaspa yaklaşık 2500 mesaja yeter.</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">Testnet</string>
     <string name="testnet_restart_to_testnet">Testnet\'e geçişi tamamlamak için KaChat\'i tamamen kapatıp yeniden aç.</string>
@@ -432,7 +484,10 @@
     <string name="qr_chatting_address_subtitle">Sohbet etmek ve .kachat alan adları edinmek için kullanın.</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">Coin kontrolü</string>
+    <string name="compound_utxos">UTXO\'ları Birleştir</string>
+    <string name="compound_utxos_description">Gelecekteki bir gönderimin ihtiyaç duyacağı girdi sayısını azaltmak için bu adresin UTXO\'larını birleştir. Tek bir işlem aynı anda ancak sınırlı sayıda UTXO birleştirebilir; bu adreste çok fazla UTXO varsa, azaltmaya devam etmek için işlem onaylandıktan sonra Birleştir\'e tekrar dokun.</string>
     <string name="automatic">Otomatik</string>
+    <string name="automatic_clear_selection">Otomatik (Seçimi Temizle)</string>
     <string name="consolidating_this_address">Bu adres birleştiriliyor</string>
     <string name="invalid_address_format">Geçersiz adres biçimi</string>
     <string name="fee_tier_normal">Normal</string>
@@ -443,6 +498,7 @@
     <string name="paste">Yapıştır</string>
     <string name="scan_qr">QR Tara</string>
     <string name="network_fee">Ag Ucreti</string>
+    <string name="nextcloud">Nextcloud</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">Gönderen</string>
@@ -504,6 +560,7 @@
     <string name="dm_notif_sent_file">Bir dosya gönderdi</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">Bazı bağlantılar şu anda bu telefondan kontrol edilemedi. Girildiği gibi kaydedilir ve başkalarının uygulamaları yükleyebildiğinde yükler.</string>
+    <string name="notification_center_wallet_empty">Adreslerine gelen Kaspa burada görünür.</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
@@ -514,6 +571,10 @@
     <string name="create_wallet_name_title">Cüzdanınız için bir ad oluşturun</string>
     <string name="create_wallet_name_detail">Bu ad yalnızca bu cihazda saklanır ve cüzdanlarınızı ayırt etmenizi sağlar. Başka hiç kimse onu görmez.</string>
     <string name="choose_seed_phrase_length">12 veya 24 kelime seç</string>
+    <string name="notification_center_empty_title">Henüz bildirim yok</string>
+    <string name="notification_center_clear_all">Tümünü Temizle</string>
+    <string name="receive_preparing_fresh_address">Yeni bir adres hazırlanıyor</string>
+    <string name="composer_fee_amount">ücret: %1$s KAS</string>
     <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <!-- Composer fee pill (iOS feeBubble) -->
@@ -523,10 +584,18 @@
     <string name="qr_point_camera">Kamerayı bir QR koda doğrultun</string>
     <string name="qr_camera_access_required">Kamera Erişimi Gerekli</string>
     <string name="qr_enable_camera_access">QR kodları taramak için Ayarlar\'da kamera erişimini etkinleştirin.</string>
+    <string name="qr_requesting_camera_access">Kamera erişimi isteniyor...</string>
+    <string name="no_utxos_found_at_address">Bu adreste UTXO bulunamadı.</string>
+    <string name="node_removed_still_connected">Adres defterinden kaldırıldı. Bu düğüme hâlâ bağlı.</string>
+    <string name="node_address_removed">Adres kaldırıldı.</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s panoya kopyalandı.</string>
+    <string name="reactions_one">1 Tepki</string>
+    <string name="reactions_count">%1$d Tepki</string>
+    <string name="reactions_one_person">1 kişi</string>
+    <string name="reactions_people">%1$d kişi</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">Gönderilemedi</string>
@@ -539,6 +608,7 @@
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="original_message_not_available">Orijinal mesaj kullanilamiyor</string>
+    <string name="original_message_fetching">Orijinal mesaj henüz bu cihazda değil; getiriliyor.</string>
     <!-- .kachat sale tile: expiry flag -->
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">%1$s sizin için serbest bırakılıyor...</string>
@@ -607,6 +677,7 @@
     <string name="ab_members_footer">Kişilerinden birini seç ya da herkesi Kaspa adresi veya alan adıyla ekle.</string>
     <string name="ab_members_intro">Gruba kişi ekle. Grup yöneticisi olarak üyeliği sen yönetirsin.</string>
     <string name="ab_members_empty">Henüz üye yok. Kişilerinden ya da aşağıdan adresle kişi ekle.</string>
+    <string name="ab_actions_a11y">Ekle, içe aktar veya dışa aktar</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">Bir Kaspa adresini tanıyacağınız bir adla kaydedin.</string>
     <string name="ab_import_file">Dosya İçe Aktar</string>
@@ -681,6 +752,7 @@
     <string name="bot_sheet_clears_unread">Bu sohbetteki okunmamış rozetini kaldırır.</string>
     <string name="bot_sheet_notifications_resume">Bu bottan bildirimler yeniden gelir.</string>
     <string name="bot_sheet_no_notification">Bu bottan bildirim gelmez.</string>
+    <string name="bot_sheet_delete_keeps_circle">Bu sohbetin mesajlarını bu cihazdan siler. Bot sırada kalır.</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">Ödeme İste</string>
     <string name="pr_chatting_footer">Ödeme, notla birlikte ödeyen kişiyle sohbetinize düşer.</string>
@@ -762,6 +834,22 @@
     <string name="import_chat_history">Sohbet Geçmişini İçe Aktar</string>
     <string name="export_diagnostics_archive">Tanılama Arşivini Dışa Aktar</string>
     <string name="wipe_resync_incoming">Gelen mesajları sil ve yeniden senkronize et</string>
+    <string name="appearance">Görünüm</string>
+    <string name="appearance_system">Sistem</string>
+    <string name="appearance_light">Açık</string>
+    <string name="appearance_dark">Koyu</string>
+    <string name="storage_local_used">Kullanılan yerel depolama: %1$s</string>
+    <string name="storage_on_device_footer">Mesajların bu cihazda ne kadar süre tutulduğu ve ne kadar yer kapladığı. Herhangi bir bulut depolamadan önce uygulanır.</string>
+    <string name="require_photo_approval_new_contacts">Yeni kişilerden gelen fotoğraflar için onay iste</string>
+    <string name="quick_reactions">Hızlı Tepkiler</string>
+    <string name="quick_reactions_footer">Bir emojiyi başka biriyle değiştirmek için ona dokun.</string>
+    <string name="reset_to_default">Varsayılana Sıfırla</string>
+    <string name="notifications_wallet">Cüzdan</string>
+    <string name="address_activity">Adres Hareketleri</string>
+    <string name="address_activity_footer">Harcama veya soğuk depolama adreslerinden herhangi biri harici bir kaynaktan Kaspa aldığında bildir. Kendi adreslerin arasındaki transferler yok sayılır.</string>
+    <string name="explorer_footer">Uygulama genelinde \"işlemi görüntüle\" bağlantılarını oluşturmak için kullanılır.</string>
+    <string name="verbose_api_logging">Ayrıntılı API Günlüğü</string>
+    <string name="verbose_api_logging_footer">Her dizinleyici isteğini tüm bağlantı ve zamanlama ayrıntılarıyla kaydeder. Normal kullanımda kapalı bırak: başarısız ve yavaş istekler her zaman kaydedilir, yoğun günlük kaydı ise Android\'in uygulamanın günlük mesajlarını atmasına neden olabilir.</string>
     <string name="your_address">Adresiniz</string>
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">Kuantum güvenli</string>
@@ -819,7 +907,6 @@
     <string name="pr_paid_to">Ödenecek adres</string>
     <string name="ab_empty_title">Henüz kişi yok</string>
     <string name="settings_title">Ayarlar</string>
-    <string name="confirm_sending_kaspa">Kaspa gönderimini onayla</string>
     <string name="confirm_sending_domain">Bu alan adının gönderilmesini onayla</string>
     <string name="confirm_deleting_account">Bu hesabın silinmesini onayla</string>
     <string name="group_invites">Grup Davetleri</string>
@@ -831,7 +918,21 @@
     <string name="group_invite_explainer">Kabul etmedikçe bu grupta olmazsın. Yanıtın küçük, şifreli bir işlem olarak gönderilir; böylece grup ve diğer cihazların bunu öğrenir.</string>
     <string name="group_invite_notification">\"%1$s\" grubuna davet edildin</string>
     <string name="could_not_derive_addresses">Bu kelimelerden adresler türetilemedi. Lütfen tekrar dene.</string>
+    <string name="set_as_chatting_address">Sohbet Adresi Olarak Ayarla</string>
+    <string name="current_chatting_address">Mevcut Sohbet Adresi</string>
     <string name="this_seed_already_has_conversations">Bu kelimelerin mevcut sohbet adresinde zaten konuşmaları var. Geçiş yapmak yeni adresle sıfırdan başlar. Mevcut konuşmaların eski adreste kalır ve silinmez.</string>
+    <string name="switch_action">Değiştir</string>
+    <string name="tap_the_address_to_copy_it">Kopyalamak için adrese dokun</string>
+    <string name="domains_count">%1$d alan adı</string>
+    <string name="aliases">Takma Adlar</string>
+    <string name="receiving_alias">Alma takma adı</string>
+    <string name="sending_alias">Gönderme takma adı</string>
+    <string name="alias_copied">Takma ad panoya kopyalandı.</string>
+    <string name="alias_unavailable">Takma ad kullanılamıyor.</string>
+    <string name="reveal">Göster</string>
+    <string name="share_to_kachat">KaChat ile Paylaş</string>
+    <string name="send_to">Şuraya Gönder</string>
+    <string name="couldnt_send_saved_as_draft">Gönderilemedi. Bu sohbette taslak olarak kaydedildi.</string>
     <string name="wallet_title">Cüzdan</string>
     <string name="wallet_total_balance">Toplam Bakiye</string>
     <string name="wallet_chatting">Sohbet</string>
@@ -1069,11 +1170,18 @@
     <string name="group_notif_reacted_emoji_other">%1$s, bir mesaja %2$s tepkisi verdi</string>
     <string name="sent_amount_kas_memo">%1$s KAS gönderildi — %2$s</string>
     <string name="address_number">Adres #%1$d</string>
+    <string name="current">Mevcut</string>
+    <string name="switch_chatting_address_question">Sohbet Adresi Değiştirilsin mi?</string>
     <string name="balance">Bakiye</string>
     <string name="group_info_member_count">%1$d üye</string>
+    <string name="group_info_members_count">Üyeler (%1$d)</string>
+    <string name="group_info_refresh_messages">Mesajları Yenile</string>
+    <string name="group_info_silent_group_chat">Sessiz Grup Sohbeti</string>
     <string name="group_info_resend_invites_to_all">Davetleri herkese tekrar gönder</string>
+    <string name="group_info_remove_photo">Fotoğrafı kaldır</string>
     <string name="message_action_select">Seç</string>
     <string name="reactions_you">Siz</string>
+    <string name="coins_couldnt_load">Bu adresteki coin\'ler yüklenemedi</string>
     <string name="select_all">Tümünü Seç</string>
     <string name="unlock_to_view_your_12_or_24">12 veya 24 kelimeni görmek için kilidi aç</string>
     <string name="show">Göster</string>
@@ -1159,6 +1267,7 @@
     <string name="one_more_thing_to_know">Bilmen gereken bir şey daha</string>
     <string name="if_you_type_the_wrong_passphrase_nothing">Yanlış parola ifadesi yazarsan hiçbir şey bunu sana söylemez. Sadece farklı bir hesaba girersin ve hesap boş görünür. Bu bir hata değildir ve paran kaybolmamıştır, yalnızca yanlış hesapta olduğun anlamına gelir.</string>
     <string name="so_do_you_need_one">Peki sana gerekli mi?</string>
+    <string name="if_you_are_not_sure_choose_no">Emin değilsen buna ihtiyacın yok: başa dön ve Yeni Hesap Oluştur\'a dokun; bu, parola ifadesi olmayan bir hesap oluşturur. Hesap yine de 12 veya 24 kelimenle korunur ve daha sonra istediğin zaman parola ifadeli başka bir hesap oluşturabilirsin.</string>
     <string name="if_you_never_set_one_up_choose">Hiç ayarlamadıysan Hayır\'ı seç. Parola ifadesi bilerek yazacağın bir şeydir, yani bunu ilk kez duyuyorsan sende yoktur.</string>
     <string name="my_kachat_profile">KaChat profilim</string>
     <string name="signs_out_of_this_account_wallet_and">Bu hesaptan çıkış yapar. Cüzdan ve mesaj verileri bu cihazda kalır.</string>
@@ -1292,16 +1401,46 @@
     <string name="nfc_tap_prompt">Kartını telefonunun arkasına düz şekilde tut.</string>
     <string name="copy_link_subtitle">Adresi panoya kopyalar.</string>
     <string name="link_menu_title">Bağlantı</string>
+    <string name="shared_file_menu_title">Paylaşılan Dosya</string>
     <string name="message_action_select_subtitle">Aynı anda birkaç mesaj seç.</string>
+    <string name="tap_to_load_preview">Önizlemeyi yüklemek için dokun</string>
     <string name="something_went_wrong">Bir şeyler ters gitti</string>
     <string name="chats_new_group_subtitle">Seçtiğin kişilerle bir grup başlat.</string>
     <string name="resync_all_chats">Evet, Tüm Sohbetler</string>
-    <string name="screen_lock_required_message">KaChat\'te Kaspa göndermek, hesap silmek veya gizli anahtarları görmek için bu telefonda bir ekran kilidi ayarla (Ayarlar &gt; Güvenlik).</string>
+    <string name="resync_all_chats_subtitle">Gelen tüm mesajları yerel olarak kaldırır, ardından blok zincirinden yeniden senkronize eder. Gönderilen mesajlar ve hesap bilgileri korunur.</string>
+    <string name="resync_select_chats">Sohbetleri Seç...</string>
+    <string name="resync_select_chats_subtitle">Hangi sohbetlerin silinip yeniden senkronize edileceğini seçin. Geri kalanına dokunulmaz.</string>
+    <string name="resync_cancel_subtitle">Mesajlarınızı olduğu gibi bırak.</string>
+    <string name="screen_lock_required_message">KaChat\'te hesap silmek veya gizli anahtarları görmek için bu telefonda bir ekran kilidi ayarla (Ayarlar &gt; Güvenlik).</string>
+    <string name="show_password">Şifreyi göster</string>
+    <string name="hide_password">Şifreyi gizle</string>
     <string name="unlock_change_seed_phrase_lock">12 veya 24 kelimenin biyometrik kilidini değiştirmek için kilidi aç</string>
+    <string name="unlock_change_account_login_lock">Hesap girişi biyometrik kilidini değiştirmek için kilidi aç</string>
+    <string name="unlock_change_private_key_lock">Özel anahtar biyometrik kilidini değiştirmek için kilidi aç</string>
+    <string name="nc_server">Sunucu</string>
+    <string name="nc_server_placeholder">cloud.example.com</string>
+    <string name="nc_username">Kullanıcı adı</string>
+    <string name="nc_app_password">Uygulama şifresi</string>
+    <string name="nc_use_https">https kullan. Şifrelenmemiş bağlantılar desteklenmez.</string>
+    <string name="nc_app_password_footer">Nextcloud\'da Ayarlar → Güvenlik → Aygıtlar ve oturumlar altında bir uygulama şifresi oluştur — hesap şifreni kullanma. KaChat bunu cihazın şifreli depolamasında saklar.</string>
+    <string name="nc_connect">Bağlan</string>
+    <string name="nc_connected_account">Bağlı Hesap</string>
+    <string name="nc_start_folder">Başlangıç Klasörü</string>
+    <string name="nc_automatic_sync">Otomatik Senkronizasyon</string>
+    <string name="nc_auto_sync_one_service">Otomatik senkronizasyon aynı anda yalnızca bir bulut hizmetiyle çalışır.</string>
+    <string name="nc_last_synced">Son senkronizasyon</string>
+    <string name="nc_backup_folder">Yedekleme Klasörü</string>
+    <string name="nc_default_folder">%1$s (varsayılan)</string>
     <string name="nc_back_up_now">Kişileri Şimdi Yedekle</string>
+    <string name="nc_last_backup">Son yedekleme</string>
+    <string name="nc_no_backup_yet">Bu sunucuda henüz yedek yok.</string>
     <string name="nc_backup_uploaded">Kişiler yedeklendi.</string>
     <string name="nc_contact_backup">Kişi Yedeği</string>
     <string name="nc_contact_backup_footer">Burada yalnızca kişileriniz şifreli olarak yedeklenir. Mesajlarınız ve grup sohbetleriniz başlangıç ifadenizle geri gelir.</string>
+    <string name="nc_disconnect">Bağlantıyı Kes</string>
+    <string name="nc_disconnect_footer">Bağlantıyı kesmek, kayıtlı uygulama şifresini bu cihazdan kaldırır. Nextcloud sunucunda hiçbir şey değişmez.</string>
+    <string name="nc_disconnect_title">Nextcloud Bağlantısını Kes</string>
+    <string name="nc_disconnect_message">Uygulama şifresi bu cihazın şifreli depolamasından kaldırılır. İstediğin zaman yeniden bağlanabilirsin.</string>
     <string name="send_outcome_unknown">Bu gönderilmiş olabilir, ancak ağ onaylamadı. Yeniden göndermeden önce bakiyenizi kontrol edin.</string>
     <string name="swipe_not_confirmed">Onaylanmadı</string>
     <string name="secure_store_title">KaChat hesaplarınızı açamıyor</string>
@@ -1313,6 +1452,10 @@
     <string name="max_capped_compound">Bir işlem %1$d coin birleştirebilir, bu yüzden en büyük %2$d tanesi birleştirilir. Kalanlar için yeniden birleştir.</string>
     <string name="max_capped_send">Maks., bir işlemin taşıyabileceği miktardır: en büyük %1$d coin. \"UTXO\'ları Birleştir\" kalanları birleştirir.</string>
     <string name="couldnt_load_address_balance">Bu adresin bakiyesi yüklenemedi.</string>
+    <plurals name="pasted_words_invalid">
+        <item quantity="one">Yapıştırılan kelimelerden biri geçerli bir kelime değil. Kopyaladığın metni kontrol edip tekrar dene.</item>
+        <item quantity="other">Yapıştırılan kelimelerden %d tanesi geçerli bir kelime değil. Kopyaladığın metni kontrol edip tekrar dene.</item>
+    </plurals>
     <string name="delivery_not_confirmed">Onaylanmadı</string>
     <string name="delivery_not_confirmed_accessibility">Henüz onaylanmadı. Yine de gerçekleşebilir.</string>
     <string name="send_fee_changed">Ağ ücreti artık %1$s KAS, İnceleme\'de gösterilenden fazla. Hiçbir şey gönderilmedi: yeni ücreti kontrol edip tekrar kaydırın.</string>
@@ -1322,6 +1465,7 @@
     <string name="passphrase_search_unfinished">Bu hesabın diğer adreslerinde bakiye araması tamamlanmadı, bu yüzden içe aktarma 0 numaralı adresi kullanıyor.</string>
     <string name="search_again">Tekrar Ara</string>
     <string name="skip_search_import_address_0">Aramayı Atla: 0 Numaralı Adrese İçe Aktar</string>
+    <string name="archive_not_encrypted">Bu dosya şifreli bir KaChat arşivi değil, bu yüzden içe aktarılamaz.</string>
     <string name="a_post_on_kapost">KaPost\'ta bir gönderi</string>
     <string name="tap_to_open_it_in_kapost">KaPost\'ta açmak için dokunun.</string>
     <string name="shared_a_kapost">Bir KaPost gönderisi paylaştı</string>
@@ -1388,4 +1532,95 @@
     <string name="photo_quality_low">Düşük</string>
     <string name="receiving_n_of_m">Alınıyor… %2$d parçadan %1$d</string>
     <string name="encoding_ellipsis">Kodlanıyor…</string>
+    <string name="audio_ready">Ses hazır</string>
+    <string name="this_only_deletes_the_message_recipient">Bu yalnızca mesajı bu cihazdan siler - alıcıda kendi kopyası durur ve şifreli işlem Kaspa blokzincirinde kalıcı olarak kalır; herkes tarafından görülebilir ama anahtarların olmadan okunamaz. Bu geri alınamaz.</string>
+    <string name="message_copied_to_clipboard">Mesaj panoya kopyalandı.</string>
+    <string name="edited_mark">düzenlendi</string>
+    <string name="chess_invite_sent">Satranç oyunu daveti gönderildi</string>
+    <string name="chess_invited_you">Seni bir satranç oyununa davet etti</string>
+    <string name="more_reactions">Daha fazla tepki</string>
+    <string name="confirm_changes">Değişiklikleri Onayla</string>
+    <string name="uploading_avatar">Avatar yükleniyor...</string>
+    <string name="uploading_banner">Banner yükleniyor...</string>
+    <string name="profile_field_removed">%1$s (kaldırıldı)</string>
+    <string name="create_group">Grup oluştur</string>
+    <string name="create_group_fee_estimate">%3$d işlem için tahmini toplam ağ ücreti ≈ %1$s %2$s.</string>
+    <string name="create_chat">Sohbet oluştur</string>
+    <string name="add_to_group">Gruba Ekle</string>
+    <string name="edit_name">Adı düzenle</string>
+    <string name="domain_label">İhtisas</string>
+    <string name="primary_badge">ANA</string>
+    <string name="notification_mode_off">Kapalı</string>
+    <string name="notification_mode_no_sound">Ses Yok</string>
+    <string name="notification_mode_sound">Ses</string>
+    <string name="notification_mode_default">Varsayılan (%1$s)</string>
+    <string name="domain_transfer_sending">%1$s gönderiliyor</string>
+    <string name="domain_transfer_footer">Alan adı transferi iki işlemden oluşur, bu yüzden biraz sürer. Bitene kadar uygulamayı açık tut.</string>
+    <string name="domain_transfer_stage_preparing">Devir hazırlanıyor</string>
+    <string name="domain_transfer_stage_fee">Ücret hesaplanıyor</string>
+    <string name="domain_transfer_stage_commit">Taahhüt işlemi gönderiliyor</string>
+    <string name="domain_transfer_stage_reveal">Açılma işlemi gönderiliyor</string>
+    <string name="domain_transfer_stage_verifying">Yeni sahip doğrulanıyor</string>
+    <string name="domain_transfer_stage_working">İşleniyor</string>
+    <string name="checking_address_n">Adres #%1$d kontrol ediliyor</string>
+    <string name="n_found_so_far">Şimdiye kadar %1$d bulundu</string>
+    <string name="no_addresses_with_balance_or_domain_yet">Henüz bakiyesi veya alan adı olan adres yok</string>
+    <string name="checks_the_first_thousand_addresses">İlk bin adresi aradaki boşluklara bakmadan kontrol eder, sonra bulmaya devam ettiği sürece devam eder.</string>
+    <string name="first_sync_all_set">Hazırsınız</string>
+    <string name="first_sync_up_to_date">Sohbetlerin ve geçmişin güncel.</string>
+    <string name="first_sync_setting_up">Hesabın kuruluyor</string>
+    <string name="first_sync_downloading_footer">Bu hesabın zincirdeki her şeyi indiriliyor. Bu kadar uzun sürmesi yalnızca bir kez olur.</string>
+    <string name="first_sync_continue_anyway">Yine de devam et</string>
+    <string name="nc_use_all_files">Tüm Dosyaları Kullan</string>
+    <string name="nc_use_this_folder">Bu Klasörü Kullan</string>
+    <string name="nc_no_subfolders">Alt klasör yok.</string>
+    <string name="nc_could_not_load_file">Bu dosya yüklenemedi.</string>
+    <string name="voice_message_unavailable">Sesli mesaj kullanılamıyor</string>
+    <string name="tap_to_retry">Tekrar denemek için dokun</string>
+    <string name="loading_ellipsis">Yükleniyor…</string>
+    <string name="file_no_longer_shared">Bu dosya artık paylaşılmıyor</string>
+    <string name="react_title">Tepki ver</string>
+    <string name="no_emoji_match_that">Eşleşen emoji yok.</string>
+    <string name="choose_emoji">Emoji Seç</string>
+    <string name="whats_cached">Önbellekte Neler Var</string>
+    <string name="clear_all_cache">Tüm Önbelleği Temizle</string>
+    <string name="fund_your_chatting_address_to_start">Sohbete başlamak için sohbet adresine bakiye yükle</string>
+    <string name="copied_to_clipboard">Panoya kopyalandı</string>
+    <string name="welcome_guide">Hos Geldiniz Rehberi</string>
+    <string name="chess_notif_invite">♟️ Seni bir satranç oyununa davet etti</string>
+    <string name="chess_notif_accepted">♟️ Satranç oyununu kabul etti</string>
+    <string name="chess_notif_declined">♟️ Satranç oyununu reddetti</string>
+    <string name="chess_notif_move">♟️ %1$s → %2$s oynadı</string>
+    <string name="chess_notif_move_generic">♟️ Bir satranç hamlesi yaptı</string>
+    <string name="chess_notif_lost_on_time">♟️ Süresi bittiği için kaybetti</string>
+    <string name="chess_notif_resigned">♟️ Satranç oyununda pes etti</string>
+    <string name="fee_label">Ücret</string>
+    <plurals name="kns_profile_changes_count">
+        <item quantity="one">%d değişiklik. Her biri sohbet adresinden ayrı bir zincir üstü işlem olarak gönderilir:</item>
+        <item quantity="other">%d değişiklik. Her biri sohbet adresinden ayrı bir zincir üstü işlem olarak gönderilir:</item>
+    </plurals>
+    <plurals name="create_group_and_invite">
+        <item quantity="one">\"%1$s\" oluşturulsun ve %2$d üye davet edilsin mi?</item>
+        <item quantity="other">\"%1$s\" oluşturulsun ve %2$d üye davet edilsin mi?</item>
+    </plurals>
+    <string name="nc_revoke_failed_title">Uygulama Parolası Kaldırılamadı</string>
+    <string name="nc_revoke_failed_message">KaChat, %1$s üzerindeki uygulama parolasını kaldıramadı. Bu telefondan silindi ama orada hâlâ oturum açabilir: Nextcloud\'da Ayarlar &gt; Güvenlik &gt; Cihazlar ve oturumlar bölümünden silin.</string>
+    <string name="fee_too_high">Ücret Çok Yüksek</string>
+    <string name="a_message_fee_can_be_at_most_1_kas">Bir mesaj ücreti en fazla 1 KAS olabilir.</string>
+    <string name="use_a_high_fee">Yüksek Ücret Kullanılsın mı?</string>
+    <string name="use_it">Kullan</string>
+    <string name="message_fee_much_more_than_network_needs">%1$s KAS, ağın bir mesaj göndermek için ihtiyacından çok daha fazla.</string>
+    <string name="tap_retry_on_the_voice_message_to_send_the_rest">Kalanını göndermek için sesli mesajda Tekrar dene\'ye dokunun.</string>
+    <string name="tap_retry_on_the_photo_to_send_the_rest">Kalanını göndermek için fotoğrafta Tekrar dene\'ye dokunun.</string>
+    <string name="payment_notice_fee_from_chatting_address">Sohbet adresiniz, %2$s kişisini bu ödemeden haberdar etmek için ayrıca %1$s KAS öder.</string>
+    <string name="recording_failed_please_try_again">Kayıt başarısız oldu. Lütfen tekrar deneyin.</string>
+    <string name="message_needs_too_many_coins">Bu mesaj tek bir işlem için çok fazla coin gerektiriyor. Sohbet adresinizde Compound UTXOs kullanın, sonra tekrar deneyin.</string>
+    <string name="use_their_domain_name">Alan adını kullan</string>
+    <string name="show_request_as_qr">İsteği QR olarak göster</string>
+    <string name="pr_qr_scan_to_pay_in_kapay">Her şey doldurulmuş olarak KaPay\'de ödemek için telefon kamerasıyla tarayın.</string>
+    <string name="pr_qr_scan_to_pay_in_kachat">Her şey doldurulmuş olarak KaChat\'te ödemek için telefon kamerasıyla tarayın.</string>
+    <string name="get_a_kachat_domain">.kachat alan adı al</string>
+    <string name="set_as_name">Ad olarak ayarla</string>
+    <string name="their_name">Adı</string>
+    <string name="get_a_kachat_name">.kachat adı al</string>
 </resources>

@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.IntentCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
-import com.kachat.app.services.CrashRecorder
 import com.kachat.app.services.NotificationHelper
 import com.kachat.app.services.PendingShare
 import com.kachat.app.services.ShareIntake
@@ -195,15 +194,9 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityInfo.SCREEN_ORIENTATION_FULL_USER
         }
-        // Balances, chats and the seed screen used to sit in the task switcher's thumbnail of the
-        // app in plain view. This is Android's own switch for exactly that, and unlike FLAG_SECURE
-        // it does not also block screenshots and screen recording, which people legitimately use
-        // on a chat - and it cannot fight the FLAG_SECURE the seed and private-key screens set and
-        // clear for themselves. Below API 33 there is no equivalent that leaves screenshots alone,
-        // so those devices keep the thumbnail. iOS covers the same exposure with a blur (7e39943).
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            setRecentsScreenshotEnabled(false)
-        }
+        // No privacy cover in the task switcher (iOS 83806b3d, the owner's call 2026-11-15): the
+        // app shows there as it is. The seed and private-key screens still set FLAG_SECURE for
+        // themselves, which keeps them out of the thumbnail.
         enableEdgeToEdge()
         // Everything up to setContent is a side step - a permission prompt, a notification or
         // link to route. Each is guarded on its own: one that throws is logged, and the app
@@ -238,7 +231,6 @@ class MainActivity : AppCompatActivity() {
                         pendingOwnAddress = pendingOwnAddress,
                         onPendingOwnAddressHandled = { pendingOwnAddress = null }
                     )
-                    CrashNotice()
                     BatteryExemptionRationale(isLoggedIn = isLoggedIn)
                 }
             }
@@ -246,21 +238,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Shown once on the launch after the app crashed: the previous process died before anyone
-     * could see why, and its record is the one thing that turns "it will not open" into a fix.
-     * Share sends the newest report to a share sheet (mail, Telegram, anything); Not now keeps
-     * it for the diagnostics archive under Settings > Diagnostics.
-     */
-    /**
      * Says why before Android asks. Only inside the app proper - logged in, no onboarding wizard
-     * running - and never on the same launch as the crash notice, so two sheets never stack.
+     * running.
      * Dismissing it counts as "Not now": asked once, as the system dialog always was.
      */
     @androidx.compose.runtime.Composable
     private fun BatteryExemptionRationale(isLoggedIn: Boolean) {
         val onboardingHeld by onboardingGate.held.collectAsState()
-        val crashNoticePending = remember { CrashRecorder.unseenCrash(this) != null }
-        if (!batteryRationaleDue || !isLoggedIn || onboardingHeld || crashNoticePending) return
+        if (!batteryRationaleDue || !isLoggedIn || onboardingHeld) return
         com.kachat.app.ui.screens.ActionSheetContainer(
             title = androidx.compose.ui.res.stringResource(R.string.battery_rationale_title),
             subtitle = androidx.compose.ui.res.stringResource(R.string.battery_rationale_body),
@@ -287,41 +272,6 @@ class MainActivity : AppCompatActivity() {
         }
         finishAffinity()
         Runtime.getRuntime().exit(0)
-    }
-
-    @androidx.compose.runtime.Composable
-    private fun CrashNotice() {
-        val crashFile = remember { CrashRecorder.unseenCrash(this) }
-        var show by remember { mutableStateOf(crashFile != null) }
-        if (!show || crashFile == null) return
-        com.kachat.app.ui.theme.IosAlertDialog(
-            onDismissRequest = { show = false; CrashRecorder.markSeen(this) },
-            title = { Text("KaChat closed unexpectedly") },
-            text = { Text("The app did not close normally the last time it ran. A report of what happened was saved. Sharing it with the developer is the quickest way to get it fixed - it contains no messages, keys or addresses.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    show = false
-                    CrashRecorder.markSeen(this)
-                    shareCrashReport(crashFile)
-                }) { Text("Share report") }
-            },
-            dismissButton = {
-                TextButton(onClick = { show = false; CrashRecorder.markSeen(this) }) { Text(androidx.compose.ui.res.stringResource(R.string.not_now_2)) }
-            }
-        )
-    }
-
-    private fun shareCrashReport(file: File) {
-        runCatching {
-            val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-            val send = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "KaChat crash report")
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            startActivity(Intent.createChooser(send, "Share crash report"))
-        }.onFailure { android.util.Log.w("MainActivity", "Could not share crash report", it) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -380,8 +330,11 @@ class MainActivity : AppCompatActivity() {
      * jumped the user back into whatever conversation the last tapped notification was for.
      */
     private fun consumeNotificationTarget(intent: Intent) {
-        pendingContactId = intent.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID)
-        pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)
+        // This Activity is exported, so any app can send these extras: only a well-formed value
+        // is routed (a contact is an address, a group its hex id) - anything else would crash the
+        // navigation or open a screen in a state the app never builds itself.
+        pendingContactId = routableContactId(intent.getStringExtra(NotificationHelper.EXTRA_CONTACT_ID))
+        pendingGroupId = intent.getStringExtra(NotificationHelper.EXTRA_GROUP_ID)?.takeIf { GROUP_ID_PATTERN.matches(it) }
         pendingOpenGroups = intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_GROUPS, false)
         // A group invite's notification: the Chats list opens Message Requests once it is up.
         if (intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_MESSAGE_REQUESTS, false)) {
@@ -390,7 +343,8 @@ class MainActivity : AppCompatActivity() {
         pendingWalletActivityKind = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_KIND)
         // One address got the Kaspa: open that address's History rather than the wallet tab -
         // the kind is then only the fallback (iOS 13046ad).
-        pendingOwnAddress = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS)?.takeIf { it.isNotEmpty() }
+        pendingOwnAddress = intent.getStringExtra(NotificationHelper.EXTRA_WALLET_ACTIVITY_ADDRESS)
+            ?.takeIf { com.kachat.app.util.KaspaAddress.isValid(it) }
         if (pendingOwnAddress != null) pendingWalletActivityKind = null
         // A .kachat name notification an older build posted: the market left the app (iOS
         // d54ea87), so its tap only opens the app (the extra is stripped below).
@@ -419,6 +373,10 @@ class MainActivity : AppCompatActivity() {
      * a server-side change to which of them carry a `notification` block cannot silently break
      * their taps.
      */
+    /** [raw] when it is a Kaspa address, the only thing a chat route is made of; null otherwise. */
+    private fun routableContactId(raw: String?): String? =
+        raw?.takeIf { com.kachat.app.util.KaspaAddress.isValid(it) }
+
     private fun applyFcmNotificationTarget(intent: Intent) {
         // The push's own `type` names it; a KaPosts push also carries thread_id "kaposts" (the
         // same thread the iOS payload uses), which is taken when `type` is missing.
@@ -426,7 +384,7 @@ class MainActivity : AppCompatActivity() {
             ?: intent.getStringExtra("thread_id")?.takeIf { it == "kaposts" }
         when (type) {
             "contextual", "payment", "handshake" ->
-                pendingContactId = intent.getStringExtra("sender")?.takeIf { it.isNotBlank() }
+                pendingContactId = routableContactId(intent.getStringExtra("sender"))
             // Only the blinded per-sender group id travels in a group push, and resolving it to a
             // local group needs the group secrets — not something this Activity can do. The Group
             // Chats list is the honest destination.
@@ -610,6 +568,9 @@ class MainActivity : AppCompatActivity() {
         /** FCM data-payload keys that reach us as Intent extras when the OS drew the
          *  notification itself — see [applyFcmNotificationTarget]. */
         private const val FCM_KEY_TYPE = "type"
+        /** A group id as the app writes it (the hex group id): no `/`, `?` or `&` to reshape the
+         *  route it goes into. */
+        private val GROUP_ID_PATTERN = Regex("^[A-Za-z0-9_-]{1,128}$")
         private val FCM_KEYS_POST_ID = listOf("post_id", "postId", "content_id")
         private const val MAX_SHARED_IMAGE_BYTES = 50L * 1024 * 1024
     }

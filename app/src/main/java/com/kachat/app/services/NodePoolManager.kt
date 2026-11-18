@@ -68,7 +68,8 @@ class NodePoolManager @Inject constructor(
     // ([builtInRestApi]), never a custom one set in Settings.
     private val okHttpClient: okhttp3.OkHttpClient
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // A failure in a probe or a node's reply is logged, never the process's uncaught exception.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + com.kachat.app.util.StartupSafety.logOnlyHandler("NodePoolManager"))
     private val registry = NodeRegistry()
 
     // Non-null (and non-blank) once the user pins a "host:port" node in Connection Settings -
@@ -284,7 +285,7 @@ class NodePoolManager @Inject constructor(
         lastPersistedKnownGood = persisted.toSet()
         for (address in persisted) {
             if (discoveredEndpoints.size >= maxDiscoveredEndpoints) break
-            if (address !in seeds) discoveredEndpoints.add(address)
+            if (address !in seeds && com.kachat.app.services.grpc.isGossipedNodeAddress(address)) discoveredEndpoints.add(address)
         }
         if (persisted.isNotEmpty()) {
             Log.i("NodePoolManager", "Seeded pool with ${persisted.size} persisted known-good node(s)")
@@ -389,7 +390,16 @@ class NodePoolManager @Inject constructor(
                         foreground || !pushActive
                     }.first { it }
                 }
-                val anyReachable = probeCycle()
+                // One bad cycle (a node's malformed reply, a channel that wouldn't build) is
+                // logged and the loop goes on, instead of probing stopping for good.
+                val anyReachable = try {
+                    probeCycle()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("NodePoolManager", "Probe cycle failed: ${e.javaClass.simpleName}: ${e.message}")
+                    false
+                }
                 if (anyReachable) consecutiveDeadCycles = 0 else consecutiveDeadCycles++
                 val delayMillis = if (trustedNodeAddress.value != null) {
                     // Trusted mode's registry only ever holds the one pinned node, so
@@ -430,8 +440,28 @@ class NodePoolManager @Inject constructor(
         }
     }
 
-    private fun connectionFor(address: String): KaspadConnection =
-        connections.getOrPut(address) { KaspadConnection(address, scope).also { it.connect() } }
+    /** The pool's one connection to [address], opened if there is none. Two callers racing here
+     *  get the same one: the loser's connection is closed before it ever connects (a plain
+     *  getOrPut could run its builder for both and leave one open for good). */
+    private fun connectionFor(address: String): KaspadConnection {
+        connections[address]?.let { return it }
+        val created = KaspadConnection(address, scope)
+        val existing = connections.putIfAbsent(address, created)
+        if (existing != null) {
+            created.close()
+            return existing
+        }
+        created.connect()
+        return created
+    }
+
+    /** Closes the pool's connection to [address] unless it is pinned or a request is waiting on
+     *  it (iOS 83806b3d `closeProbeConnection`). */
+    private fun closeUnusedConnection(address: String) {
+        val connection = connections[address] ?: return
+        if (connection.isPinned || connection.hasPendingRequests || address == trustedNodeAddress.value) return
+        if (connections.remove(address, connection)) connection.close()
+    }
 
     /**
      * Resolves [dnsSeedHostnames] to IP addresses (mirrors iOS's NodeProfiler.refreshDNSSeeds) —
@@ -502,15 +532,33 @@ class NodePoolManager @Inject constructor(
     private suspend fun probeWave(addresses: List<String>, epoch: Int): List<NodeProbeResult> =
         addresses.map { address ->
             scope.async {
-                val result = probeExisting(address, connectionFor(address), discoveryProbeTimeoutMillis)
+                // Whether this probe opens the connection or finds one already up (iOS 83806b3d
+                // `closeProbeConnectionIfUnused`'s `wasConnected`).
+                val wasConnected = connections[address]?.isConnected == true
+                // An address no channel can be built for counts as unreachable, not as the whole
+                // wave failing.
+                val connection = try {
+                    connectionFor(address)
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.w("NodePoolManager", "No channel for $address: ${e.javaClass.simpleName}")
+                    return@async NodeProbeResult(address, false, null, null, null, null, null, null, error = e.javaClass.simpleName)
+                }
+                val result = probeExisting(address, connection, discoveryProbeTimeoutMillis)
                 if (!result.reachable) {
                     // The underlying stream likely died — drop it so the next cycle
                     // opens a fresh connection instead of retrying a broken one forever.
                     connections.remove(address)?.close()
-                } else if (epoch == probeEpoch) {
-                    registry.update(address, typeOf(address), result)
-                    _nodeConnectionsBlocked.value = false
-                    publish()
+                } else {
+                    if (epoch == probeEpoch) {
+                        registry.update(address, typeOf(address), result)
+                        _nodeConnectionsBlocked.value = false
+                        publish()
+                    }
+                    // A node that answers but isn't synced can't be used: the connection this probe
+                    // opened for it closes again rather than staying up (keepalive pings, and a
+                    // reconnect on every drop) - iOS 83806b3d. Peer gossip reopens one if it needs it.
+                    if (!wasConnected && result.isSynced == false) closeUnusedConnection(address)
                 }
                 result
             }
@@ -542,6 +590,7 @@ class NodePoolManager @Inject constructor(
             val failures = registry.snapshot().firstOrNull { it.address == trusted }?.consecutiveFailures ?: 0
             _nodeConnectionsBlocked.value = !result.reachable && failures >= 2
             publish()
+            syncPinnedConnections()
             return result.reachable
         }
 
@@ -638,15 +687,28 @@ class NodePoolManager @Inject constructor(
         // specific bootstrap addresses look fine.
         val activeCountAfterProbe = registry.snapshot().count { registry.statusOf(it) == "Active" }
         if (activeCountAfterProbe < targetActiveNodes && discoveredEndpoints.size < maxDiscoveredEndpoints) {
-            val discoverFrom = registry.snapshot()
+            val discoverRecord = registry.snapshot()
                 .filter { registry.statusOf(it) != "Quarantined" }
                 .minByOrNull { it.lastProbe?.latencyMs ?: Long.MAX_VALUE }
-                ?.address
-            val conn = discoverFrom?.let { connections[it] }
-            if (conn != null) {
+            val discoverFrom = discoverRecord?.address
+            // Opened for this when the probe closed it (an unsynced node), and closed again after
+            // unless the node is Active (iOS 83806b3d `discoverFromNode`).
+            val discoveryWasConnected = discoverFrom?.let { connections[it]?.isConnected == true } ?: false
+            val conn = discoverFrom?.let { address ->
+                // only a node that answered its probe is dialed again for this
+                connections[address] ?: if (discoverRecord?.lastProbe?.reachable == true) {
+                    try { connectionFor(address) } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        null
+                    }
+                } else null
+            }
+            if (conn != null && discoverFrom != null) {
                 try {
                     conn.getPeerAddresses().addressesList.map { it.addr }.forEach { addr ->
-                        if (addr.isNotBlank() && !seeds.contains(addr) && !manualEndpoints.contains(addr) &&
+                        // Only a well-formed host:port: any node can answer this, and a target
+                        // gRPC can't build throws in the next probe wave.
+                        if (com.kachat.app.services.grpc.isGossipedNodeAddress(addr) && !seeds.contains(addr) && !manualEndpoints.contains(addr) &&
                             discoveredEndpoints.size < maxDiscoveredEndpoints
                         ) {
                             discoveredEndpoints.add(addr)
@@ -656,8 +718,12 @@ class NodePoolManager @Inject constructor(
                     // Ignore — next cycle will retry with whatever's active then.
                     Log.w("NodePoolManager", "Peer-gossip discovery via $discoverFrom failed: ${e.javaClass.simpleName}: ${e.message}")
                 }
+                val activeNow = registry.snapshot().any { it.address == discoverFrom && registry.statusOf(it) == "Active" }
+                if (!discoveryWasConnected && !activeNow) closeUnusedConnection(discoverFrom)
             }
         }
+
+        syncPinnedConnections()
 
         publish()
 
@@ -717,14 +783,29 @@ class NodePoolManager @Inject constructor(
      * been found (more likely to actually be reachable than the static seed list if
      * those have gone stale), and only as a last resort to the first hardcoded seed.
      */
-    fun getBroadcastConnection(): KaspadConnection {
-        trustedNodeAddress.value?.let { return connectionFor(it) }
-        val bestActive = registry.activeBestFirst().firstOrNull()
-        if (bestActive != null) {
-            connections[bestActive.address]?.let { return it }
+    fun getBroadcastConnection(): KaspadConnection = connectionFor(broadcastAddress())
+
+    /** The node [getBroadcastConnection] hands out: the trusted node, else the best Active node
+     *  that has a connection, else a DNS answer or the first seed. */
+    private fun broadcastAddress(): String {
+        trustedNodeAddress.value?.let { return it }
+        registry.activeBestFirst().firstOrNull()?.address?.takeIf { connections.containsKey(it) }?.let { return it }
+        return dnsResolvedEndpoints.firstOrNull() ?: seeds.first()
+    }
+
+    /**
+     * Marks the connections that reconnect without end: the trusted node, or the primary (the
+     * one the next broadcast uses, where the block scanners subscribe) and its standby, the next
+     * best Active node (iOS 83806b3d `UtxoSubscriptionManager.syncPinnedConnections`). Any other
+     * connection reconnects a few times while it was used lately, then waits for a request.
+     */
+    private fun syncPinnedConnections() {
+        val pinned = trustedNodeAddress.value?.let { setOf(it) } ?: run {
+            val primary = runCatching { broadcastAddress() }.getOrNull()
+            val standby = registry.activeBestFirst().map { it.address }.firstOrNull { it != primary }
+            setOfNotNull(primary, standby)
         }
-        val fallbackAddress = dnsResolvedEndpoints.firstOrNull() ?: seeds.first()
-        return connectionFor(fallbackAddress)
+        connections.forEach { (address, connection) -> connection.isPinned = address in pinned }
     }
 
     /**
@@ -744,7 +825,8 @@ class NodePoolManager @Inject constructor(
                         amount = entry.utxoEntry.amount,
                         scriptPublicKey = ScriptPublicKey(entry.utxoEntry.scriptPublicKey.scriptPublicKey),
                         blockDaaScore = entry.utxoEntry.blockDaaScore,
-                        isCoinbase = entry.utxoEntry.isCoinbase
+                        isCoinbase = entry.utxoEntry.isCoinbase,
+                        covenantId = entry.utxoEntry.covenantId.ifEmpty { null }
                     )
                 )
             }
@@ -770,7 +852,7 @@ class NodePoolManager @Inject constructor(
      */
     suspend fun submitConfirmingKnown(transaction: RawTransaction, rest: KaspaRestApi?, submit: suspend () -> String): String {
         val txId = runCatching { com.kachat.app.util.KaspaTransactionId.compute(transaction) }.getOrDefault("")
-        return submitConfirmingKnown(txId, rest, submit)
+        return submitConfirmingKnown(txId, rest, spent = transaction.inputs.map { it.previousOutpoint }, submit = submit)
     }
 
     /**
@@ -778,16 +860,39 @@ class NodePoolManager @Inject constructor(
      * ([expectedTxId]): the version-1 `.kachat` builders, whose transactions aren't
      * [RawTransaction]s (iOS 9139e88 `submitRpcTransaction(_:expectedTxId:)`, audit IOS-014).
      */
-    suspend fun submitConfirmingKnown(expectedTxId: String, rest: KaspaRestApi?, submit: suspend () -> String): String {
+    suspend fun submitConfirmingKnown(
+        expectedTxId: String,
+        rest: KaspaRestApi?,
+        /** The transaction's inputs: held out of every coin pick from before the submit, so a send
+         *  running beside it can't pick them while it is on its way, and kept out once it went
+         *  (iOS 83806b3d `holdOutpointsForSubmit`, `reserveSpentOutpoints`). A failed submit, or
+         *  one whose outcome is unknown, gives them back: a resend then picks the same coins, so at
+         *  most one of the two can land. */
+        spent: List<Outpoint> = emptyList(),
+        submit: suspend () -> String,
+    ): String {
         val txId = expectedTxId.lowercase()
-        return SubmitConfirmation.submitOrConfirmKnown(
-            txId = txId,
-            isKnown = { id, afterRejection -> isTransactionKnown(id, rest, afterRejection) },
-            onRecovered = { e ->
-                Log.w("NodePoolManager", "Submit of ${txId.take(12)} reported \"${e.message}\" but the network has it: treated as sent")
-            },
-            submit = submit,
-        )
+        val hold = OutpointReservations.shared.hold(spent)
+        // Which nodes answered this submit with a rejection: their own mempool answer isn't taken
+        // as proof that it went out (iOS 83806b3d `SubmitAnswers`).
+        val answers = SubmitAnswers()
+        val sent = try {
+            SubmitConfirmation.submitOrConfirmKnown(
+                txId = txId,
+                isKnown = { id, afterRejection -> isTransactionKnown(id, rest, afterRejection, answers) },
+                onRecovered = { e ->
+                    Log.w("NodePoolManager", "Submit of ${txId.take(12)} reported \"${e.message}\" but the network has it: treated as sent")
+                },
+                // After a lost answer any verified node counts (iOS `confirmAfterLostAnswer`).
+                isKnownAfterLostAnswer = { id -> isTransactionKnown(id, rest, afterRejection = false) },
+                submit = { kotlinx.coroutines.withContext(answers) { submit() } },
+            )
+        } catch (e: Throwable) {
+            OutpointReservations.shared.release(hold)
+            throw e
+        }
+        OutpointReservations.shared.reserve(spent)
+        return sent
     }
 
     /**
@@ -873,13 +978,54 @@ class NodePoolManager @Inject constructor(
      *  NodePoolService.isTransactionKnown). [afterRejection]: a node refused it, so a REST
      *  "accepted" counts only from the network's built-in REST server ([builtInRestApi]), never
      *  [rest] when that is a custom one set in Settings (iOS d23e6f7a `builtInOnly`). */
-    suspend fun isTransactionKnown(txId: String, rest: KaspaRestApi?, afterRejection: Boolean = false): Boolean {
+    suspend fun isTransactionKnown(
+        txId: String,
+        rest: KaspaRestApi?,
+        afterRejection: Boolean = false,
+        /** The submit's own rejections: those nodes are not asked, and after a verdict two others
+         *  must hold it (iOS 83806b3d). Null: any node, one is enough. */
+        answers: SubmitAnswers? = null,
+    ): Boolean {
         val acceptanceApi = if (afterRejection) builtInRestApi() else rest
+        val skip = answers?.answeredKeys ?: emptySet()
+        val needed = answers?.holdersNeeded ?: 1
         return SubmitConfirmation.isKnown(
             txId = txId,
-            inMempool = { isInAnyMempool(it) },
+            inMempool = { verifiedMempoolHolders(it, skip) >= needed },
             acceptedViaRest = { id -> acceptanceApi != null && isAcceptedViaRest(acceptanceApi, id) },
         )
+    }
+
+    /**
+     * How many nodes - the primary, then the three fastest other Active ones (the trusted node
+     * alone, when one is set), never those in [excluding] - hold [txId] in their mempool: not as
+     * an orphan, and as a transaction whose recomputed id is [txId] (iOS 83806b3d
+     * `verifiedMempoolHolders`). Asked in parallel, 2 s each.
+     */
+    private suspend fun verifiedMempoolHolders(txId: String, excluding: Set<String>): Int {
+        val addresses = trustedNodeAddress.value?.let { listOf(it) } ?: run {
+            val primary = runCatching { broadcastAddress() }.getOrNull()
+            val others = registry.activeBestFirst()
+                .map { it.address }
+                .filter { it != primary && it !in excluding }
+                .take(3)
+            listOfNotNull(primary) + others
+        }
+        val asked = addresses.filter { it !in excluding }
+        if (asked.isEmpty()) return 0
+        return coroutineScope {
+            asked.map { address ->
+                async {
+                    try {
+                        connectionFor(address).hasVerifiedMempoolEntry(txId)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+            }.awaitAll().count { it }
+        }
     }
 
     /** The running network's built-in REST server and its client, built once per URL. */
@@ -985,7 +1131,12 @@ class NodePoolManager @Inject constructor(
      * instead of waiting for the next 5-30s probe cycle to notice and replace them.
      */
     fun reconnectStaleConnections() {
-        connections.values.filter { !it.isConnected }.forEach { it.connect() }
+        // The pinned nodes, and ones requests used in the last 10 minutes: not every node a probe
+        // ever touched (iOS 83806b3d `reconnectDisconnected`).
+        syncPinnedConnections()
+        connections.values
+            .filter { !it.isConnected && (it.isPinned || it.usedWithin(KaspadConnection.RECENT_USE_MS)) }
+            .forEach { it.connect() }
     }
 
     /** Adds and immediately probes a user-supplied "host:port" endpoint — "Add Custom Endpoint". */

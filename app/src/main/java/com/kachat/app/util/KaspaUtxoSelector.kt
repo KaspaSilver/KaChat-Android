@@ -50,6 +50,17 @@ object KaspaUtxoSelector {
             "This send needs more than $MAX_INPUTS_PER_TRANSACTION inputs. Compound (consolidate) this address's UTXOs first, then try again."
         )
 
+        /**
+         * A message (no amount) needs more coins than one transaction can carry: past
+         * [MAX_INPUTS_PER_TRANSACTION], or past the network's mass limit with its payload (many
+         * small coins plus a voice part). The node would reject it after the balance check said
+         * yes (iOS 83806b3d `selectUtxosForContextualMessage`). The send shows the localized
+         * `R.string.message_needs_too_many_coins`; this English text is the fallback.
+         */
+        data object TooManyCoinsForMessage : Refusal(
+            "This message needs too many coins for one transaction. Use Compound UTXOs on your chatting address, then try again."
+        )
+
         /** Coin control picked more coins than one transaction can spend. */
         data class TooManyInputsSelected(val count: Int) : Refusal(
             "Too many inputs selected ($count). Kaspa transactions are limited to about $MAX_INPUTS_PER_TRANSACTION inputs - select fewer, or compound this address first."
@@ -85,8 +96,8 @@ object KaspaUtxoSelector {
          *  output, what is left ([changeAmount]) is fee, and the caller must not add one. Only with
          *  `allowNoChangeOutput`. */
         val noChangeOutput: Boolean = false,
-        /** Why this payment can't go ([Refusal]); null when it can. Only ever set for a payment
-         *  (an amount above 0). */
+        /** Why this payment can't go ([Refusal]); null when it can. Set for a payment (an amount
+         *  above 0), and for a message only as [Refusal.TooManyCoinsForMessage]. */
         val refusal: Refusal? = null
     ) {
         /**
@@ -136,7 +147,12 @@ object KaspaUtxoSelector {
          *  `signatureScriptSize`). */
         signatureScriptSize: Int = KaspaMass.SCHNORR_SIGNATURE_SCRIPT_LEN,
         /** May answer with [SelectionResult.noChangeOutput]: only for a caller that honours it. */
-        allowNoChangeOutput: Boolean = false
+        allowNoChangeOutput: Boolean = false,
+        /** A message's custom fee rate (the chat fee pill): the fee it prices is capped at
+         *  [MessageFeeLimit.MAX_SOMPI] and never below what the network minimum rate needs
+         *  ([MessageFeeLimit.clamp], iOS 83806b3d) - a typo must not burn a balance. Only for a
+         *  message (no amount). */
+        capCustomMessageFee: Boolean = false
     ): SelectionResult {
         var totalSelected = 0L
         val selectedUtxos = mutableListOf<UtxoEntry>()
@@ -167,6 +183,7 @@ object KaspaUtxoSelector {
         // (iOS 4f8e14bb).
         var folded: SelectionResult? = null
         var foldedTotalFee = 0L
+        var tooManyCoinsForMessage = false
         for (utxo in utxos.sortedByDescending { it.utxoEntry.amount }) {
             // A payment refuses to build an over-mass transaction: at the input cap with the
             // amount still not settled, more inputs would exceed Kaspa's mass limit (iOS
@@ -175,6 +192,21 @@ object KaspaUtxoSelector {
                 folded?.let { return it }
                 tooManyInputs = true
                 break
+            }
+            // A message stops at either limit - the input cap, or the network's mass limit with its
+            // payload - and asks for a compound instead (iOS 83806b3d).
+            if (amountSompi <= 0) {
+                val nextCount = selectedUtxos.size + 1
+                val nextMass = KaspaMass.calculateMass(
+                    numInputs = nextCount,
+                    outputScriptLens = outputScriptLens,
+                    payloadSize = payloadSize,
+                    sigScriptLens = KaspaMass.sigScriptLensFor(nextCount, signatureScriptSize)
+                )
+                if (nextCount > MAX_INPUTS_PER_TRANSACTION || nextMass > KaspaMass.MAX_STANDARD_MASS) {
+                    tooManyCoinsForMessage = true
+                    break
+                }
             }
             selectedUtxos.add(utxo)
             // Node-supplied: a nonsense amount is refused, never wrapped into a total (IOS-020).
@@ -187,6 +219,10 @@ object KaspaUtxoSelector {
                 sigScriptLens = KaspaMass.sigScriptLensFor(selectedUtxos.size, signatureScriptSize)
             )
             estimatedFee = KaspaMass.calculateFee(mass, feeRateSompiPerGram) + FEE_BUFFER_SOMPI + extraFeeSompi
+            if (capCustomMessageFee && amountSompi <= 0) {
+                val minimumFee = KaspaMass.calculateFee(mass, KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM) + FEE_BUFFER_SOMPI + extraFeeSompi
+                estimatedFee = MessageFeeLimit.clamp(estimatedFee, minimumFee)
+            }
 
             if (amountSompi > 0 && allowNoChangeOutput) {
                 // iOS selectUtxosForPayment, line by line. Keep the change whenever this
@@ -254,6 +290,7 @@ object KaspaUtxoSelector {
         val changeAmount = totalSelected - amountSompi - estimatedFee
 
         val refusal = when {
+            !settled && tooManyCoinsForMessage -> Refusal.TooManyCoinsForMessage
             settled || amountSompi <= 0 -> null
             tooManyInputs -> Refusal.TooManyInputs
             storageMassBlocked -> Refusal.StorageMass

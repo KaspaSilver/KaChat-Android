@@ -8,6 +8,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -66,6 +67,32 @@ fun parseNodeAddress(raw: String): ParsedNodeAddress? {
 }
 
 /**
+ * Whether [raw], an address another node gossiped ([KaspadConnection.getPeerAddresses]), is a plain
+ * `host:port` a channel can be built for: an IPv4 address, a bracketed IPv6 address or a host
+ * name, and a port from 1 to 65535. Anything else is dropped: a malformed target (a space, an
+ * unbracketed IPv6 address) makes gRPC throw while building the channel, and any node can send one.
+ */
+fun isGossipedNodeAddress(raw: String): Boolean {
+    if (raw.length > 270 || raw.any { it.isWhitespace() }) return false
+    val lastColon = raw.lastIndexOf(':')
+    if (lastColon <= 0) return false
+    val port = raw.substring(lastColon + 1).toIntOrNull() ?: return false
+    if (port !in 1..65535 || raw.substring(lastColon + 1).any { it !in '0'..'9' }) return false
+    val host = raw.substring(0, lastColon)
+    if (host.startsWith("[")) {
+        if (!host.endsWith("]") || host.length < 4) return false
+        val inner = host.substring(1, host.length - 1)
+        return inner.contains(':') && inner.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' || it == ':' || it == '.' }
+    }
+    if (host.length > 253) return false
+    val labels = host.split('.')
+    return labels.all { label ->
+        label.isNotEmpty() && label.length <= 63 && !label.startsWith('-') && !label.endsWith('-') &&
+            label.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '-' }
+    }
+}
+
+/**
  * A single gRPC connection to one Kaspa node ("ip:port", plaintext by default; see
  * [parseNodeAddress] for the TLS-secured "grpcs://"/"https://" link format), wrapping the
  * node's single bidirectional-streaming `MessageStream` RPC. Requests/responses
@@ -88,6 +115,12 @@ class KaspadConnection internal constructor(
     )
 
     companion object {
+        /** How many self-reconnects a connection that isn't pinned gets (iOS `attempt <= 3`). */
+        const val MAX_UNPINNED_RECONNECTS = 3
+
+        /** A request within this long counts as "in use lately" (iOS 10 minutes). */
+        const val RECENT_USE_MS = 10 * 60 * 1000L
+
         private fun buildChannel(address: String): ManagedChannel {
             val parsed = parseNodeAddress(address)
             val target = if (parsed != null) "${parsed.host}:${parsed.port}" else address
@@ -161,6 +194,31 @@ class KaspadConnection internal constructor(
     /** The sleeping self-reconnect, which [close] calls off (iOS 4f8e14bb). */
     private var autoReconnectJob: Job? = null
 
+    /**
+     * The node pool's primary or standby ([com.kachat.app.services.NodePoolManager] pins them,
+     * iOS 83806b3d `GRPCConnectionPool.setPinned`): reconnects for as long as it takes. Any other
+     * connection - a probe's, a node used once - tries a few times while it was in use lately, then
+     * stays down until a request needs it.
+     */
+    @Volatile
+    var isPinned: Boolean = false
+
+    /** When a caller last sent a request on it (epoch millis), null before the first. Unlike the
+     *  stream's own traffic, a reconnect doesn't count (iOS `lastRequestAt`). */
+    @Volatile
+    var lastRequestAtMs: Long? = null
+        private set
+
+    /** A request is waiting for its answer: closing now would fail it. */
+    val hasPendingRequests: Boolean get() = pending.isNotEmpty()
+
+    /** The node this connects to, as the pool keys it. */
+    val nodeAddress: String get() = address
+
+    /** Whether a request went out on this connection within [withinMs]. */
+    fun usedWithin(withinMs: Long, nowMs: Long = System.currentTimeMillis()): Boolean =
+        lastRequestAtMs?.let { nowMs - it < withinMs } ?: false
+
     fun connect() {
         // [closed] too: a connect after close() would open a stream on a shut-down channel.
         if (isConnected || closed) return
@@ -219,10 +277,18 @@ class KaspadConnection internal constructor(
                 ((backoffSeconds + Math.random() * 0.3 * backoffSeconds) * 1000).toLong()
             }
             delay(delayMs)
-            if (!isConnected && !closed) {
+            // Only the pool's pinned nodes reconnect without end. Any other connection tries a few
+            // times while it was in use lately, then stays down until a request needs it ([call]
+            // reconnects then) - iOS 83806b3d `shouldKeepReconnecting`.
+            if (!isConnected && !closed && shouldKeepReconnecting(attempt)) {
                 connect()
             }
         }
+    }
+
+    private fun shouldKeepReconnecting(attempt: Int): Boolean {
+        if (isPinned) return true
+        return attempt <= MAX_UNPINNED_RECONNECTS && usedWithin(RECENT_USE_MS)
     }
 
     /** Exposed for testing the id-multiplexing/timeout-cleanup behavior directly. */
@@ -233,6 +299,10 @@ class KaspadConnection internal constructor(
         build: (id: Long) -> Messages.KaspadRequest,
         extract: (Messages.KaspadResponse) -> T
     ): T {
+        lastRequestAtMs = System.currentTimeMillis()
+        // A connection that stopped reconnecting on its own comes back when a request needs it
+        // (iOS `sendRequest` connects first).
+        if (!isConnected && !closed) connect()
         val id = nextId.getAndIncrement()
         val deferred = CompletableDeferred<Messages.KaspadResponse>()
         pending[id] = deferred
@@ -432,6 +502,11 @@ class KaspadConnection internal constructor(
         )
 
         if (response.hasError()) {
+            // Noted for the "did it go out anyway" look-up that follows: this node's own mempool
+            // answer is then not taken as proof, and a verdict against the transaction itself asks
+            // two other nodes (iOS 83806b3d `SubmitAnswers`).
+            val verdict = !com.kachat.app.services.SubmitConfirmation.rejectionMayMeanAlreadyKnown(response.error.message)
+            currentCoroutineContext()[com.kachat.app.services.SubmitAnswers]?.note(address, verdict)
             throw IllegalStateException(response.error.message)
         }
         return response.transactionId
@@ -468,14 +543,108 @@ class KaspadConnection internal constructor(
         }
     }
 
+    /**
+     * Whether this node holds [transactionId] in its mempool as a transaction that really is that
+     * one: not as an orphan, and with an id recomputed from the fields it sent back that matches
+     * (iOS 83806b3d `hasVerifiedMempoolEntry`). What a "did it go out" check counts: one bad node
+     * must not turn a refused send into Sent. False for any failure.
+     */
+    suspend fun hasVerifiedMempoolEntry(transactionId: String, timeoutMs: Long = 2000): Boolean {
+        return try {
+            val response = call(
+                timeoutMs = timeoutMs,
+                build = { id ->
+                    kaspadRequest {
+                        this.id = id
+                        getMempoolEntryRequest = getMempoolEntryRequestMessage {
+                            txId = transactionId
+                            includeOrphanPool = false
+                            filterTransactionPool = false
+                        }
+                    }
+                },
+                extract = { it.getMempoolEntryResponse }
+            )
+            if (response.hasError() && response.error.message.isNotEmpty()) return false
+            if (!response.hasEntry() || response.entry.isOrphan || !response.entry.hasTransaction()) return false
+            val recomputed = recomputedTransactionId(response.entry.transaction) ?: return false
+            if (recomputed != transactionId.lowercase()) {
+                Log.w("KaspadConnection", "$address answered for ${transactionId.take(12)} with a transaction that hashes to ${recomputed.take(12)}: ignored")
+                return false
+            }
+            true
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun close() {
         closed = true
         isConnected = false
         generation.value++
         autoReconnectJob?.cancel()
         streamJob?.cancel()
-        pending.values.forEach { it.cancel() }
+        // A call still waiting fails as a lost answer, not a cancellation: a submit cut off here
+        // may already be with the node, so its sender must ask the network before calling it
+        // failed (SubmitConfirmation treats an IOException as a lost answer; a plain
+        // CancellationException would skip that check and invite a resend that pays twice).
+        val closedError = java.io.IOException("Connection to $address closed")
+        pending.values.forEach { it.completeExceptionally(closedError) }
         pending.clear()
         channel.shutdownNow()
     }
+}
+
+/**
+ * The id the chain gives a transaction a node returned, recomputed from its fields (v0 and v1,
+ * [com.kachat.app.util.KaspaSignatureVerifier.restTransactionId]); iOS 83806b3d
+ * `recomputedTransactionId`. Null when a field can't be read or an output script isn't version 0
+ * (no transaction this app sends has one).
+ */
+internal fun recomputedTransactionId(tx: Rpc.RpcTransaction): String? {
+    val version = tx.version
+    if (version < 0 || version > 0xFFFF) return null
+    val inputs = tx.inputsList.map { input ->
+        Triple(input.previousOutpoint.transactionId, input.previousOutpoint.index, input.sequence)
+    }
+    val outputs = ArrayList<Triple<Long, ByteArray, com.kachat.app.util.KaspaTransactionSigner.OutputCovenant?>>(tx.outputsCount)
+    for (output in tx.outputsList) {
+        if (output.scriptPublicKey.version != 0) return null
+        val script = hexOrNull(output.scriptPublicKey.scriptPublicKey) ?: return null
+        val covenant = if (output.hasCovenant()) {
+            val authorizing = output.covenant.authorizingInput
+            if (authorizing < 0 || authorizing > 0xFFFF) return null
+            val id = hexOrNull(output.covenant.covenantId) ?: return null
+            com.kachat.app.util.KaspaTransactionSigner.OutputCovenant(authorizing, id)
+        } else null
+        outputs += Triple(output.amount, script, covenant)
+    }
+    val subnetwork = hexOrNull(tx.subnetworkId) ?: return null
+    val payload = hexOrNull(tx.payload) ?: return null
+    return com.kachat.app.util.KaspaSignatureVerifier.restTransactionId(
+        version = version,
+        inputs = inputs,
+        outputs = outputs,
+        lockTime = tx.lockTime,
+        subnetworkId = subnetwork,
+        gas = tx.gas,
+        payload = payload,
+    )?.lowercase()
+}
+
+/** [hex] as bytes ("" is none), or null when it isn't hex. */
+private fun hexOrNull(hex: String): ByteArray? {
+    if (hex.length % 2 != 0) return null
+    val out = ByteArray(hex.length / 2)
+    for (i in out.indices) {
+        val hi = Character.digit(hex[i * 2], 16)
+        val lo = Character.digit(hex[i * 2 + 1], 16)
+        if (hi < 0 || lo < 0) return null
+        out[i] = ((hi shl 4) or lo).toByte()
+    }
+    return out
 }

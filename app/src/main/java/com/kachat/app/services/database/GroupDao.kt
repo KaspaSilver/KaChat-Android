@@ -105,6 +105,12 @@ interface GroupDao {
     @Query("UPDATE group_messages SET deliveryStatus = :status WHERE txId = :txId AND walletAddress = :walletAddress")
     suspend fun updateMessageStatus(txId: String, walletAddress: String, status: String)
 
+    /** A Retry's claim (iOS 83806b3d): an outgoing row goes back to pending only while it is
+     *  still failed, in one statement, so a second tap or a stale copy finds nothing to resend.
+     *  1 when claimed, 0 otherwise. */
+    @Query("UPDATE group_messages SET deliveryStatus = 'pending' WHERE txId = :txId AND walletAddress = :walletAddress AND isOutgoing = 1 AND deliveryStatus = 'failed'")
+    suspend fun claimFailedForRetry(txId: String, walletAddress: String): Int
+
     @Query("DELETE FROM groups WHERE walletAddress = :walletAddress")
     suspend fun deleteAllGroups(walletAddress: String)
 

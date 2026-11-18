@@ -120,4 +120,53 @@ class NodeRegistryTest {
         registry.update("b:16110", "Seed", reachable("b:16110"))
         assertEquals(true, registry.lastSuccessAt()!! > 0)
     }
+
+    // MARK: - Network name and freshness (iOS 83806b3d)
+
+    private fun named(address: String, daa: Long, name: String? = "kaspa-mainnet") =
+        reachable(address).copy(networkName = name, virtualDaaScore = daa)
+
+    @Test
+    fun `a probe that couldn't read the network name keeps the one reported before`() {
+        val registry = NodeRegistry()
+        registry.update("a:16110", "Seed", named("a:16110", 1_000))
+        registry.update("a:16110", "Seed", named("a:16110", 1_000, name = null).copy(virtualDaaScore = null))
+        val record = registry.snapshot().single()
+        assertEquals("kaspa-mainnet", record.lastProbe?.networkName)
+        assertEquals(null, record.lastProbe?.virtualDaaScore)
+        assertEquals("Active", registry.statusOf(record))
+    }
+
+    @Test
+    fun `a node known to be on the other network stays unusable when its name can't be read`() {
+        val registry = NodeRegistry()
+        registry.update("t:16110", "Seed", unreachable("t:16110").copy(networkName = "kaspa-testnet-10"))
+        registry.update("t:16110", "Seed", named("t:16110", 1_000, name = null))
+        assertEquals("Suspect", registry.statusOf(registry.snapshot().single()))
+    }
+
+    @Test
+    fun `with enough fresh named nodes, a far-behind one is not Active`() {
+        val registry = NodeRegistry()
+        (1..9).forEach { registry.update("n$it:16110", "Discovered", named("n$it:16110", 50_000)) }
+        registry.update("late:16110", "Discovered", named("late:16110", 50_000 - 601))
+        registry.update("anon:16110", "Discovered", named("anon:16110", 50_000, name = null))
+        val status = registry.snapshot().associate { it.address to registry.statusOf(it) }
+        assertEquals("Suspect", status["late:16110"])
+        assertEquals("Suspect", status["anon:16110"])
+        assertEquals("Active", status["n1:16110"])
+    }
+
+    @Test
+    fun `too few nodes for the strict rule keeps the plain one, minus the other network's port`() {
+        val registry = NodeRegistry()
+        (1..3).forEach { registry.update("n$it:16110", "Discovered", named("n$it:16110", 50_000)) }
+        registry.update("late:16110", "Discovered", named("late:16110", 40_000))
+        registry.update("anon:16110", "Discovered", named("anon:16110", 50_000, name = null))
+        registry.update("tn:16210", "Discovered", named("tn:16210", 50_000, name = null))
+        val status = registry.snapshot().associate { it.address to registry.statusOf(it) }
+        assertEquals("Active", status["late:16110"])
+        assertEquals("Active", status["anon:16110"])
+        assertEquals("Suspect", status["tn:16210"])
+    }
 }

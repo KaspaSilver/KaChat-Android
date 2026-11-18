@@ -84,8 +84,6 @@ sealed class ChessEnvelope {
 object ChessMessage {
     private val gson = Gson()
 
-    private data class TypeOnly(val type: String)
-
     fun encode(content: ChessInviteContent): String = gson.toJson(content)
     fun encode(content: ChessResponseContent): String = gson.toJson(content)
     fun encode(content: ChessMoveContent): String = gson.toJson(content)
@@ -94,12 +92,39 @@ object ChessMessage {
     fun parseOrNull(text: String?): ChessEnvelope? {
         if (text.isNullOrBlank() || text.length > 100_000 || text.trimStart().firstOrNull() != '{') return null
         return try {
-            val typeOnly = gson.fromJson(text, TypeOnly::class.java) ?: return null
-            when (typeOnly.type) {
-                "chess_invite" -> gson.fromJson(text, ChessInviteContent::class.java)?.let { ChessEnvelope.Invite(it) }
-                "chess_response" -> gson.fromJson(text, ChessResponseContent::class.java)?.let { ChessEnvelope.Response(it) }
-                "chess_move" -> gson.fromJson(text, ChessMoveContent::class.java)?.let { ChessEnvelope.Move(it) }
-                "chess_resign" -> gson.fromJson(text, ChessResignContent::class.java)?.let { ChessEnvelope.Resign(it) }
+            val json = com.google.gson.JsonParser.parseString(text)
+            if (!json.isJsonObject) return null
+            val obj = json.asJsonObject
+            // Every required field must be there with its type, as iOS's JSONDecoder requires
+            // (ChessCodec.parseAny): Gson leaves a missing key null in a non-null field (or false
+            // in a Bool), and a half-empty envelope crashed the chat it sits in on every open.
+            fun isString(key: String) = obj.get(key)?.let { it.isJsonPrimitive && it.asJsonPrimitive.isString } == true
+            fun isOptional(key: String, check: (com.google.gson.JsonPrimitive) -> Boolean) =
+                obj.get(key)?.let { it.isJsonNull || (it.isJsonPrimitive && check(it.asJsonPrimitive)) } ?: true
+            fun isOptionalInt(key: String) = isOptional(key) { p ->
+                p.isNumber && p.asBigDecimal.let { n -> n.signum() == 0 || n.stripTrailingZeros().scale() <= 0 }
+            }
+            if (!isString("type") || !isString("gameId")) return null
+            when (obj.get("type").asString) {
+                "chess_invite" -> {
+                    val color = obj.get("inviterColor")?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+                    if (color != "white" && color != "black") return null
+                    if (!isOptionalInt("tcMinutes") || !isOptionalInt("tcIncSeconds")) return null
+                    gson.fromJson(obj, ChessInviteContent::class.java)?.let { ChessEnvelope.Invite(it) }
+                }
+                "chess_response" -> {
+                    if (obj.get("accepted")?.let { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean } != true) return null
+                    gson.fromJson(obj, ChessResponseContent::class.java)?.let { ChessEnvelope.Response(it) }
+                }
+                "chess_move" -> {
+                    if (!isString("from") || !isString("to")) return null
+                    if (!isOptional("promotion") { it.isString } || !isOptionalInt("clockMs")) return null
+                    gson.fromJson(obj, ChessMoveContent::class.java)?.let { ChessEnvelope.Move(it) }
+                }
+                "chess_resign" -> {
+                    if (!isOptional("reason") { it.isString }) return null
+                    gson.fromJson(obj, ChessResignContent::class.java)?.let { ChessEnvelope.Resign(it) }
+                }
                 else -> null
             }
         } catch (e: Exception) {

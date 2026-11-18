@@ -19,6 +19,15 @@ object NextcloudShareSniff {
     /** The share URL in [text], if it holds one. */
     fun shareUrl(text: String): String? = PATTERN.find(text)?.value
 
+    /** A reply quote's label for text carrying a share link, or null when there is none (iOS
+     *  `NextcloudShareSniff.previewLabel`): text with a caption keeps the caption and only drops
+     *  the URL, so the sender's own words survive. */
+    fun previewLabel(text: String): String? {
+        val url = shareUrl(text) ?: return null
+        val caption = text.replace(url, "").trim()
+        return caption.ifEmpty { "📎 Shared a file" }
+    }
+
     /** The preview a link-bearing message gets in the chat and group lists. */
     const val SENT_A_LINK = "📎 Sent a link"
 

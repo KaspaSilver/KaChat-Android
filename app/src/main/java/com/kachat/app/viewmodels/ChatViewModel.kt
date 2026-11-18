@@ -1164,7 +1164,9 @@ class ChatViewModel @Inject constructor(
      * encoded, the real parts. Null when there is no on-chain note.
      */
     private fun voiceNoteFeeFlow(state: StateFlow<VoiceRecordingState>, path: com.kachat.app.util.VoiceNotePolicy.Path, forGroup: Boolean): StateFlow<Long?> =
-        combine(state, _networkFeeRate, _feeRateOverride) { recording, networkRate, overrideRate ->
+        // At the network's rate: the pill's custom fee is for text only (iOS 83806b3d), and the
+        // parts are sent without it.
+        combine(state, _networkFeeRate) { recording, networkRate ->
             if (!recording.isActive || recording.viaNextcloud) return@combine null
             val sizes = recording.readyPartSizes ?: com.kachat.app.util.VoiceNoteLayout.partSizes(
                 durationSeconds = recording.elapsedMs / 1000.0,
@@ -1172,7 +1174,7 @@ class ChatViewModel @Inject constructor(
                 maxBytes = path.maxBytes,
             )
             if (sizes.isEmpty()) null
-            else com.kachat.app.util.MediaPartPayload.feeSompi(sizes, forGroup, overrideRate ?: networkRate.toLong())
+            else com.kachat.app.util.MediaPartPayload.feeSompi(sizes, forGroup, networkRate.toLong())
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     /** The 1:1 composer's on-chain voice note fee. */
@@ -1184,10 +1186,7 @@ class ChatViewModel @Inject constructor(
     /** What replying to [reply] adds to the text's bytes; built as [sendMessage] builds it. */
     private fun replyEnvelopeBytes(reply: MessageEntity?): Int {
         if (reply == null) return 0
-        val preview = VoiceMessage.parseOrNull(reply.plaintextBody)?.let { "🎤 Audio message" }
-            ?: ImageMessage.parseOrNull(reply.plaintextBody)?.let { "📷 Photo" }
-            ?: MessageReply.parseOrNull(reply.plaintextBody)?.text
-            ?: (reply.plaintextBody ?: "")
+        val preview = MessageReply.previewText(reply.plaintextBody)
         val sender = if (reply.direction == "sent") runCatching { walletManager.getAddress() }.getOrDefault("") else reply.contactId
         return MessageReply.encode(replyToId = reply.id, replyToSender = sender, replyToPreview = preview, text = "").toByteArray(Charsets.UTF_8).size
     }
@@ -1209,11 +1208,15 @@ class ChatViewModel @Inject constructor(
         /** The payment From's per-input signature-script size: a quantum-safe (KIP-22) spending
          *  address's inputs carry its redeem script too (iOS estimatePaymentFee(signatureScriptSize:)). */
         val paymentSignatureScriptSize: Int,
+        /** The payment From is a spending address: its change goes to a fresh quantum-safe slot
+         *  (P2SH, a byte longer; KaspaWalletEngine.sendSpendingPayment) and it carries no payload
+         *  (ChatPaymentSender: only the chatting address seals a memo to the payee). */
+        val paymentFromSpending: Boolean,
     )
 
     private val utxosForFeeEstimate: Flow<FeeEstimateCoins> =
         combine(_currentUtxos, _spendingUtxos, _paymentManualUtxos, _paymentSourceIndex) { identity, spending, manual, source ->
-            FeeEstimateCoins(identity, spending, manual, com.kachat.app.services.WalletManager.signatureScriptSize(source))
+            FeeEstimateCoins(identity, spending, manual, com.kachat.app.services.WalletManager.signatureScriptSize(source), source != null)
         }
 
     /** [paymentFeeEstimateOrThrow], null when it can't go or can't be worked out. */
@@ -1262,7 +1265,11 @@ class ChatViewModel @Inject constructor(
                 ?: com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM,
             // A chat payment always carries its sealed `kchat:1:pay:` payload, memo or not (see
             // sendPayment), so the fee prices it - as iOS estimatePaymentFee(note:) always does.
-            payloadSize = MessageProtocol.estimatedPaymentPayloadSize(note.trim(), amountSompi),
+            payloadSize = if (coins.paymentFromSpending) 0 else MessageProtocol.estimatedPaymentPayloadSize(note.trim(), amountSompi),
+            // Priced on the script the change will land on, as the send builds it: the Review's
+            // fee is held at the swipe (expectedFeeSompi), so a lower price here would refuse it.
+            changeScriptLen = if (coins.paymentFromSpending) com.kachat.app.util.SendFeeModel.P2SH_SCRIPT_LEN
+                else com.kachat.app.util.SendFeeModel.STANDARD_SCRIPT_LEN,
             signatureScriptSize = coins.paymentSignatureScriptSize,
             extraFeeSompi = extraFeeSompi,
         )
@@ -1280,7 +1287,12 @@ class ChatViewModel @Inject constructor(
 
     val estimatedFeeSompi: StateFlow<Long?> = combine(
         combine(paymentAmount, _paymentNote) { amount, note -> amount to note },
-        previewPayloadSize, utxosForFeeEstimate, _networkFeeRate, _feeRateOverride
+        previewPayloadSize, utxosForFeeEstimate, _networkFeeRate,
+        // The pill's custom fee is for text only (iOS 83806b3d `feeIsAdjustable`): a voice note or
+        // photo staged (a Nextcloud link's fee here) shows the fee it is sent with, the network's.
+        combine(_feeRateOverride, voiceRecordingState, pendingPhotoUri) { override, recording, photoUri ->
+            override.takeIf { !recording.isActive && photoUri == null }
+        }
     ) { (amount, paymentNote), textPayloadSize, coins, networkRate, overrideRate ->
         val rate = overrideRate?.toDouble() ?: networkRate
         if (amount.isEmpty() && textPayloadSize == 0) return@combine null
@@ -1337,8 +1349,11 @@ class ChatViewModel @Inject constructor(
      */
     private val paymentFeeQuote: StateFlow<PaymentFeeQuote> = combine(
         combine(paymentAmount, _paymentNote) { amount, note -> amount to note },
-        utxosForFeeEstimate, _feeRateOverride, _paymentFeeSpeed, _paymentCoinsStatus
-    ) { (amount, paymentNote), coins, overrideRate, (multiplier, customExtra), coinsStatus ->
+        utxosForFeeEstimate, _paymentFeeSpeed, _paymentCoinsStatus
+    ) { (amount, paymentNote), coins, (multiplier, customExtra), coinsStatus ->
+        // A payment never takes the message fee pill's custom fee: its own fee is the Review's
+        // speed and extra (iOS sendPayment has no feeOverride).
+        val overrideRate: Long? = null
         val amountSompi = KaspaUnit.sompiFromUserText(amount) ?: 0L
         if (amountSompi <= 0L || coinsStatus.loading) return@combine PaymentFeeQuote()
         coinsStatus.error?.let { return@combine PaymentFeeQuote(error = it) }
@@ -1360,6 +1375,41 @@ class ChatViewModel @Inject constructor(
      *  ([refreshSpendingUtxos]) and the swipe waits. */
     val paymentFeeError: StateFlow<String?> = paymentFeeQuote.map { it.error }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+
+    /**
+     * What the chat notice after a payment From a spending address costs the chatting address
+     * (iOS 83806b3d `estimatePaymentNoticeFee`): a second transaction (ChatPaymentSender's
+     * `sendSpendingPaymentNotice`), so the Review shows it beside the payment's own fee. Priced
+     * on the chatting address's coins at the network's rate, with a real txId's length (the
+     * notice's size doesn't depend on which). Null when it can't be priced: no amount, or an empty
+     * chatting address (the notice then waits until it has KAS).
+     */
+    fun paymentNoticeFeeSompi(contactId: String, amountSompi: Long, memo: String): Long? {
+        if (amountSompi <= 0L) return null
+        val payload = com.kachat.app.util.PaymentPoolProtocol.encode(
+            com.kachat.app.util.PaymentPoolProtocol.PaymentNoticeContent(
+                txId = "0".repeat(64),
+                amountSompi = amountSompi,
+                address = contactId,
+                memo = com.kachat.app.util.PaymentPoolProtocol.noticeMemo(memo),
+            )
+        )
+        var count = 0
+        var total = 0L
+        for (utxo in _currentUtxos.value) {
+            total += utxo.utxoEntry.amount
+            count++
+            if (total >= 1000) break
+        }
+        if (count == 0) return null
+        // A message: one output, as [estimatedFeeSompi] prices one.
+        val mass = com.kachat.app.util.KaspaMass.calculateMass(
+            numInputs = count,
+            outputScriptLens = listOf(34),
+            payloadSize = MessageProtocol.estimatedCommPayloadSize(payload.toByteArray(Charsets.UTF_8).size),
+        )
+        return com.kachat.app.util.KaspaMass.calculateFee(mass, _networkFeeRate.value.toLong())
+    }
 
     /**
      * The Send KAS sheet's Max: what the payment's source can send after the base fee and the
@@ -1392,17 +1442,21 @@ class ChatViewModel @Inject constructor(
         }
         val (balance, inputs, capped) = paymentMaxCoins(spending, manual)
         val note = _paymentNote.value
+        // A spending-address payment carries no payload (see FeeEstimateCoins.paymentFromSpending).
+        val fromSpending = _paymentSourceIndex.value != null
         val maxSompi = computePaymentMaxSompi(
             balanceSompi = balance,
             inputCount = inputs,
             note = note,
-            feeRate = _feeRateOverride.value?.toDouble() ?: com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble(),
+            payloadSize = if (fromSpending) 0 else null,
+            // Payments ignore the message fee pill's custom fee (iOS sendPayment).
+            feeRate = com.kachat.app.util.KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM.toDouble(),
             feeMultiplier = feeMultiplier,
             customExtraFeeSompi = customExtraFeeSompi,
             signatureScriptSize = com.kachat.app.services.WalletManager.signatureScriptSize(_paymentSourceIndex.value),
             provisionalShape = { provisional ->
                 paymentFeeInputs(spending, manual, provisional).second to
-                    MessageProtocol.estimatedPaymentPayloadSize(note.trim(), provisional)
+                    (if (fromSpending) 0 else MessageProtocol.estimatedPaymentPayloadSize(note.trim(), provisional))
             },
         )
         return PaymentMax(maxSompi, cappedAtInputLimit = capped)
@@ -1654,7 +1708,11 @@ class ChatViewModel @Inject constructor(
      * gets the refusal reason, or null when the contact was stored, so the caller can say why
      * where the user can see it instead of a tap that does nothing.
      */
-    fun addContact(address: String, name: String?, knsName: String? = null, deliberate: Boolean = false, onResult: (String?) -> Unit = {}) {
+    fun addContact(rawAddress: String, name: String?, knsName: String? = null, deliberate: Boolean = false, onResult: (String?) -> Unit = {}) {
+        // The contact id is the lowercase address: an all-caps one (a compact QR code's
+        // "KASPA:QR...", valid since iOS 83806b3d) is stored as the address it is.
+        val address = if (com.kachat.app.util.KaspaAddress.hasAddressPrefix(rawAddress.trim()))
+            com.kachat.app.util.KaspaAddress.normalizedCase(rawAddress.trim()) else rawAddress
         viewModelScope.launch {
             // A deliberate add is of the network the app runs on: a chat with the other network's
             // address is never read and is dropped on the next launch (iOS 218dc42, IOS-063).
@@ -1797,7 +1855,8 @@ class ChatViewModel @Inject constructor(
         onCreated: (String) -> Unit,
     ) {
         val trimmedName = name.trim()
-        val trimmedAddresses = addresses.map { it.trim() }.filter { it.isNotEmpty() }
+        // An all-caps address (a compact QR code's) is the lowercase address (iOS 83806b3d).
+        val trimmedAddresses = addresses.map { it.trim().let { a -> if (com.kachat.app.util.KaspaAddress.hasAddressPrefix(a)) com.kachat.app.util.KaspaAddress.normalizedCase(a) else a } }.filter { it.isNotEmpty() }
         if (trimmedName.isEmpty()) {
             _createGroupError.value = "Enter a group name."
             return
@@ -2101,21 +2160,24 @@ class ChatViewModel @Inject constructor(
 
     fun sendGroupMessage(text: String, groupId: String, onError: (String) -> Unit = {}) {
         val reply = _groupReplyingTo.value
+        // The fee pill's custom fee pays for this text and is used up by it, as in 1:1 (iOS
+        // GroupChatDetailView `sendGroupMessage(feeOverride:)`), capped when it was set
+        // (MessageFeeLimit).
+        val feeRate = _feeRateOverride.value
+        _feeRateOverride.value = null
         viewModelScope.launch {
             try {
                 // If replying, wrap the content in the shared reply envelope (matches
                 // ChatViewModel.sendMessage/BroadcastViewModel's identical wrapping) so the
                 // quote survives even if the original message is later pruned.
                 val payload = if (reply != null) {
-                    val preview = VoiceMessage.parseOrNull(reply.content)?.let { "🎤 Audio message" }
-                        ?: ImageMessage.parseOrNull(reply.content)?.let { "📷 Photo" }
-                        ?: MessageReply.parseOrNull(reply.content)?.text
-                        ?: reply.content
+                    // iOS MessageReplyCodec.previewText: never raw JSON or a share URL in the quote
+                    val preview = MessageReply.previewText(reply.content)
                     MessageReply.encode(replyToId = reply.txId, replyToSender = reply.senderAddress ?: "", replyToPreview = preview, text = text)
                 } else {
                     text
                 }
-                groupRepository.sendGroupMessage(payload, groupId)
+                groupRepository.sendGroupMessage(payload, groupId, feeRateOverride = feeRate)
                 _groupReplyingTo.value = null
             } catch (e: Exception) {
                 onError(UserFacingError.message(e, "Failed to send"))
@@ -2281,18 +2343,19 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Group messages don't have an in-place "retry" record the way 1:1 does - resends the same
-     * content (works uniformly for text/photo/audio, since all three are just a content string)
-     * as a fresh message rather than mutating the failed one, which stays in history marked failed.
-     */
-    /** Re-sends a failed group message IN PLACE: the failed row is reused as the pending
-     *  placeholder and swapped for the real row, rather than a second bubble appearing next to
-     *  the failed one (see GroupRepository.sendGroupMessage's retryOfTxId). */
+    /** Re-sends a failed group message IN PLACE (text, photo and audio alike): the failed row is
+     *  reused as the pending placeholder and swapped for the real row, rather than a second bubble
+     *  appearing next to the failed one. The repository re-reads the live row, marks it Sending at
+     *  once and ignores a second tap while a retry runs, so a double tap can't pay twice (iOS
+     *  83806b3d, see GroupRepository.retryGroupMessages). */
     fun retryGroupMessage(groupId: String, content: String, failedTxId: String? = null) {
         viewModelScope.launch {
             try {
-                groupRepository.sendGroupMessage(content, groupId, retryOfTxId = failedTxId)
+                if (failedTxId != null) {
+                    groupRepository.retryGroupMessages(groupId, listOf(failedTxId to content))
+                } else {
+                    groupRepository.sendGroupMessage(content, groupId)
+                }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error retrying group message", e)
             }
@@ -2300,19 +2363,18 @@ class ChatViewModel @Inject constructor(
     }
 
     /** Retry on a group's long voice note or multi-part photo: only its failed parts, in index
-     *  order, one after another, stopping at the first that fails again (iOS 7c5c22e3
-     *  `retryGroupVoiceNoteParts`). */
+     *  order, one after another, stopping at the first that fails again; the parts after it stay
+     *  failed (iOS 83806b3d `retryGroupVoiceNoteParts`). The rows are read live and all go
+     *  Sending first, and a second tap while it runs does nothing. */
     fun retryGroupFailedParts(groupId: String, failedParts: List<com.kachat.app.repository.GroupMessage>) {
+        val parts = failedParts.filter { it.isOutgoing }.map { it.txId to it.content }
+        if (parts.isEmpty()) return
         viewModelScope.launch {
-            for (part in failedParts) {
-                if (!part.isOutgoing || part.deliveryStatus != "failed") continue
-                try {
-                    groupRepository.sendGroupMessage(part.content, groupId, retryOfTxId = part.txId)
-                } catch (e: Exception) {
-                    Log.e("ChatViewModel", "Error retrying a group media part", e)
-                    com.kachat.app.ui.screens.IosToasts.error(UserFacingError.message(e, "Failed to send"))
-                    return@launch
-                }
+            try {
+                groupRepository.retryGroupMessages(groupId, parts)
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error retrying a group media part", e)
+                com.kachat.app.ui.screens.IosToasts.error(UserFacingError.message(e, "Failed to send"))
             }
         }
     }
@@ -2662,9 +2724,9 @@ class ChatViewModel @Inject constructor(
 
     /** [onError] gets the failure's reason - the chat passes its "Failed to Send" alert, as
      *  iOS's composer does; chess moves keep their own failed-move handling. */
-    fun sendMessage(contactId: String, text: String, onError: ((String) -> Unit)? = null) {
+    fun sendMessage(contactId: String, text: String, onError: ((String) -> Unit)? = null, mediaSend: Boolean = false) {
         if (text.isEmpty()) return
-        viewModelScope.launch { sendMessageAwait(contactId, text, onError) }
+        viewModelScope.launch { sendMessageAwait(contactId, text, onError, mediaSend = mediaSend) }
     }
 
     /** The composer's send: a failure raises the chat's "Failed to Send" alert, as on iOS. */
@@ -2683,6 +2745,10 @@ class ChatViewModel @Inject constructor(
          *  without the composer's fee override (a payment request sent from the + sheet, iOS
          *  6594936 `sendMessage(to:content:feeOverride: nil)`). */
         plain: Boolean = false,
+        /** A voice note, a photo or a Nextcloud media link: the fee pill's custom fee is for text
+         *  only, so it isn't paid here and stays set for the next text (iOS 83806b3d
+         *  `feeIsAdjustable`; iOS sends media with `feeOverride: nil`). */
+        mediaSend: Boolean = false,
     ): Boolean {
         if (text.isEmpty()) return false
         // Sending bumps this conversation to the top of the recency order the system share sheet
@@ -2690,19 +2756,15 @@ class ChatViewModel @Inject constructor(
         // pending insert lands. Diffed inside refresh(), so repeat sends to the same top chat are free.
         shareShortcutsManager.refresh(conversations.value, promoteContactId = contactId)
         val reply = if (plain) null else _replyingTo.value
-        val feeRate = if (plain) null else _feeRateOverride.value
-        if (!plain) _feeRateOverride.value = null
+        val feeRate = if (plain || mediaSend) null else _feeRateOverride.value
+        if (!plain && !mediaSend) _feeRateOverride.value = null
         run {
             val pendingId = "pending_${java.util.UUID.randomUUID()}"
             try {
                 val myAddress = walletManager.getAddress()
                 val payload = if (reply != null) {
-                    val preview = VoiceMessage.parseOrNull(reply.plaintextBody)?.let { "🎤 Audio message" }
-                        ?: ImageMessage.parseOrNull(reply.plaintextBody)?.let { "📷 Photo" }
-                        // Replying to a message that's itself a reply — unwrap to its actual text
-                        // rather than showing the inner reply's raw JSON as the preview.
-                        ?: MessageReply.parseOrNull(reply.plaintextBody)?.text
-                        ?: (reply.plaintextBody ?: "")
+                    // iOS MessageReplyCodec.previewText: never raw JSON or a share URL in the quote
+                    val preview = MessageReply.previewText(reply.plaintextBody)
                     val replyToSender = if (reply.direction == "sent") myAddress else contactId
                     MessageReply.encode(replyToId = reply.id, replyToSender = replyToSender, replyToPreview = preview, text = text)
                 } else {
@@ -3272,7 +3334,7 @@ class ChatViewModel @Inject constructor(
         _nextcloudPhotoRequested.value = false
         viewModelScope.launch {
             if (shareUrl != null) {
-                sendMessage(contactId, shareUrl, sendFailureAlert(contactId))
+                sendMessage(contactId, shareUrl, sendFailureAlert(contactId), mediaSend = true)
                 return@launch
             }
             try {
@@ -3333,7 +3395,7 @@ class ChatViewModel @Inject constructor(
                 } else {
                     val bytes = ready.parts.first()
                     val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                    sendMessageAwait(contactId, VoiceMessage.encode(fileName = "voice.webm", sizeBytes = bytes.size.toLong(), base64Audio = base64), sendFailureAlert(contactId))
+                    sendMessageAwait(contactId, VoiceMessage.encode(fileName = "voice.webm", sizeBytes = bytes.size.toLong(), base64Audio = base64), sendFailureAlert(contactId), mediaSend = true)
                 }
             }
             return
@@ -3353,7 +3415,7 @@ class ChatViewModel @Inject constructor(
                         }
                         // The recorder already names files voice_<timestamp>.webm — keep that name.
                         val url = nextcloudService.uploadMediaAndShare(bytes, file.name, mimeType)
-                        sendMessage(contactId, url, sendFailureAlert(contactId))
+                        sendMessage(contactId, url, sendFailureAlert(contactId), mediaSend = true)
                         return@launch
                     } catch (e: Exception) {
                         Log.w("ChatViewModel", "Nextcloud voice upload failed, falling back to on-chain send", e)
@@ -3362,14 +3424,14 @@ class ChatViewModel @Inject constructor(
                 }
                 // On chain only as one ordinary note that one transaction carries.
                 if (bytes.size > com.kachat.app.util.VoiceNotePolicy.ONE_TO_ONE.maxBytes) {
-                    throw IllegalStateException("Recording failed. Please try again.")
+                    throw IllegalStateException(appContext.getString(com.kachat.app.R.string.recording_failed_please_try_again))
                 }
                 val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                 val json = VoiceMessage.encode(fileName = file.name, sizeBytes = bytes.size.toLong(), base64Audio = base64)
-                sendMessage(contactId, json, sendFailureAlert(contactId))
+                sendMessage(contactId, json, sendFailureAlert(contactId), mediaSend = true)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error preparing voice message", e)
-                reportSendFailure(contactId, "Failed to prepare audio: ${UserFacingError.message(e, "Recording failed. Please try again.")}")
+                reportSendFailure(contactId, "Failed to prepare audio: ${UserFacingError.message(e, appContext.getString(com.kachat.app.R.string.recording_failed_please_try_again))}")
             } finally {
                 file.delete()
             }
@@ -3382,7 +3444,7 @@ class ChatViewModel @Inject constructor(
         val chunks = com.kachat.app.util.PhotoPolicy.chunks(bytes, forGroup = false)
         if (chunks.size > 1) return sendMediaPartsAwait(contactId, chunks, "image/jpeg", onError)
         val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-        return sendMessageAwait(contactId, ImageMessage.encode(fileName = "photo.jpg", sizeBytes = bytes.size.toLong(), base64Image = base64), onError, plain = plain)
+        return sendMessageAwait(contactId, ImageMessage.encode(fileName = "photo.jpg", sizeBytes = bytes.size.toLong(), base64Image = base64), onError, plain = plain, mediaSend = true)
     }
 
     /**
@@ -3406,8 +3468,9 @@ class ChatViewModel @Inject constructor(
         }
         val owner = runCatching { walletManager.getAddress() }.getOrNull() ?: return false
         shareShortcutsManager.refresh(conversations.value, promoteContactId = contactId)
-        val feeRate = _feeRateOverride.value
-        _feeRateOverride.value = null
+        // The fee pill's custom fee is for text only: a voice note or photo prices its own parts,
+        // and the custom fee stays set for the next text (iOS 83806b3d `feeIsAdjustable`).
+        val feeRate: Long? = null
         val isPhoto = mimeType.lowercase().startsWith("image/")
         val noteId = com.kachat.app.util.VoicePartTag.newGroupId()
         val contents = parts.mapIndexed { offset, data ->
@@ -3483,7 +3546,14 @@ class ChatViewModel @Inject constructor(
                 }
                 // The rest never went: failed too, so one Retry resends them in order.
                 for (rest in pendingIds.drop(offset + 1)) chatRepository.updateMessageStatus(rest, "failed")
-                onError?.invoke(UserFacingError.message(e, "Failed to send"))
+                // The note is in the chat now, its unsent parts with Retry: the composer is
+                // already clear, so the alert points to Retry rather than sending (and paying
+                // for) the whole note again (iOS 83806b3d `MediaPartsSendError`).
+                val retryHint = appContext.getString(
+                    if (isPhoto) com.kachat.app.R.string.tap_retry_on_the_photo_to_send_the_rest
+                    else com.kachat.app.R.string.tap_retry_on_the_voice_message_to_send_the_rest
+                )
+                onError?.invoke(UserFacingError.message(e, "Failed to send") + "\n\n" + retryHint)
                 return false
             }
         }
@@ -3513,29 +3583,48 @@ class ChatViewModel @Inject constructor(
      *  order, one after another, stopping at the first that fails again (iOS
      *  `retryVoiceNoteParts`). Each keeps its row and its place. */
     fun retryFailedParts(failedParts: List<MessageEntity>, onError: ((String) -> Unit)? = null) {
+        // A second tap while a Retry runs does nothing: the parts it hasn't reached yet still read
+        // Failed, and a second run would send them ahead of the first's, out of order (iOS
+        // 83806b3d `retryingVoicePartIds`).
+        val ids = failedParts.map { it.id }.toSet()
+        synchronized(retryingPartIds) {
+            if (ids.isEmpty() || retryingPartIds.any { it in ids }) return
+            retryingPartIds.addAll(ids)
+        }
         viewModelScope.launch {
-            val owner = runCatching { walletManager.getAddress() }.getOrNull() ?: return@launch
-            for (part in failedParts) {
-                if (part.deliveryStatus != "failed" || part.direction != "sent") continue
-                val text = part.plaintextBody ?: continue
-                try {
-                    if (!chatRepository.claimFailedSendForRetry(part.id)) continue
-                    refuseIfAccountChanged(owner)
-                    val result = walletService.sendKasiaMessage(part.contactId, text)
-                    chatRepository.finalizeProvisionalMessage(
-                        part.id,
-                        part.copy(id = result.txId, walletAddress = owner, encryptedPayload = result.payloadHex, deliveryStatus = "sent")
-                    )
-                } catch (e: Exception) {
-                    if (e is com.kachat.app.services.SendOutcomeUnknownException) {
-                        finalizeUnconfirmedSend(part.id, e.txId)
-                    } else {
-                        Log.e("ChatViewModel", "Error retrying a media part", e)
-                        chatRepository.updateMessageStatus(part.id, "failed")
-                    }
-                    onError?.invoke(UserFacingError.message(e, "Failed to send"))
-                    return@launch
+            try {
+                retryFailedPartsInOrder(failedParts, onError)
+            } finally {
+                synchronized(retryingPartIds) { retryingPartIds.removeAll(ids) }
+            }
+        }
+    }
+
+    /** The parts of a 1:1 long voice note or multi-part photo whose Retry is running. */
+    private val retryingPartIds = HashSet<String>()
+
+    private suspend fun retryFailedPartsInOrder(failedParts: List<MessageEntity>, onError: ((String) -> Unit)?) {
+        val owner = runCatching { walletManager.getAddress() }.getOrNull() ?: return
+        for (part in failedParts) {
+            if (part.deliveryStatus != "failed" || part.direction != "sent") continue
+            val text = part.plaintextBody ?: continue
+            try {
+                if (!chatRepository.claimFailedSendForRetry(part.id)) continue
+                refuseIfAccountChanged(owner)
+                val result = walletService.sendKasiaMessage(part.contactId, text)
+                chatRepository.finalizeProvisionalMessage(
+                    part.id,
+                    part.copy(id = result.txId, walletAddress = owner, encryptedPayload = result.payloadHex, deliveryStatus = "sent")
+                )
+            } catch (e: Exception) {
+                if (e is com.kachat.app.services.SendOutcomeUnknownException) {
+                    finalizeUnconfirmedSend(part.id, e.txId)
+                } else {
+                    Log.e("ChatViewModel", "Error retrying a media part", e)
+                    chatRepository.updateMessageStatus(part.id, "failed")
                 }
+                onError?.invoke(UserFacingError.message(e, "Failed to send"))
+                return
             }
         }
     }
@@ -3652,8 +3741,9 @@ class ChatViewModel @Inject constructor(
             onResult?.invoke(false, appContext.getString(it), null)
             return
         }
-        val feeRate = _feeRateOverride.value
-        _feeRateOverride.value = null
+        // The message fee pill's custom fee is for messages: a payment neither pays nor clears it
+        // (iOS sendPayment has no feeOverride).
+        val feeRate: Long? = null
         val memo = note.trim()
         viewModelScope.launch {
             // Paying someone is reaching out to them, like writing to them - and watches for
@@ -3689,7 +3779,9 @@ class ChatViewModel @Inject constructor(
                 // No confirmed coins yet: the bubble is in the chat and the sender's retry timer
                 // owns it, so there is no transaction to show (iOS sendPayment returning nil).
                 com.kachat.app.services.ChatPaymentSender.Outcome.Deferred -> onResult?.invoke(true, null, null)
-                is com.kachat.app.services.ChatPaymentSender.Outcome.Failed -> onResult?.invoke(false, outcome.message, null)
+                // Not ok with a transaction id: it may have gone (outcome unknown), so the
+                // screen shows Not confirmed with Done, never Try Again.
+                is com.kachat.app.services.ChatPaymentSender.Outcome.Failed -> onResult?.invoke(false, outcome.message, outcome.unknownTxId)
             }
         }
     }

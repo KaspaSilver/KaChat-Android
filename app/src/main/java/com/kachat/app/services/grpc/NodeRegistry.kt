@@ -21,8 +21,9 @@ data class NodeRecord(
 class NodeRegistry {
     private val records = ConcurrentHashMap<String, NodeRecord>()
 
-    fun update(address: String, type: String, result: NodeProbeResult) {
+    fun update(address: String, type: String, probe: NodeProbeResult) {
         val prior = records[address]
+        val result = withKnownNetworkName(probe, prior?.lastProbe)
         records[address] = NodeRecord(
             address = address,
             type = type,
@@ -30,6 +31,22 @@ class NodeRegistry {
             consecutiveFailures = if (result.reachable) 0 else (prior?.consecutiveFailures ?: 0) + 1,
             lastSuccessAt = if (result.reachable) System.currentTimeMillis() else prior?.lastSuccessAt
         )
+    }
+
+    /**
+     * [probe] with the network name the node reported before when this probe couldn't read it (a
+     * failed GetBlockDagInfo says nothing about the node's network; iOS 83806b3d NodeProfiler).
+     * Its DAA score stays unknown, not the old one, which would look ever more behind. A known
+     * name of the other network makes the node unreachable here, as a probe that read it does
+     * ([probeExisting]): it would answer this network's addresses with that chain's coins.
+     */
+    private fun withKnownNetworkName(probe: NodeProbeResult, prior: NodeProbeResult?): NodeProbeResult {
+        if (!probe.networkName.isNullOrBlank()) return probe
+        val known = prior?.networkName?.takeIf { it.isNotBlank() } ?: return probe
+        if (probe.reachable && !belongsToRunningNetwork(known)) {
+            return probe.copy(reachable = false, latencyMs = null, isSynced = null, networkName = known, error = "Node is on $known")
+        }
+        return probe.copy(networkName = known)
     }
 
     fun snapshot(): List<NodeRecord> = records.values.toList()
@@ -96,7 +113,7 @@ class NodeRegistry {
     /** Most recent successful probe across every known node — drives the "Last Sync" field. */
     fun lastSuccessAt(): Long? = records.values.mapNotNull { it.lastSuccessAt }.maxOrNull()
 
-    fun statusOf(r: NodeRecord): String {
+    fun statusOf(r: NodeRecord, nowMs: Long = System.currentTimeMillis()): String {
         // A pinned trusted node is always used regardless of health (see
         // NodePoolManager.getBroadcastConnection, which bypasses this function entirely for
         // it) - the Suspect/Quarantined classification below exists to filter and rank a large
@@ -106,8 +123,53 @@ class NodeRegistry {
         return when {
             r.lastProbe?.reachable != true -> if (r.consecutiveFailures >= 3) "Quarantined" else "Suspect"
             r.lastProbe.isSynced == false -> "Suspect" // reachable but not synced — don't trust its data
+            // A node the user added keeps the plain rule (iOS `.userAdded`).
+            r.type == "Manual" -> "Active"
+            !fitsActive(r, nowMs) -> "Suspect"
             else -> "Active"
         }
+    }
+
+    /** Reachable and synced: the plain rule for Active (iOS `isActiveEligible`). */
+    private fun isEligible(r: NodeRecord): Boolean =
+        r.type == "Trusted" || (r.lastProbe?.reachable == true && r.lastProbe.isSynced != false)
+
+    /**
+     * Active also needs the node to have reported this network's name, and a DAA score no more
+     * than [MAX_ACTIVE_DAA_LAG] behind the median (carried forward to now) - iOS 83806b3d
+     * `NodeRegistry.rebalanceActivePool`. Being eligible alone let a node that never said which
+     * network it is on, or one far behind, serve sends and balances. When fewer than
+     * [MIN_ACTIVE_NODES] nodes pass that, the old rule applies (plus the port check for an unnamed
+     * node), rather than leaving the pool short.
+     */
+    private fun fitsActive(r: NodeRecord, nowMs: Long): Boolean {
+        val eligible = records.values.filter { it.type != "Trusted" && it.type != "Manual" && isEligible(it) }
+        val named = eligible.filter { namedOnNetwork(it) }
+        val scores = named.mapNotNull { projectedDaaScore(it, nowMs) }.sorted()
+        val median = if (scores.size >= 3) scores[scores.size / 2] else null
+        fun strictFit(record: NodeRecord): Boolean {
+            if (!namedOnNetwork(record)) return false
+            val daa = projectedDaaScore(record, nowMs)
+            if (median == null || daa == null) return true
+            return daa >= median || median - daa <= MAX_ACTIVE_DAA_LAG
+        }
+        val useStrict = named.count { strictFit(it) } >= MIN_ACTIVE_NODES
+        return if (useStrict) strictFit(r) else portBelongs(r)
+    }
+
+    /** It reported a network name, and the name is this network's. */
+    private fun namedOnNetwork(r: NodeRecord): Boolean {
+        val name = r.lastProbe?.networkName
+        return !name.isNullOrBlank() && belongsToRunningNetwork(name)
+    }
+
+    /** iOS `NodeRegistry.belongs` for a node with no name: not on the other network's gRPC or P2P
+     *  port. A named node's name was already checked when it was probed. */
+    private fun portBelongs(r: NodeRecord): Boolean {
+        if (!r.lastProbe?.networkName.isNullOrBlank()) return true
+        val port = parseNodeAddress(r.address)?.port ?: return true
+        val otherPorts = if (com.kachat.app.util.KaspaNetwork.isTestnet) MAINNET_PORTS else TESTNET_PORTS
+        return port !in otherPorts
     }
 
     private companion object {
@@ -119,5 +181,13 @@ class NodeRegistry {
         const val PROFILE_TTL_MS = 5 * 60 * 1000L
         /** Far above any real score, so carrying one forward can't overflow. */
         const val MAX_DAA_SCORE = Long.MAX_VALUE / 2
+        /** How far behind the median an Active node may be: about a minute of blocks (iOS
+         *  `maxActiveDaaLag`). */
+        const val MAX_ACTIVE_DAA_LAG = 600L
+        /** The stricter Active rule applies once this many nodes pass it (iOS `minActive`, the
+         *  pool's targetActiveNodes). */
+        const val MIN_ACTIVE_NODES = 8
+        val MAINNET_PORTS = setOf(15110, 15111, 16110, 16111)
+        val TESTNET_PORTS = setOf(15210, 15211, 16210, 16211)
     }
 }

@@ -259,9 +259,9 @@ fun MainShell(
                 if (finished) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null, tint = LocalAppColors.current.success, modifier = Modifier.size(38.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("You're all set", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.first_sync_all_set), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
-                    Text("Your chats and history are up to date.", color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
+                    Text(stringResource(R.string.first_sync_up_to_date), color = LocalAppColors.current.textSecondary, fontSize = 13.sp)
                     Spacer(Modifier.height(16.dp))
                     // iOS's .borderedProminent: white on an accent capsule.
                     Button(
@@ -273,7 +273,7 @@ fun MainShell(
                 } else {
                     com.kachat.app.ui.theme.IosActivityIndicator(color = KaspaTeal, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
                     Spacer(Modifier.height(14.dp))
-                    Text("Setting up your account", color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.first_sync_setting_up), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     // Looked up as iOS does (4f8e14bb). Groups and Balance are Android's own phases,
                     // with no iOS text to translate them from.
@@ -289,7 +289,7 @@ fun MainShell(
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Downloading everything this account has on chain. It only takes this long once.",
+                        stringResource(R.string.first_sync_downloading_footer),
                         color = LocalAppColors.current.textSecondary,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center
@@ -297,7 +297,7 @@ fun MainShell(
                     if (canSkip) {
                         Spacer(Modifier.height(10.dp))
                         TextButton(onClick = { chatViewModel.clearInitialSyncPhase() }) {
-                            Text("Continue anyway", color = KaspaTeal)
+                            Text(stringResource(R.string.first_sync_continue_anyway), color = KaspaTeal)
                         }
                     }
                 }
@@ -679,6 +679,7 @@ fun MainShell(
                             )
                         }
                         val dockDensity = LocalDensity.current
+                        val dockIsRtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
                         Row(
                             modifier = Modifier
                                 .height(60.dp)
@@ -692,7 +693,7 @@ fun MainShell(
                                 // wider than the dock's side margin at higher Back sensitivity. A slide
                                 // starting on the outermost tab began inside it, and Android took it.
                                 .systemGestureExclusion()
-                                .pointerInput(localTabOrder, dockItemWidth) {
+                                .pointerInput(localTabOrder, dockItemWidth, dockIsRtl) {
                                     val slotPx = with(dockDensity) { dockItemWidth.toPx() }
                                     val startPadPx = with(dockDensity) { 2.dp.toPx() }
                                     awaitEachGesture {
@@ -715,7 +716,12 @@ fun MainShell(
                                             if (!sliding && movedX > viewConfiguration.touchSlop) sliding = true
                                             if (sliding) {
                                                 change.consume()
-                                                dockDragIndex = (((change.position.x - startPadPx) / slotPx).toInt())
+                                                // Touch x runs from the left; the tabs run from the
+                                                // leading edge, the right in RTL (Arabic, Persian,
+                                                // Hebrew), so measure from there for the lens to
+                                                // stay under the finger.
+                                                val fromLeadingX = if (dockIsRtl) size.width - change.position.x else change.position.x
+                                                dockDragIndex = (((fromLeadingX - startPadPx) / slotPx).toInt())
                                                     .coerceIn(0, localTabOrder.lastIndex.coerceAtLeast(0))
                                             }
                                         }

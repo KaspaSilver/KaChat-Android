@@ -16,6 +16,13 @@ data class DmNotificationLabels(
     val sentVoice: String = "Sent a voice message",
     val sentPhoto: String = "Sent a photo",
     val chessGame: String = "♟️ Chess game",
+    val chessInvite: String = "♟️ Invited you to a game of chess",
+    val chessAccepted: String = "♟️ Accepted your chess game",
+    val chessDeclined: String = "♟️ Declined your chess game",
+    /** "♟️ Played from → to" for a move's two squares. */
+    val chessMove: (from: String, to: String) -> String = { from, to -> "♟️ Played $from → $to" },
+    val chessLostOnTime: String = "♟️ Lost on time",
+    val chessResigned: String = "♟️ Resigned the chess game",
 ) {
     companion object {
         val ENGLISH = DmNotificationLabels(sentVideo = "Sent a video", sentFile = "Sent a file", newMessage = "New message")
@@ -29,6 +36,12 @@ data class DmNotificationLabels(
             sentVoice = context.getString(R.string.dm_notif_sent_voice),
             sentPhoto = context.getString(R.string.dm_notif_sent_photo),
             chessGame = context.getString(R.string.chess_game_2),
+            chessInvite = context.getString(R.string.chess_notif_invite),
+            chessAccepted = context.getString(R.string.chess_notif_accepted),
+            chessDeclined = context.getString(R.string.chess_notif_declined),
+            chessMove = { from, to -> context.getString(R.string.chess_notif_move, from, to) },
+            chessLostOnTime = context.getString(R.string.chess_notif_lost_on_time),
+            chessResigned = context.getString(R.string.chess_notif_resigned),
         )
     }
 }
@@ -54,7 +67,16 @@ fun dmNotificationText(plaintext: String, labels: DmNotificationLabels = DmNotif
     MessageReply.parseOrNull(plaintext)?.let { reply -> return dmNotificationText(reply.text, labels) }
     if (VoiceMessage.parseOrNull(plaintext) != null) return labels.sentVoice
     if (ImageMessage.parseOrNull(plaintext) != null) return labels.sentPhoto
-    if (ChessMessage.parseOrNull(plaintext) != null) return labels.chessGame
+    // What happened in the game, as iOS says it (formatNotificationBody / the extension's
+    // chessPreviewText), not a bare "Chess game".
+    ChessMessage.parseOrNull(plaintext)?.let { envelope ->
+        return when (envelope) {
+            is ChessEnvelope.Invite -> labels.chessInvite
+            is ChessEnvelope.Response -> if (envelope.content.accepted) labels.chessAccepted else labels.chessDeclined
+            is ChessEnvelope.Move -> labels.chessMove(envelope.content.from, envelope.content.to)
+            is ChessEnvelope.Resign -> if (envelope.content.reason == "timeout") labels.chessLostOnTime else labels.chessResigned
+        }
+    }
     VoiceMessage.parseAnyFileOrNull(plaintext)?.let { file ->
         val mime = file.mimeType.lowercase()
         return when {

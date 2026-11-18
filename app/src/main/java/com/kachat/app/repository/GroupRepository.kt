@@ -919,10 +919,15 @@ class GroupRepository @Inject constructor(
         var firstTxId = ""
         for ((offset, part) in sealed.withIndex()) {
             try {
-                val txId = walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = part.payload.toByteArray(Charsets.UTF_8))
+                // Each part at its own turn, never under an account switched to since (iOS 83806b3d).
+                val txId = sendSelfStash(walletAddress, part.payload)
                 database.groupDao().deleteMessage(part.pendingId, walletAddress)
                 database.groupDao().insertMessage(part.entity.copy(txId = txId, deliveryStatus = "sent"))
                 if (offset == 0) firstTxId = txId
+            } catch (e: GroupSendAccountChangedException) {
+                // Signed in as someone else now: the rows stay as they are, and the next launch's
+                // catch-up settles them (settlePendingSendsFromBeforeThisRun), as on iOS.
+                throw e
             } catch (e: Exception) {
                 val status = if (e is com.kachat.app.services.SendOutcomeUnknownException) "warning" else "failed"
                 database.groupDao().updateMessageStatus(part.pendingId, walletAddress, status)
@@ -941,21 +946,79 @@ class GroupRepository @Inject constructor(
         return sendGroupMessage(json, groupId)
     }
 
+    /** One group message: sealed, on screen as pending, then sent. [feeRateOverride]: the fee
+     *  pill's custom fee, text only (iOS `sendGroupMessage(feeOverride:)`). */
+    suspend fun sendGroupMessage(text: String, groupId: String, feeRateOverride: Long? = null): String =
+        sealAndSendGroupMessage(text, groupId, walletManager.getAddress(), retryOfTxId = null, feeRateOverride = feeRateOverride)
+
+    /** Group rows being resent right now ("wallet|txId"), so a second Retry tap does nothing
+     *  (iOS 83806b3d `retryingGroupMessageIds`). */
+    private val retryingGroupTxIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
     /**
-     * [retryOfTxId]: the failed row a Retry tap is re-sending. That row is flipped back to
-     * pending and reused as the placeholder, then swapped for the real row on success or
-     * flipped to failed again - so a retry never leaves the failed bubble behind next to a new
-     * one. The message is re-encrypted under a fresh msg_id either way; a msg_id is never
-     * reused. Mirrors the 1:1 retry (ChatViewModel.retrySendMessage).
+     * Retry on a failed group message, or on a long voice note's or multi-part photo's bubble
+     * ([failed]: txId and content of each failed part, in index order): resent in place, one
+     * after another, stopping at the first that fails again; the parts after it stay failed
+     * (iOS 83806b3d `retryGroupMessage` / `retryGroupVoiceNoteParts`).
+     *
+     * - The rows are read live, not from the copies the bubble passed: only a row still failed is
+     *   claimed ([GroupDao.claimFailedForRetry]), so a part a Retry already sent isn't sent twice,
+     *   and a Not confirmed one ("warning", it may have landed) is never resent.
+     * - Every one goes Sending before the first goes out, so the bubble shows Sending for the
+     *   whole Retry and a second tap finds nothing to resend.
+     * - A second Retry while one runs does nothing ([retryingGroupTxIds]).
+     * - Each is resent under the account the Retry was tapped in, never one switched to since.
      */
-    suspend fun sendGroupMessage(text: String, groupId: String, retryOfTxId: String? = null): String {
-        val walletAddress = walletManager.getAddress()
-        database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
-        // Not confirmed may have landed: a retry would post it twice (iOS `retryGroupMessage`
-        // retries only a failed message).
-        if (retryOfTxId != null && database.groupDao().getMessage(retryOfTxId, walletAddress)?.deliveryStatus == "warning") {
-            return retryOfTxId
+    suspend fun retryGroupMessages(groupId: String, failed: List<Pair<String, String>>) {
+        val owner = walletManager.getAddress()
+        val keys = failed.map { (txId, _) -> "$owner|$txId" }
+        if (keys.any { it in retryingGroupTxIds }) return
+        // Held before the claims, so neither a second tap nor the launch settle
+        // ([settlePendingSendsFromBeforeThisRun]) touches these rows while they are resent.
+        retryingGroupTxIds.addAll(keys)
+        try {
+            val live = failed.filter { (txId, _) -> database.groupDao().claimFailedForRetry(txId, owner) > 0 }
+            for ((offset, row) in live.withIndex()) {
+                val (txId, content) = row
+                try {
+                    resendClaimedGroupMessage(content, groupId, owner, txId)
+                } catch (e: Exception) {
+                    // Not after an account switch: those rows wait for the next launch to settle.
+                    if (e !is GroupSendAccountChangedException) {
+                        for ((restTxId, _) in live.drop(offset + 1)) database.groupDao().updateMessageStatus(restTxId, owner, "failed")
+                    }
+                    throw e
+                }
+            }
+        } finally {
+            retryingGroupTxIds.removeAll(keys.toSet())
         }
+    }
+
+    /** The resend of a row already claimed (Sending). A failure before the send (missing
+     *  secrets, unknown group) marks it failed again, as it was; the send's own failure is marked
+     *  by [sealAndSendGroupMessage]. Not after an account switch. */
+    private suspend fun resendClaimedGroupMessage(content: String, groupId: String, owner: String, txId: String) {
+        try {
+            sealAndSendGroupMessage(content, groupId, owner, retryOfTxId = txId, feeRateOverride = null)
+        } catch (e: Exception) {
+            if (e !is GroupSendAccountChangedException && database.groupDao().getMessage(txId, owner)?.deliveryStatus == "pending") {
+                database.groupDao().updateMessageStatus(txId, owner, "failed")
+            }
+            throw e
+        }
+    }
+
+    /**
+     * [retryOfTxId]: the failed row a Retry is re-sending, already claimed back to pending
+     * ([retryGroupMessages]). It is reused as the placeholder, then swapped for the real row on
+     * success or flipped to failed again - so a retry never leaves the failed bubble behind next
+     * to a new one. The message is re-encrypted under a fresh msg_id either way; a msg_id is never
+     * reused. [walletAddress] is the account the send was made in.
+     */
+    private suspend fun sealAndSendGroupMessage(text: String, groupId: String, walletAddress: String, retryOfTxId: String?, feeRateOverride: Long?): String {
+        refuseIfAccountChanged(walletAddress)
+        database.groupDao().getGroup(groupId, walletAddress) ?: throw IllegalStateException("Unknown group.")
         // Reserve the next counter BEFORE building/sending, atomically against every other send
         // (GroupSecretStore.reserveNextCounter): a msg_id must never be reused, even if the send
         // itself later fails, and the bag it returns is the one to encrypt under.
@@ -981,9 +1044,8 @@ class GroupRepository @Inject constructor(
         val nowMs = System.currentTimeMillis()
         val pendingId: String
         if (retryOfTxId != null && database.groupDao().getMessage(retryOfTxId, walletAddress) != null) {
-            // Retry: the failed row becomes the pending placeholder, in place.
+            // Retry: the claimed row is the pending placeholder, in place.
             pendingId = retryOfTxId
-            database.groupDao().updateMessageStatus(pendingId, walletAddress, "pending")
         } else {
             pendingId = "pending_${UUID.randomUUID()}"
             database.groupDao().insertMessage(
@@ -995,7 +1057,7 @@ class GroupRepository @Inject constructor(
             )
         }
         try {
-            val txId = walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+            val txId = sendSelfStash(walletAddress, payloadString, feeRateOverride)
             database.groupDao().deleteMessage(pendingId, walletAddress)
             database.groupDao().insertMessage(
                 GroupMessageEntity(
@@ -1005,6 +1067,10 @@ class GroupRepository @Inject constructor(
                 )
             )
             return txId
+        } catch (e: GroupSendAccountChangedException) {
+            // Another account is signed in now: the row stays with its own account, where the
+            // next launch's catch-up settles it (settlePendingSendsFromBeforeThisRun).
+            throw e
         } catch (e: Exception) {
             // An unknown outcome may have landed: Not confirmed ("warning"), no Retry, until its
             // copy arrives and [GroupDao.deletePlaceholders] replaces it (iOS d23e6f7a
@@ -1062,7 +1128,7 @@ class GroupRepository @Inject constructor(
         val payloadString = GroupCipher.buildGroupMessagePayload(blindedGroupId, bag.currentEpoch, senderId, senderXOnlyPub, msgId, ciphertext, signature)
 
         try {
-            val txId = walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+            val txId = sendSelfStash(walletAddress, payloadString)
 
             if (action == "add") {
                 // Default deliveryStatus "sent" also clears any prior failed flag (e.g. this was a Retry).
@@ -1073,6 +1139,9 @@ class GroupRepository @Inject constructor(
                     )
                 )
             }
+        } catch (e: GroupSendAccountChangedException) {
+            // Signed in as someone else now: nothing more of this reaction is written.
+            throw e
         } catch (e: Exception) {
             // Flag failed so the pill shows the red error icon and a Retry appears under the message.
             // A failed "remove" restores the optimistically-deleted reaction (marked failed) so it
@@ -1133,12 +1202,36 @@ class GroupRepository @Inject constructor(
         val payloadString = GroupCipher.buildGroupMessagePayload(blindedGroupId, bag.currentEpoch, senderId, senderXOnlyPub, msgId, ciphertext, signature)
 
         try {
-            val txId = walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+            val txId = sendSelfStash(walletAddress, payloadString)
             storeEdit(txId, "sent")
+        } catch (e: GroupSendAccountChangedException) {
+            throw e
         } catch (e: Exception) {
             storeEdit(null, "failed")
             throw e
         }
+    }
+
+    /**
+     * Every group send (message, part, reaction, edit, control) at its turn: a send made in one
+     * account never goes out once another is signed in - Log Out, Delete Account or a switch
+     * since - as 1:1's refuseIfAccountChanged (iOS 83806b3d `sendSelfStashPayload`).
+     */
+    private suspend fun sendSelfStash(owner: String, payloadString: String, feeRateOverride: Long? = null): String {
+        refuseIfAccountChanged(owner)
+        return walletService.sendKaspa(
+            toAddress = owner, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8),
+            feeRateOverride = feeRateOverride
+        )
+    }
+
+    private fun refuseIfAccountChanged(owner: String) {
+        if (runCatching { walletManager.getAddress() }.getOrNull() != owner) throw accountChanged()
+    }
+
+    private fun accountChanged(): GroupSendAccountChangedException {
+        Log.i("GroupRepository", "Refused a queued group send: the account changed")
+        return GroupSendAccountChangedException(context.getString(com.kachat.app.R.string.not_sent_you_switched_accounts))
     }
 
     // -------------------------------------------------------------------------
@@ -1220,6 +1313,9 @@ class GroupRepository @Inject constructor(
      */
     private suspend fun sendControlPayload(json: String, recipientXOnlyPub: ByteArray, privateKey: ByteArray) {
         val walletAddress = walletManager.getAddress()
+        // Signed with the key of the account this began in: never sent once another is signed in
+        // (iOS 83806b3d), nor between retries below (sendSelfStash).
+        if (!walletManager.getPrivateKeyBytes().contentEquals(privateKey)) throw accountChanged()
         val encrypted = KasiaCipher.encrypt(json, recipientXOnlyPub)
         val payloadString = "kchat:1:gctl:" + recipientXOnlyPub.toHexString() + ":" + encrypted.toBytes().toHexString()
         // Retry to ride out UTXO contention: each member's invite is its own tx, and a
@@ -1229,8 +1325,10 @@ class GroupRepository @Inject constructor(
         var lastError: Exception? = null
         for (i in 0 until attempts) {
             try {
-                walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+                sendSelfStash(walletAddress, payloadString)
                 return
+            } catch (e: GroupSendAccountChangedException) {
+                throw e
             } catch (e: Exception) {
                 lastError = e
                 if (i < attempts - 1) kotlinx.coroutines.delay(1800)
@@ -1629,8 +1727,8 @@ class GroupRepository @Inject constructor(
         /** A root with nothing to announce: for a group held here (it just rotates its keys), a
          *  later one of an invite already waiting, or one you rejected. */
         object Quiet : GroupControlPush()
-        /** Read, and not a root (an epoch notice, a photo, a marker of your own): "Group update",
-         *  as iOS says for whatever decryptGroupControlForName doesn't return. */
+        /** Read, and not a root (an epoch notice, a photo, a marker of your own): delivered
+         *  silently, left for the app (iOS 83806b3d; it used to ring with "Group update"). */
         object Update : GroupControlPush()
         /** No payload, or one this key can't open: it could be anything. */
         object Unreadable : GroupControlPush()
@@ -2082,7 +2180,7 @@ class GroupRepository @Inject constructor(
         val signature = GroupCipher.sign(GroupCipher.buildMessageSigningPayload(aad, ciphertext), privateKey)
         val blindedGroupId = GroupCipher.deriveBlindedGroupId(blindingKeyHex.hexToByteArray(), senderXOnlyPub)
         val payloadString = GroupCipher.buildGroupMessagePayload(blindedGroupId, epoch, senderId, senderXOnlyPub, msgId, ciphertext, signature)
-        walletService.sendKaspa(toAddress = walletAddress, amountSompi = 0, payloadBytes = payloadString.toByteArray(Charsets.UTF_8))
+        sendSelfStash(walletAddress, payloadString)
     }
 
     private fun setMemberStatus(status: String?, address: String, groupId: String, walletAddress: String) {
@@ -2770,6 +2868,8 @@ class GroupRepository @Inject constructor(
     private suspend fun settlePendingSendsFromBeforeThisRun(walletAddress: String) {
         if (!pendingSendsSettled.add(walletAddress)) return
         for (row in database.groupDao().getPendingSentBefore(walletAddress, runStartedAtMs)) {
+            // A Retry is resending it right now (an old failed row, claimed back to pending).
+            if ("$walletAddress|${row.txId}" in retryingGroupTxIds) continue
             if (database.groupDao().hasDeliveredCopy(walletAddress, row.groupId, row.msgIdHex)) {
                 database.groupDao().deleteMessage(row.txId, walletAddress)
             } else {
@@ -3254,6 +3354,9 @@ class GroupRepository @Inject constructor(
      * for any address, not just whichever wallet happens to be active right now).
      */
     suspend fun clearAllLocalData(walletAddress: String) {
+        // What is deleted below is overwritten, not just unlinked, and the log is emptied after
+        // (iOS 83806b3d: Delete Account destroys the group store's files).
+        withContext(Dispatchers.IO) { KaChatDatabase.overwriteDeletedContent(database) }
         val groups = database.groupDao().getGroupsOnce(walletAddress)
         for (group in groups) {
             groupSecretStore.deleteBag(walletAddress, group.groupId)
@@ -3267,8 +3370,13 @@ class GroupRepository @Inject constructor(
         chainCatchUpCursors.keys.removeAll { it.startsWith("$walletAddress|") }
         allGroupsCursors.remove(walletAddress)
         inviteStateChanged()
+        withContext(Dispatchers.IO) { KaChatDatabase.emptyWriteAheadLog(database) }
     }
 }
+
+/** A queued group send whose turn came after another account was signed in (iOS 83806b3d
+ *  `GroupSendAccountChangedError`): refused, and nothing more about it is written. */
+class GroupSendAccountChangedException(message: String) : IllegalStateException(message)
 
 /** A live group pass starts this far before its cursor, for indexer clock skew and reorgs (iOS). */
 private const val LIVE_POLL_REWIND_MS = 10_000L

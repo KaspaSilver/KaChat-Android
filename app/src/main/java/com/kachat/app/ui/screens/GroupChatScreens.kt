@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.ui.theme.mirrorInRtl
 import com.kachat.app.util.UserFacingError
 import com.kachat.app.R
 import android.Manifest
@@ -128,9 +129,8 @@ private val groupPhotoCache = android.util.LruCache<String, android.graphics.Bit
 fun decodeGroupPhotoHex(photoHex: String?): android.graphics.Bitmap? {
     if (photoHex.isNullOrEmpty()) return null
     return try {
-        val bytes = ByteArray(photoHex.length / 2) { i ->
-            ((Character.digit(photoHex[i * 2], 16) shl 4) + Character.digit(photoHex[i * 2 + 1], 16)).toByte()
-        }
+        // Hex digits in pairs only (iOS 83806b3d): anything else is no photo, not stray bytes.
+        val bytes = com.kachat.app.util.KasiaCipher.hexBytes(photoHex) ?: return null
         // Any admin sets this photo, so its claimed size is not trusted (see SafeBitmapDecode).
         com.kachat.app.util.SafeBitmapDecode.decode(bytes, maxDimension = 512)
     } catch (e: Exception) { null }
@@ -393,7 +393,21 @@ fun GroupChatThreadScreen(
     }
     var showFeeEditor by remember { mutableStateOf(false) }
     var feeEditorInput by remember { mutableStateOf("") }
+    // Above MessageFeeLimit.MAX_SOMPI the editor refuses; above WARN_SOMPI it asks first (iOS
+    // 83806b3d). Messages don't ask for a fingerprint, so this is their guard.
+    var showFeeTooHigh by remember { mutableStateOf(false) }
+    var pendingHighFeeSompi by remember { mutableStateOf<Long?>(null) }
     val effectiveRate = feeRateOverride?.toDouble() ?: networkFeeRate
+    // The fee pill's Save, once it passed the cap: the typed fee as a rate on the text's mass.
+    val applyGroupFeeOverride: (Long) -> Unit = { desiredFeeSompi ->
+        val currentFeeSompi = estimatedFeeRaw ?: 0L
+        if (currentFeeSompi > 0 && effectiveRate > 0) {
+            val impliedMass = currentFeeSompi / effectiveRate
+            chatViewModel.setFeeRateOverride(kotlin.math.ceil(desiredFeeSompi / impliedMass).toLong())
+        } else {
+            chatViewModel.setFeeRateOverride(null)
+        }
+    }
     val openFeeEditor: (Long) -> Unit = { currentFeeSompi ->
         feeEditorInput = "%.8f".format(java.util.Locale.US, currentFeeSompi / 100_000_000.0)
         showFeeEditor = true
@@ -430,7 +444,12 @@ fun GroupChatThreadScreen(
     DisposableEffect(Unit) { onDispose { VoicePlayback.stopAllAfterChildrenDispose() } }
     DisposableEffect(groupId) {
         chatViewModel.setActiveGroup(groupId)
-        onDispose { chatViewModel.setActiveGroup(null) }
+        onDispose {
+            chatViewModel.setActiveGroup(null)
+            // Leaving ends a recording, as in 1:1 (iOS 83806b3d): the mic must not stay on behind
+            // another screen (a member's 1:1 chat opened from here), and its files go with it.
+            chatViewModel.cancelGroupVoiceRecording()
+        }
     }
     // A snapshotFlow, not LaunchedEffect(draft.text): reading the text here made every keystroke
     // recompose the whole screen.
@@ -684,7 +703,9 @@ fun GroupChatThreadScreen(
                             // Show Fee Estimate covers the Nextcloud link; an on-chain photo's fee
                             // is chosen in the quality sheet at Send (iOS 7c5c22e3).
                             if (showFeeEstimate && chatViewModel.groupPhotoViaNextcloud) {
-                                groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                                // A custom fee is for text only: photos and voice notes show their
+                                // own price and can't be tapped (iOS 83806b3d feeIsAdjustable).
+                                groupFeePill(estimatedFee)
                             }
                             groupPhotoPreviewRow(
                                 pendingPhotoUri = pendingPhotoUri,
@@ -705,10 +726,11 @@ fun GroupChatThreadScreen(
                         Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                             // On chain the sum over the parts it goes as (iOS 7c5c22e3); via
                             // Nextcloud the link's fee under Show Fee Estimate.
+                            // Not tappable while a voice note is in the composer (iOS 83806b3d).
                             if (voiceRecordingState.viaNextcloud) {
-                                if (showFeeEstimate) groupFeePill(estimatedFee, onClick = { openFeeEditor(estimatedFee ?: 0L) })
+                                if (showFeeEstimate) groupFeePill(estimatedFee)
                             } else {
-                                groupFeePill(groupVoiceNoteFee, onClick = { openFeeEditor(groupVoiceNoteFee ?: 0L) })
+                                groupFeePill(groupVoiceNoteFee)
                             }
                             // Like 1:1 (iOS ca013fc8): stop, "Encoding…", "Audio ready" with a
                             // preview, then send; the trash discards at any stage.
@@ -1267,14 +1289,15 @@ fun GroupChatThreadScreen(
                 TextButton(onClick = {
                     // The one exact parser for typed KAS (iOS 16b64bc): "1,5" or "1.5", never a crash.
                     val desiredFeeSompi = KaspaUnit.sompiFromUserText(feeEditorInput)
-                    val currentFeeSompi = estimatedFeeRaw ?: 0L
-                    if (desiredFeeSompi != null && desiredFeeSompi > 0 && currentFeeSompi > 0 && effectiveRate > 0) {
-                        val impliedMass = currentFeeSompi / effectiveRate
-                        chatViewModel.setFeeRateOverride(kotlin.math.ceil(desiredFeeSompi / impliedMass).toLong())
-                    } else {
-                        chatViewModel.setFeeRateOverride(null)
-                    }
                     showFeeEditor = false
+                    // Capped and warned (iOS 83806b3d commitFeeOverride); below the network
+                    // minimum the send raises it.
+                    when {
+                        desiredFeeSompi == null || desiredFeeSompi <= 0 -> Unit
+                        desiredFeeSompi > com.kachat.app.util.MessageFeeLimit.MAX_SOMPI -> { showFeeTooHigh = true }
+                        desiredFeeSompi > com.kachat.app.util.MessageFeeLimit.WARN_SOMPI -> { pendingHighFeeSompi = desiredFeeSompi }
+                        else -> { applyGroupFeeOverride(desiredFeeSompi) }
+                    }
                 }) {
                     Text(stringResource(R.string.save), color = KaspaTeal, fontWeight = FontWeight.Bold)
                 }
@@ -1287,6 +1310,47 @@ fun GroupChatThreadScreen(
                     TextButton(onClick = { showFeeEditor = false }) {
                         Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                     }
+                }
+            }
+        )
+    }
+
+    if (showFeeTooHigh) {
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { showFeeTooHigh = false },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.fee_too_high), color = LocalAppColors.current.textPrimary) },
+            text = { Text(KaspaUnit.label(stringResource(R.string.a_message_fee_can_be_at_most_1_kas)), color = LocalAppColors.current.textSecondary) },
+            confirmButton = {
+                TextButton(onClick = { showFeeTooHigh = false }) {
+                    Text(stringResource(R.string.ok), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    pendingHighFeeSompi?.let { highFeeSompi ->
+        com.kachat.app.ui.theme.IosAlertDialog(
+            onDismissRequest = { pendingHighFeeSompi = null },
+            containerColor = LocalAppColors.current.surface,
+            title = { Text(stringResource(R.string.use_a_high_fee), color = LocalAppColors.current.textPrimary) },
+            text = {
+                Text(
+                    KaspaUnit.label(stringResource(R.string.message_fee_much_more_than_network_needs, ChatRepository.formatKas(highFeeSompi))),
+                    color = LocalAppColors.current.textSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    applyGroupFeeOverride(highFeeSompi)
+                    pendingHighFeeSompi = null
+                }) {
+                    Text(stringResource(R.string.use_it), color = KaspaTeal, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingHighFeeSompi = null }) {
+                    Text(stringResource(R.string.cancel), color = LocalAppColors.current.textSecondary)
                 }
             }
         )
@@ -1338,6 +1402,8 @@ private fun groupFeePill(feeSompi: Long?, modifier: Modifier = Modifier, estimat
         estimating = estimating,
         onTap = { onClick?.invoke() },
         modifier = modifier.padding(bottom = 8.dp),
+        // Photo and voice pills price their own parts and can't be tapped (iOS 83806b3d).
+        adjustable = onClick != null,
     )
 }
 
@@ -1676,7 +1742,7 @@ private fun GroupMessageBubble(
             if (isEdited) {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "edited",
+                        text = stringResource(R.string.edited_mark),
                         color = LocalAppColors.current.textSecondary,
                         fontSize = 11.sp,
                         modifier = Modifier
@@ -2468,7 +2534,8 @@ fun GroupChatInfoScreen(
         var addDomainNotFound by remember { mutableStateOf<String?>(null) }
         var addResolvingDomain by remember { mutableStateOf(false) }
         val addSelectResolution: (com.kachat.app.services.NameResolution) -> Unit = { resolution ->
-            resolution.address?.let {
+            // A name service's answer must be a valid address on this network (iOS 83806b3d).
+            resolution.address?.takeIf { com.kachat.app.util.KaspaAddress.isValidOnActiveNetwork(it) }?.let {
                 addResolvedDomain = it
                 addResolvedName = resolution.display
                 addSelectedTld = resolution.tld
@@ -2956,6 +3023,8 @@ private fun GroupInfoDisclosureRow(label: String, expanded: Boolean, onClick: ()
         androidx.compose.foundation.Canvas(
             modifier = Modifier
                 .size(14.dp)
+                // Points the reading direction in RTL; the open state (down) is unchanged.
+                .mirrorInRtl()
                 .graphicsLayer { rotationZ = rotation }
         ) {
             val stroke = 2.2.dp.toPx()

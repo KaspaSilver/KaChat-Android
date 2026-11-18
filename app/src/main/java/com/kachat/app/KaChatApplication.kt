@@ -120,6 +120,10 @@ class KaChatApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var chatRepository: dagger.Lazy<com.kachat.app.repository.ChatRepository>
 
+    // Temp files a crash or a dismissed share left behind are swept once per launch (iOS 83806b3d).
+    @Inject
+    lateinit var cacheManager: dagger.Lazy<com.kachat.app.services.CacheManager>
+
     // The Address Book (iOS 00767a4): built at startup because every display name reads it
     // through its companion (addressDisplayName), and it follows the active wallet on its own.
     @Inject
@@ -200,6 +204,8 @@ class KaChatApplication : Application(), Configuration.Provider {
                 com.kachat.app.services.RetiredFeatureCleanup.deleteLocalFiles(this@KaChatApplication)
             }
             appSettingsRepository.get().removeRetiredFeatureKeys()
+            // Temp files older than a day are nobody's any more (iOS 83806b3d `sweepStaleTempFiles`).
+            runCatching { cacheManager.get().sweepStaleTempFiles() }
         }
 
         // The .kachat identity caches the display rules read (see the fields above). Every

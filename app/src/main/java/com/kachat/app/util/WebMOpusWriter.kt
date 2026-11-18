@@ -363,12 +363,15 @@ object WebMOpusWriter {
         return ByteArray(8) { i -> (bits ushr (8 * (7 - i))).toByte() }
     }
 
-    /** iOS `encodeVint`: the shortest length whose all-ones value still holds [value] (iOS's
-     *  `<=`, kept so the bytes match), else the 8-byte unknown size. */
-    private fun encodeVint(value: Long): ByteArray {
+    /** iOS `encodeVint`: the shortest length that holds [value], else the 8-byte unknown size.
+     *  Strictly below the all-ones value: all ones is EBML's "unknown size", and iOS's reader
+     *  takes it as that for every element, so a 127-byte block written as 0xFF (iOS's own `<=`)
+     *  swallowed the rest of its cluster and the part didn't play on iPhone. iOS's CBR packets
+     *  never reach that size; an Android encoder without CBR can. */
+    internal fun encodeVint(value: Long): ByteArray {
         for (length in 1..8) {
             val maxValue = (1L shl (7 * length)) - 1
-            if (value <= maxValue) {
+            if (value < maxValue) {
                 val bytes = ByteArray(length) { i -> (value ushr (8 * (length - 1 - i))).toByte() }
                 bytes[0] = (bytes[0].toInt() or (1 shl (8 - length))).toByte()
                 return bytes

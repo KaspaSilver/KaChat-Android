@@ -6,6 +6,7 @@ import org.bouncycastle.crypto.params.HKDFParameters
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -202,5 +203,18 @@ class KasiaCipherTest {
         } catch (e: KasiaCipher.NotReadableBackException) {
             // expected
         }
+    }
+
+    /** iOS 83806b3d: hex digits in pairs only - no sign, no odd last digit. */
+    @Test
+    fun `hexBytes reads only hex digit pairs`() {
+        assertArrayEquals(byteArrayOf(0x0a, 0xff.toByte(), 0x10), KasiaCipher.hexBytes("0aFF10"))
+        assertArrayEquals(ByteArray(0), KasiaCipher.hexBytes(""))
+        assertNull(KasiaCipher.hexBytes("+a"))
+        assertNull(KasiaCipher.hexBytes("-0"))
+        assertNull(KasiaCipher.hexBytes("abc"))
+        assertNull(KasiaCipher.hexBytes("0g"))
+        assertNull(KasiaCipher.hexBytes(" 0a"))
+        assertNull(KasiaCipher.hexBytes("\uFF10\uFF11"))
     }
 }

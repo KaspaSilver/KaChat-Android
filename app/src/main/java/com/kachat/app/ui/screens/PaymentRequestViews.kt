@@ -2,6 +2,7 @@ package com.kachat.app.ui.screens
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.ArrowCircleUp
@@ -389,6 +391,8 @@ fun CreatePaymentRequestSheet(
         var copied by remember { mutableStateOf(false) }
         var isWorking by remember { mutableStateOf(false) }
         var sendError by remember { mutableStateOf<String?>(null) }
+        /** The request shown as a QR (Show Request As QR, iOS 413f6d6d). */
+        var qrRequest by remember { mutableStateOf<PaymentRequest?>(null) }
 
         // derived, not reserved: opening the screen and cancelling uses no address up
         LaunchedEffect(Unit) { nextFreshAddress = walletViewModel.nextFreshSpendingAddress() }
@@ -455,6 +459,21 @@ fun CreatePaymentRequestSheet(
                     clipboard.setText(AnnotatedString(signedLink(unsigned)))
                     haptic(com.kachat.app.util.IosHaptic.SUCCESS)
                     copied = true
+                } finally {
+                    isWorking = false
+                }
+            }
+        }
+        /** Show Request As QR: the same signed request, as a code to scan with a phone's camera. */
+        val showQr: () -> Unit = {
+            isWorking = true
+            sendError = null
+            scope.launch {
+                try {
+                    val unsigned = makeRequest() ?: return@launch
+                    qrRequest = withContext(Dispatchers.Default) {
+                        com.kachat.app.services.PaymentRequestWallet.shared?.sign(unsigned) ?: unsigned
+                    }
                 } finally {
                     isWorking = false
                 }
@@ -599,6 +618,9 @@ fun CreatePaymentRequestSheet(
                         }
                     ),
                     canContinue = canMake && !isWorking,
+                    secondaryTitle = if (isForChat) null else stringResource(R.string.show_request_as_qr),
+                    secondaryIcon = Icons.Default.QrCode,
+                    onSecondary = if (isForChat) null else showQr,
                     onContinue = { if (isForChat) sendRequest() else copyRequest() },
                 ) {
                     Column(
@@ -694,6 +716,86 @@ fun CreatePaymentRequestSheet(
                         )
                     }
                 }
+            }
+        }
+        qrRequest?.let { request -> PaymentRequestQrSheet(request, onDismissed = { qrRequest = null }) }
+    }
+}
+
+/**
+ * A payment request as a QR (iOS 413f6d6d `PaymentRequestQRSheet`). Scanned with a phone's camera
+ * it opens KaPay on Send, filled in (`kapay://pay/...`, the link KaChat hands requests to KaPay
+ * with - [KaPayHandoff]). A request to your chatting address is paid as a chat payment, which only
+ * KaChat can make, so that one holds the kachat.app link instead, which opens KaChat.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PaymentRequestQrSheet(request: PaymentRequest, onDismissed: () -> Unit) {
+    IosFullSheet(onDismissed = onDismissed, swipeToDismiss = true) { close ->
+        BackHandler(onBack = close)
+        val colors = LocalAppColors.current
+        val payload = if (request.toChattingAddress) request.shareUrlString else "${KaPayHandoff.SCHEME}://pay/${request.linkTail}"
+        Scaffold(
+            containerColor = colors.background,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                SheetNavBar(
+                    title = stringResource(R.string.pr_payment_request),
+                    trailing = { SheetBarButton(stringResource(R.string.done), onClick = close) },
+                )
+            },
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        "${KaspaUnit.plain(request.amountSompi)} ${KaspaUnit.symbol}",
+                        color = colors.textPrimary,
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = IosRoundedFontFamily,
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                    )
+                    val memo = request.memo.trim()
+                    if (memo.isNotEmpty()) {
+                        Text(memo, color = colors.textSecondary, fontSize = 15.sp, textAlign = TextAlign.Center)
+                    }
+                }
+                // white, with a quiet zone, so every camera reads it in dark mode too
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .padding(16.dp),
+                ) {
+                    Image(
+                        painter = rememberQrBitmapPainter(payload, size = 260),
+                        contentDescription = stringResource(R.string.show_request_as_qr),
+                        modifier = Modifier.size(260.dp),
+                    )
+                }
+                // Says "a phone's camera" where iOS says "an iPhone's camera": on purpose, so the
+                // caption doesn't read oddly on Android (the user's call, 2026-11-18).
+                Text(
+                    stringResource(if (request.toChattingAddress) R.string.pr_qr_scan_to_pay_in_kachat else R.string.pr_qr_scan_to_pay_in_kapay),
+                    color = colors.textSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }

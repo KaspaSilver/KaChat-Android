@@ -185,7 +185,11 @@ data class UtxoData(
     val amount: Long,
     val scriptPublicKey: ScriptPublicKey,
     val blockDaaScore: Long,
-    val isCoinbase: Boolean
+    val isCoinbase: Boolean,
+    /** The covenant this coin is bound to (version-1 transactions), null for a plain coin. A
+     *  bound coin can only be spent under its covenant's rules, so no plain send, message or
+     *  record picks it (iOS 83806b3d `UTXO.covenantId`). */
+    @SerializedName(value = "covenantId", alternate = ["covenant_id"]) val covenantId: String? = null
 )
 
 // -------------------------------------------------------------------------

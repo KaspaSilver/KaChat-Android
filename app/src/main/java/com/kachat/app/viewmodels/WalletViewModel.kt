@@ -155,10 +155,12 @@ class WalletViewModel @Inject constructor(
         "%.2f %s".format(kAs, KaspaUnit.symbol)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00 ${KaspaUnit.symbol}")
 
-    val fullBalance: StateFlow<String> = walletService.balance.map {
-        val kAs = it.toDouble() / 100_000_000.0
-        "%.8f %s".format(java.util.Locale.US, kAs, KaspaUnit.symbol)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "0.00000000 ${KaspaUnit.symbol}")
+    /** The toolbar balance: "--" until a fetch has answered, never a "0" that isn't known
+     *  (iOS 83806b3d BalanceToolbarLabel). */
+    val fullBalance: StateFlow<String> = combine(walletService.balance, walletService.balanceKnown) { balance, known ->
+        if (!known) "-- ${KaspaUnit.symbol}"
+        else "%.8f %s".format(java.util.Locale.US, balance.toDouble() / 100_000_000.0, KaspaUnit.symbol)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "-- ${KaspaUnit.symbol}")
 
     val balanceSompi: StateFlow<Long> = walletService.balance
 
@@ -1223,6 +1225,7 @@ class WalletViewModel @Inject constructor(
     }
 
     init {
+        resumePendingAccountWipes()
         // Mirror the active account's address into DataStore so the per-account keys always
         // resolve against the right account, including immediately after an account switch.
         viewModelScope.launch {
@@ -1319,11 +1322,19 @@ class WalletViewModel @Inject constructor(
     }
 
     fun logout() {
-        walletManager.isLoggedOut = true
         // Mirrors iOS's WalletManager.logout(): a logged-out device must stop receiving pushes
         // for the account, even though the wallet data stays on the device. Signing material is
-        // captured synchronously, and the wallet isn't being destroyed here anyway.
+        // captured synchronously, before the sign-out below: a signed-out account has no key
+        // (WalletManager.getPrivateKeyBytes, iOS 83806b3d), so the unregister goes first, as on iOS.
         pushRegistrationManager.unregisterAsync()
+        walletManager.isLoggedOut = true
+        // Its banners go with it: the next account to sign in must not find them, and a banner's
+        // Reply would send from that account (iOS 83806b3d).
+        walletManager.clearNotificationsForSignedOutAccount()
+        // Drafts are per account and go with a Log Out too (iOS 83806b3d `clearMessageDrafts`).
+        walletManager.getActiveAccount()?.address?.let { active ->
+            com.kachat.app.util.KaspaNetwork.accountAddressVariants(active).forEach { chatRepository.discardDrafts(it) }
+        }
         _isLoggedIn.value = false
     }
 
@@ -1479,6 +1490,44 @@ class WalletViewModel @Inject constructor(
         _address.value?.let { accountBackupStatus.markConfirmed(it) }
     }
 
+    /**
+     * A deleted account's local data, for each of its addresses (on both networks: the same key is
+     * the same account as kaspa: and kaspatest:, and each kept its own chats, iOS 741c005). Each
+     * address leaves [WalletManager.pendingAccountWipes] once it is done.
+     */
+    private suspend fun wipeDeletedAccountData(addresses: Collection<String>) {
+        for (variant in addresses) {
+            // Groups first: their Keystore bags are found through the rows the other wipe deletes.
+            runCatching { groupRepository.get().clearAllLocalData(variant) }
+                .onFailure { android.util.Log.w("WalletViewModel", "Group data wipe failed for a deleted account", it) }
+            runCatching { chatRepository.wipeAllLocalDataForAddress(variant) }
+                .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
+            // The account's Nextcloud login, its app password revoked on the server while
+            // the credentials still exist to authenticate with, and its sync state - for
+            // every removal path alike (iOS d23e6f7a revokeAndPurgeStoredState).
+            runCatching {
+                nextcloudService.revokeAndPurgeStoredState(variant)
+                nextcloudSyncService.get().purgeStoredState(variant)
+            }.onFailure { android.util.Log.w("WalletViewModel", "Nextcloud state purge failed for a deleted account", it) }
+            walletManager.removePendingAccountWipe(variant)
+        }
+    }
+
+    /** A deleted account's wipe the app was closed in the middle of, finished now - unless that
+     *  account was added back since (its data is its own again). */
+    private fun resumePendingAccountWipes() {
+        val pending = walletManager.pendingAccountWipes()
+        if (pending.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val live = walletManager.getAllAccounts().flatMap { walletManager.addressesHoldingLocalData(it.address) }
+            val (readded, orphaned) = pending.partition { address ->
+                live.any { com.kachat.app.util.KaspaNetwork.isSameAccount(it, address) }
+            }
+            readded.forEach { walletManager.removePendingAccountWipe(it) }
+            if (orphaned.isNotEmpty()) wipeDeletedAccountData(orphaned)
+        }
+    }
+
     /** Settings > Delete Account: the signed-in account, removed the way the sign-in screen's
      *  Delete removes it - the one local-data removal every path shares, the Nextcloud app
      *  password revoked in it (iOS d23e6f7a). */
@@ -1502,6 +1551,9 @@ class WalletViewModel @Inject constructor(
         // deleting some other saved account from the Welcome list must not kill this one's push.
         if (address == walletManager.getActiveAccount()?.address) {
             pushRegistrationManager.unregisterAsync()
+            // Decrypted banners would outlive the account, and Reply on one sends from whichever
+            // account signs in next (iOS 83806b3d).
+            walletManager.clearNotificationsForSignedOutAccount()
         }
         // Everything this account held locally goes with it. wipeAllLocalDataForAddress has been
         // here the whole time and nothing called it on deletion, so a deleted account's messages,
@@ -1520,26 +1572,15 @@ class WalletViewModel @Inject constructor(
             addressActivityNotifier.get().removeAllData(variant)
         }
         accountBackupStatus.forget(address)
+        // Marked before the record goes: if the process dies before the wipe below is done, the
+        // next launch finishes it (resumePendingAccountWipes) - otherwise the deleted account's
+        // messages stayed on the device and came back with the seed.
+        walletManager.addPendingAccountWipes(localDataAddresses)
         // until the wipe below is done
         _isRemovingAccount.value = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // On both networks: the same key is the same account as kaspa: and kaspatest:, and
-                // each kept its own chats (iOS 741c005).
-                for (variant in localDataAddresses) {
-                    // Groups first: their Keystore bags are found through the rows the other wipe deletes.
-                    runCatching { groupRepository.get().clearAllLocalData(variant) }
-                        .onFailure { android.util.Log.w("WalletViewModel", "Group data wipe failed for a deleted account", it) }
-                    runCatching { chatRepository.wipeAllLocalDataForAddress(variant) }
-                        .onFailure { android.util.Log.w("WalletViewModel", "Local data wipe failed for a deleted account", it) }
-                    // The account's Nextcloud login, its app password revoked on the server while
-                    // the credentials still exist to authenticate with, and its sync state - for
-                    // every removal path alike (iOS d23e6f7a revokeAndPurgeStoredState).
-                    runCatching {
-                        nextcloudService.revokeAndPurgeStoredState(variant)
-                        nextcloudSyncService.get().purgeStoredState(variant)
-                    }.onFailure { android.util.Log.w("WalletViewModel", "Nextcloud state purge failed for a deleted account", it) }
-                }
+                wipeDeletedAccountData(localDataAddresses)
             } finally {
                 _isRemovingAccount.value = false
             }

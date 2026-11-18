@@ -1199,19 +1199,24 @@ fun SendStepHeader(
 
 /**
  * A send step's Continue (iOS `SendContinueButton`): a teal capsule pinned at the bottom, full
- * width, or beside Cancel when the step has [onCancel] (its header then leaves Cancel out).
+ * width, or beside Cancel when the step has [onCancel] (its header then leaves Cancel out). An
+ * optional second action ([secondaryTitle], [onSecondary]) sits full width under it - Request
+ * Payment's QR (iOS 413f6d6d).
  */
 @Composable
 fun SendContinueButton(
     title: String,
     isEnabled: Boolean,
     onCancel: (() -> Unit)? = null,
+    secondaryTitle: String? = null,
+    secondaryIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    onSecondary: (() -> Unit)? = null,
     action: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     val haptic = com.kachat.app.util.rememberHaptics()
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.background)
@@ -1220,6 +1225,10 @@ fun SendContinueButton(
             .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         if (onCancel != null) {
             Box(
@@ -1251,6 +1260,27 @@ fun SendContinueButton(
             Text(title, color = Color.Black.copy(alpha = if (isEnabled) 1f else 0.5f), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
     }
+    if (secondaryTitle != null && onSecondary != null) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .alpha(if (isEnabled) 1f else 0.4f)
+                .clip(CircleShape)
+                .background(colors.surface)
+                .border(1.dp, KaspaTeal.copy(alpha = 0.35f), CircleShape)
+                .clickable(enabled = isEnabled, role = Role.Button) {
+                    haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                    onSecondary()
+                },
+        ) {
+            if (secondaryIcon != null) Icon(secondaryIcon, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+            Text(secondaryTitle, color = KaspaTeal, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
+    }
+    }
 }
 
 /**
@@ -1266,6 +1296,10 @@ fun SendStepScreen(
     onContinue: () -> Unit,
     onBack: (() -> Unit)? = null,
     continueTitle: String = stringResource(R.string.continue_label),
+    /** An optional second button under Continue ([SendContinueButton]'s secondary action). */
+    secondaryTitle: String? = null,
+    secondaryIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    onSecondary: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -1279,6 +1313,9 @@ fun SendStepScreen(
             title = continueTitle,
             isEnabled = canContinue,
             onCancel = if (onBack == null) onCancel else null,
+            secondaryTitle = secondaryTitle,
+            secondaryIcon = secondaryIcon,
+            onSecondary = onSecondary,
             action = onContinue,
         )
     }

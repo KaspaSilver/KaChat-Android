@@ -273,4 +273,63 @@ class KaspaUtxoSelectorTest {
         assertTrue(withMemo.estimatedFee > plain.estimatedFee)
         assertEquals(withMemo.totalSelected - withMemo.finalAmount - withMemo.estimatedFee, withMemo.changeAmount)
     }
+
+    // MARK: - Messages (iOS 83806b3d): the input and mass cap, and the custom fee clamp
+
+    @Test
+    fun `a message that needs more than the input cap asks for a compound`() {
+        // 1000 sompi coins never pay a message's fee: the pick runs into the 80-input cap
+        val coins = (0 until 100).map { utxo(1_000L, "c", it) }
+        val result = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            coins, amountSompi = 0, feeRateSompiPerGram = 100L,
+            payloadBytes = ByteArray(200), recipientScriptLen = 34, changeScriptLen = 34
+        )
+        assertEquals(KaspaUtxoSelector.Refusal.TooManyCoinsForMessage, result.refusal)
+        assertEquals(KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION, result.selectedUtxos.size)
+    }
+
+    @Test
+    fun `a big payload over many small coins stops at the mass limit`() {
+        val coins = (0 until 200).map { utxo(100_000L, "m", it) }
+        val payload = ByteArray(45_000)
+        val result = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            coins, amountSompi = 0, feeRateSompiPerGram = 100L,
+            payloadBytes = payload, recipientScriptLen = 34, changeScriptLen = 34
+        )
+        assertEquals(KaspaUtxoSelector.Refusal.TooManyCoinsForMessage, result.refusal)
+        assertTrue(result.selectedUtxos.size < KaspaUtxoSelector.MAX_INPUTS_PER_TRANSACTION)
+        val mass = KaspaMass.calculateMass(result.selectedUtxos.size, listOf(34), payload.size)
+        assertTrue(mass <= KaspaMass.MAX_STANDARD_MASS)
+
+        // one coin big enough carries the same payload
+        val single = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            listOf(utxo(100_000_000L)), amountSompi = 0, feeRateSompiPerGram = 100L,
+            payloadBytes = payload, recipientScriptLen = 34, changeScriptLen = 34
+        )
+        assertEquals(null, single.refusal)
+        assertEquals(1, single.selectedUtxos.size)
+    }
+
+    @Test
+    fun `a message's custom fee is capped at 1 KAS and never under the network minimum`() {
+        val coin = listOf(utxo(1_000_000_000L))
+        val typo = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            coin, amountSompi = 0, feeRateSompiPerGram = 10_000_000L,
+            payloadBytes = ByteArray(100), recipientScriptLen = 34, changeScriptLen = 34,
+            capCustomMessageFee = true
+        )
+        assertEquals(MessageFeeLimit.MAX_SOMPI, typo.estimatedFee)
+        assertEquals(1_000_000_000L - MessageFeeLimit.MAX_SOMPI, typo.changeAmount)
+
+        val atMinimum = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            coin, amountSompi = 0, feeRateSompiPerGram = KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM,
+            payloadBytes = ByteArray(100), recipientScriptLen = 34, changeScriptLen = 34,
+            capCustomMessageFee = true
+        )
+        val uncapped = KaspaUtxoSelector.selectUtxosAndCalculateFee(
+            coin, amountSompi = 0, feeRateSompiPerGram = KaspaMass.MINIMUM_FEE_RATE_SOMPI_PER_GRAM,
+            payloadBytes = ByteArray(100), recipientScriptLen = 34, changeScriptLen = 34
+        )
+        assertEquals(uncapped.estimatedFee, atMinimum.estimatedFee)
+    }
 }

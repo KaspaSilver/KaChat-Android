@@ -45,6 +45,15 @@ class WebMOpusWriterTest {
     }
 
     @Test
+    fun `a size that is all ones in its length takes the next length, never the unknown-size mark`() {
+        assertArrayEquals(byteArrayOf(0xFE.toByte()), WebMOpusWriter.encodeVint(126))
+        // 127 written as 0xFF reads as "unknown size" on iPhone and swallowed the rest of the cluster
+        assertArrayEquals(byteArrayOf(0x40, 0x7F), WebMOpusWriter.encodeVint(127))
+        assertArrayEquals(byteArrayOf(0x7F, 0xFE.toByte()), WebMOpusWriter.encodeVint(16_382))
+        assertArrayEquals(byteArrayOf(0x20, 0x3F, 0xFF.toByte()), WebMOpusWriter.encodeVint(16_383))
+    }
+
+    @Test
     fun `25 s of 6 kbps packets is 26,651 bytes - under the 31 KB cap, nothing trimmed`() {
         val case = cases.first { it.name == "p1250" }
         val file = write(case)

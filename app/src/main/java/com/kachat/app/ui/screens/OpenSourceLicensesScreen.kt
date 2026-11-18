@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.ui.theme.mirrorInRtl
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -158,7 +159,7 @@ fun OpenSourceLicensesScreen(onBack: () -> Unit) {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Open Source Licenses",
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.open_source_licenses),
                         color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
@@ -168,8 +169,9 @@ fun OpenSourceLicensesScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.Filled.ArrowBackIosNew,
-                            contentDescription = "Back",
+                            contentDescription = androidx.compose.ui.res.stringResource(com.kachat.app.R.string.back),
                             tint = LocalAppColors.current.textPrimary,
+                            modifier = Modifier.mirrorInRtl(),
                         )
                     }
                 },

@@ -47,6 +47,21 @@ class KaspaFiatAmountState internal constructor(private val onKasTextChange: (St
         onKasTextChange(kasText)
     }
 
+    /** Max from an exact sompi amount (iOS 83806b3d `setMaxSompi`): the KAS text is built by
+     *  integer math, so it is exact to the sompi at any balance - a Double is off by a sompi above
+     *  about 90M KAS. Prefer this over [setMaxKas]. Returns the KAS text handed on. */
+    fun setMaxSompi(sompi: Long, priceInCurrency: Double?): String {
+        val exact = KaspaUnit.plain(sompi)
+        displayText = if (isFiatMode && priceInCurrency != null && priceInCurrency > 0.0) {
+            formatFiatPlain(sompi / 100_000_000.0 * priceInCurrency)
+        } else {
+            exact
+        }
+        kasText = exact
+        onKasTextChange(kasText)
+        return kasText
+    }
+
     /** Caller's own Max button already knows the current max sendable KAS (fee-aware, etc.) -
      *  this just also reflects it into whichever unit is currently being displayed. */
     fun setMaxKas(maxKas: Double, priceInCurrency: Double?) {

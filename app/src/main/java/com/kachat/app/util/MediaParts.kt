@@ -281,7 +281,9 @@ class VoicePartCluster<M>(
     val count: Int,
     /** The parts present, one message per index, in index order. */
     val parts: List<M>,
-    /** The earliest part in thread order: where the one bubble sits, and whose time it shows. */
+    /** The lowest part present (the earliest in thread order among equals): where the one bubble
+     *  sits, and whose time it shows. Not the earliest row: while a note sends its parts confirm
+     *  out of order, and an earliest-row anchor made the bubble hop (iOS 83806b3d). */
     val anchor: M,
     /** Every message of the group by txId, the hidden duplicates of an index included. */
     val allTxIds: Set<String>,
@@ -368,7 +370,7 @@ object VoicePartGrouping {
         val anchorByTxId = HashMap<String, String>()
         val txIdsByAnchor = HashMap<String, Set<String>>()
         for ((key, members) in tagged) {
-            val anchor = members.first().first
+            val anchor = members.minBy { it.second.index }.first
             val byIndex = java.util.TreeMap<Int, M>()
             for ((message, tag) in members) {
                 val existing = byIndex[tag.index]

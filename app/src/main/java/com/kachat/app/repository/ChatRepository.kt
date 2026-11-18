@@ -244,7 +244,7 @@ class ChatRepository @Inject constructor(
     suspend fun contactIdsWithMessageContaining(query: String): Set<String> {
         val address = walletManager.getAddress()
         if (address.isEmpty() || query.isEmpty()) return emptySet()
-        val rows = database.messageDao().getMessageBodiesForWallet(address)
+        val rows = database.messageDao().getShortMessageBodiesForWallet(address, 4096)
         return kotlinx.coroutines.withContext(Dispatchers.Default) {
             rows.asSequence()
                 .filter { row ->
@@ -1387,13 +1387,15 @@ class ChatRepository @Inject constructor(
         return IncomingResyncResult(chatCount = chatCount, messageCount = messageCount)
     }
 
+    /** Erases [address]'s unsent drafts - Log Out (iOS 83806b3d: drafts are per account and
+     *  cleared on Log Out and Delete Account). Delete Account clears them in
+     *  [wipeAllLocalDataForAddress]. */
+    fun discardDrafts(address: String) = draftStore.discardDrafts(address)
+
     /** Deletes every local message and contact for [address] — used when wiping an account entirely. Does not touch the wallet's keys (see WalletManager.deleteAccount) or any cloud backup. */
     suspend fun wipeAllLocalDataForAddress(address: String) {
-        // Before the rows they are keyed by go.
-        draftStore.removeDrafts(
-            database.contactDao().getContacts(address).first().map { it.id } +
-                database.groupDao().getGroupsOnce(address).map { com.kachat.app.services.DraftStore.groupKey(it.groupId) }
-        )
+        // Its drafts are its own store (iOS 83806b3d, per-account drafts), gone with it.
+        draftStore.discardDrafts(address)
         database.messageDao().deleteAllForWallet(address)
         database.reactionDao().deleteAllForWallet(address)
         database.messageEditDao().deleteAllForWallet(address)

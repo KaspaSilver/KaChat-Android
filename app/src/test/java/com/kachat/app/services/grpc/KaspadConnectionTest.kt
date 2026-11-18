@@ -131,6 +131,23 @@ class KaspadConnectionTest {
     }
 
     @Test
+    fun `closing the connection fails a waiting call as a lost answer, not a cancellation`() = runBlocking {
+        startServer(object : RPCGrpcKt.RPCCoroutineImplBase() {
+            override fun messageStream(requests: Flow<Messages.KaspadRequest>): Flow<Messages.KaspadResponse> =
+                flow { requests.collect { /* never respond */ } }
+        })
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val conn = newConnection(scope)
+        conn.connect()
+        val waiting = async { runCatching { callGetInfo(conn, timeoutMs = 5_000) }.exceptionOrNull() }
+        while (conn.pendingCount == 0) kotlinx.coroutines.yield()
+        conn.close()
+        val error = waiting.await()
+        assertTrue("got $error", error is java.io.IOException)
+        assertTrue(com.kachat.app.services.SubmitConfirmation.isLostAnswer(error!!))
+    }
+
+    @Test
     fun `hasMempoolEntry is true only for a transaction the node holds (audit IOS-014)`() = runBlocking {
         val known = "aa".repeat(32)
         startServer(object : RPCGrpcKt.RPCCoroutineImplBase() {

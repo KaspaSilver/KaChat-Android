@@ -59,7 +59,26 @@ class CacheManager @Inject constructor(
             File(context.cacheDir, "portfolio_exports"),
             File(context.cacheDir, "chat_exports"),
             File(context.cacheDir, "diagnostics_exports"),
+            // the Address Book export JSON, handed to a share sheet and never deleted (iOS 83806b3d)
+            File(context.cacheDir, "address_book_exports"),
         )
+    }
+
+    /**
+     * Camera captures, history, diagnostics and Address Book exports, and loose voice scratch the
+     * app wrote and could not clean up (killed mid-way, a share sheet that never completed).
+     * Anything of ours older than a day is nobody's any more (iOS 83806b3d
+     * `sweepStaleTempFiles`). Meant to run once per launch, off the main thread.
+     */
+    suspend fun sweepStaleTempFiles() = withContext(Dispatchers.IO) {
+        val cutoff = System.currentTimeMillis() - STALE_TEMP_AGE_MS
+        var removed = 0
+        directories(Category.TEMPORARY_FILES).forEach { dir ->
+            dir.listFiles()?.filter { it.lastModified() <= cutoff }?.forEach { if (runCatching { it.deleteRecursively() }.getOrDefault(false)) removed++ }
+        }
+        looseTempFiles().filter { it.lastModified() <= cutoff }.forEach { if (runCatching { it.delete() }.getOrDefault(false)) removed++ }
+        if (removed > 0) android.util.Log.i("CacheManager", "Removed $removed stale temp file(s)")
+        Unit
     }
 
     /**
@@ -135,6 +154,9 @@ class CacheManager @Inject constructor(
     }
 
     companion object {
+        /** A temp file older than this is left over (iOS: a day). */
+        private const val STALE_TEMP_AGE_MS = 24 * 60 * 60 * 1000L
+
         fun formatted(bytes: Long): String = when {
             bytes >= 1_000_000_000 -> "%.2f GB".format(java.util.Locale.US, bytes / 1_000_000_000.0)
             bytes >= 1_000_000 -> "%.1f MB".format(java.util.Locale.US, bytes / 1_000_000.0)

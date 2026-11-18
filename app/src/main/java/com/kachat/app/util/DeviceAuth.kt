@@ -22,8 +22,10 @@ internal tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (t
 /**
  * Gates [onSuccess] behind whatever the device's own lock screen is set to (fingerprint/face
  * unlock or PIN/pattern/password) — used for the wallet's most sensitive actions (viewing the
- * seed phrase, unlocking a saved account after logout, sending Kaspa, deleting an account) so they
- * can't be reached by anyone who just picked up an already-unlocked phone.
+ * seed phrase or a private key, unlocking a saved account after logout, giving a domain away,
+ * .kachat name transactions, deleting an account) so they can't be reached by anyone who just
+ * picked up an already-unlocked phone. Sends don't ask: the swipe is their confirmation (iOS
+ * 83806b3d, owner's call 2026-11-13).
  *
  * A phone with no secure lock screen at all used to fall straight through to [onSuccess]: the
  * "gate" on the recovery phrase was then no gate, and anyone holding the unlocked phone could
@@ -45,7 +47,7 @@ fun Context.authenticateWithDeviceCredential(
     }
     // A strong biometric can't be combined with the device credential on Android 9 and 10: the
     // combination is refused as unsupported, which would read as "no screen lock" there and stop
-    // every send now that sends ask.
+    // every gated action.
     val allowedAuthenticators = if (Build.VERSION.SDK_INT == Build.VERSION_CODES.P || Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
         BIOMETRIC_WEAK or DEVICE_CREDENTIAL
     } else {

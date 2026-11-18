@@ -16,6 +16,36 @@ class SendOutcomeUnknownException(val txId: String, cause: Exception) : IllegalS
 )
 
 /**
+ * The nodes that answered a submit with a rejection, and whether any of those was a verdict
+ * against the transaction itself (iOS 83806b3d `SubmitAnswers`). Carried in the submit's
+ * coroutine context, where [com.kachat.app.services.grpc.KaspadConnection.submitRpcTransaction]
+ * notes every rejection. The "did it go out anyway" look-up then never takes those nodes' own
+ * mempool answer as proof, and after a verdict asks for two other nodes holding it.
+ */
+class SubmitAnswers : kotlin.coroutines.AbstractCoroutineContextElement(SubmitAnswers) {
+    companion object Key : kotlin.coroutines.CoroutineContext.Key<SubmitAnswers>
+
+    private val keys = mutableSetOf<String>()
+    private var verdict = false
+
+    val answeredKeys: Set<String>
+        @Synchronized get() = keys.toSet()
+
+    val sawVerdict: Boolean
+        @Synchronized get() = verdict
+
+    @Synchronized
+    fun note(key: String, verdict: Boolean) {
+        keys += key
+        if (verdict) this.verdict = true
+    }
+
+    /** How many nodes must hold the transaction for it to count as sent: two once a node gave a
+     *  real verdict against it, else one. */
+    val holdersNeeded: Int get() = if (sawVerdict) 2 else 1
+}
+
+/**
  * A send built at the swipe would pay more than the Review showed (its coins changed since):
  * nothing was sent, and the Review shows [feeSompi], the new fee (iOS d23e6f7a
  * `SendFeeChangedError`, [KaspaWalletEngine.sendKaspa]'s `expectedFeeSompi`).
@@ -114,6 +144,10 @@ object SubmitConfirmation {
         isKnown: suspend (txId: String, afterRejection: Boolean) -> Boolean,
         onRecovered: (Exception) -> Unit = {},
         checkDelayMs: Long = UNKNOWN_OUTCOME_CHECK_DELAY_MS,
+        /** The look-up after a lost answer, each of the [UNKNOWN_OUTCOME_CHECKS] times: [isKnown]
+         *  with no rejection unless the caller asks differently (iOS 83806b3d
+         *  `confirmAfterLostAnswer` asks any verified node, not only those that didn't answer). */
+        isKnownAfterLostAnswer: suspend (txId: String) -> Boolean = { isKnown(it, false) },
         submit: suspend () -> String,
     ): String {
         try {
@@ -132,7 +166,7 @@ object SubmitConfirmation {
             if (txId.isEmpty() || !lostAnswer) throw e
             repeat(UNKNOWN_OUTCOME_CHECKS) {
                 delay(checkDelayMs)
-                if (isKnown(txId, false)) {
+                if (isKnownAfterLostAnswer(txId)) {
                     onRecovered(e)
                     return txId
                 }

@@ -519,7 +519,7 @@ fun AccountBackupScreen(viewModel: WalletViewModel, onClose: () -> Unit) {
                         step = BackupStep.PASSPHRASE_CHECK
                     }
                     BackupStep.PASSPHRASE_CHECK -> CreateWalletNextButton(stringResource(R.string.check_my_passphrase), enabled = passphraseAnswer.isNotEmpty()) {
-                        if (passphraseAnswer == passphrase) {
+                        if (samePassphrase(passphraseAnswer, passphrase)) {
                             step = BackupStep.TIPS
                         } else {
                             passphraseWrong = true
@@ -665,7 +665,7 @@ fun BackupHygieneScreen(viewModel: WalletViewModel, onClose: () -> Unit) {
                 }
                 if (wrong) Text(stringResource(R.string.that_doesnt_match_check_your_paper_and), color = colors.danger, fontSize = 13.sp)
                 CreateWalletNextButton(stringResource(R.string.check_my_passphrase), enabled = passphraseAnswer.isNotEmpty()) {
-                    if (passphraseAnswer == passphrase) {
+                    if (samePassphrase(passphraseAnswer, passphrase)) {
                         finish()
                     } else {
                         wrong = true
@@ -720,3 +720,11 @@ fun BackupHygieneScreen(viewModel: WalletViewModel, onClose: () -> Unit) {
         }
     }
 }
+
+/** Whether the typed passphrase is the one written down, as Swift's `==` compares them (iOS
+ *  AccountBackupView): canonically equivalent text is equal, so an accent typed as one character
+ *  or as a letter and a combining mark both pass - both open the same wallet (its seed uses NFKD). */
+internal fun samePassphrase(typed: String, passphrase: String?): Boolean =
+    passphrase != null &&
+    java.text.Normalizer.normalize(typed, java.text.Normalizer.Form.NFC) ==
+        java.text.Normalizer.normalize(passphrase, java.text.Normalizer.Form.NFC)

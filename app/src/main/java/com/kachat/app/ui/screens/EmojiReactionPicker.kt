@@ -135,7 +135,7 @@ fun EmojiReactionPickerSheet(
             Column(Modifier.navigationBarsPadding()) {
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
                     Text(
-                        "React",
+                        androidx.compose.ui.res.stringResource(com.kachat.app.R.string.react_title),
                         color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
@@ -145,7 +145,7 @@ fun EmojiReactionPickerSheet(
                         value = query,
                         onValueChange = { query = it },
                         singleLine = true,
-                        placeholder = { Text("Search emoji", color = colors.textSecondary) },
+                        placeholder = { Text(androidx.compose.ui.res.stringResource(com.kachat.app.R.string.search_emoji), color = colors.textSecondary) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.textSecondary) },
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(12.dp)),
                         colors = TextFieldDefaults.colors(
@@ -179,7 +179,7 @@ fun EmojiReactionPickerSheet(
                         if (sections.isEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
-                                    "No emoji match that.",
+                                    androidx.compose.ui.res.stringResource(com.kachat.app.R.string.no_emoji_match_that),
                                     color = colors.textSecondary,
                                     fontSize = 13.sp,
                                     textAlign = TextAlign.Center,

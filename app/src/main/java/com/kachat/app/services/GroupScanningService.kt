@@ -20,13 +20,8 @@ import protowire.Rpc
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private fun String.hexToBytesOrNull(): ByteArray? {
-    return try {
-        if (isEmpty()) ByteArray(0) else chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-    } catch (e: Exception) {
-        null
-    }
-}
+/** Hex digits in pairs only: a sign or an odd last digit is null (iOS 83806b3d). */
+private fun String.hexToBytesOrNull(): ByteArray? = com.kachat.app.util.KasiaCipher.hexBytes(this)
 
 private fun hexPrefix(prefix: String): String = prefix.toByteArray(Charsets.US_ASCII).joinToString("") { "%02x".format(it) }
 

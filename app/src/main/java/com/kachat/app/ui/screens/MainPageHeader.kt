@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import com.kachat.app.ui.theme.mirrorInRtlIfDirectional
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -111,7 +112,7 @@ fun ToolbarIconButton(
             .clip(androidx.compose.foundation.shape.CircleShape)
             .clickable(onClick = onClick),
     ) {
-        Icon(icon, contentDescription, tint = tint, modifier = Modifier.size(iconSize))
+        Icon(icon, contentDescription, tint = tint, modifier = Modifier.size(iconSize).mirrorInRtlIfDirectional(icon))
     }
 }
 
@@ -222,7 +223,7 @@ fun MainPageHeader(
                     if (onBack != null && !LocalInHubSection.current) {
                         ToolbarGlassGroup {
                             // iOS 26: the chevron in the label colour, centred on its glass.
-                            ToolbarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onBack, tint = LocalAppColors.current.textPrimary, iconSize = 20.dp)
+                            ToolbarIconButton(Icons.Filled.ArrowBackIosNew, androidx.compose.ui.res.stringResource(com.kachat.app.R.string.back), onBack, tint = LocalAppColors.current.textPrimary, iconSize = 20.dp)
                         }
                     }
                     if (showStatus) ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })
@@ -336,7 +337,8 @@ fun SheetBarIconButton(
             icon,
             contentDescription,
             tint = if (enabled) tint else LocalAppColors.current.textSecondary,
-            modifier = Modifier.size(iconSize),
+            // A back chevron points the way back in right-to-left languages too.
+            modifier = Modifier.size(iconSize).mirrorInRtlIfDirectional(icon),
         )
     }
 }
@@ -345,7 +347,7 @@ fun SheetBarIconButton(
 @Composable
 fun SheetBarBackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     // iOS 26 draws the back chevron in the label colour (white in dark mode), not the accent.
-    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onClick, modifier = modifier, tint = LocalAppColors.current.textPrimary, iconSize = 20.dp)
+    SheetBarIconButton(Icons.Filled.ArrowBackIosNew, androidx.compose.ui.res.stringResource(com.kachat.app.R.string.back), onClick, modifier = modifier, tint = LocalAppColors.current.textPrimary, iconSize = 20.dp)
 }
 
 /**

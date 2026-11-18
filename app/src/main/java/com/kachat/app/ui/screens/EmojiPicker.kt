@@ -196,7 +196,7 @@ fun EmojiPickerDialog(onDismissRequest: () -> Unit, onSelect: (String) -> Unit) 
         ) {
             Column {
                 Text(
-                    "Choose Emoji",
+                    stringResource(R.string.choose_emoji),
                     color = LocalAppColors.current.textPrimary,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium

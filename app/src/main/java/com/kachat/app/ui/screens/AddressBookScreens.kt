@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
@@ -58,6 +59,7 @@ import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -332,11 +334,23 @@ private fun AddressBookActions(show: Boolean, onAdd: () -> Unit, onDismiss: () -
         }
     }
 
+    /** The export holds every name and address in the book: once the share sheet is gone (the
+     *  file saved or sent, or not), the copy in the cache goes too (iOS 83806b3d
+     *  `removeExportFiles`). Also run before a new export, for one a closed app left behind. */
+    fun removeExportFiles() {
+        runCatching { java.io.File(context.cacheDir, "address_book_exports").deleteRecursively() }
+    }
+
+    val exportShare = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        scope.launch(Dispatchers.IO) { removeExportFiles() }
+    }
+
     fun exportToFile() {
         val data = exportBytes() ?: return
         scope.launch {
             val uri = withContext(Dispatchers.IO) {
                 runCatching {
+                    removeExportFiles()
                     val dir = java.io.File(context.cacheDir, "address_book_exports").apply { mkdirs() }
                     val file = java.io.File(dir, AddressBookManager.exportFileName()).apply { writeBytes(data) }
                     androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -353,8 +367,9 @@ private fun AddressBookActions(show: Boolean, onAdd: () -> Unit, onDismiss: () -
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             try {
-                context.startActivity(Intent.createChooser(intent, null))
+                exportShare.launch(Intent.createChooser(intent, null))
             } catch (e: android.content.ActivityNotFoundException) {
+                withContext(Dispatchers.IO) { removeExportFiles() }
                 IosToasts.error(context.getString(R.string.ab_export_failed))
             }
         }
@@ -775,11 +790,13 @@ private fun AddressBookFormField(
     maxLines: Int = 1,
     monospace: Boolean = false,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.Sentences,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     val colors = LocalAppColors.current
     TextField(
         value = value,
         onValueChange = onValueChange,
+        trailingIcon = trailingIcon,
         placeholder = { Text(placeholder, color = colors.textTertiary, fontFamily = if (monospace) FontFamily.Monospace else null, fontSize = if (monospace) 13.sp else androidx.compose.ui.unit.TextUnit.Unspecified) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = singleLine,
@@ -804,14 +821,17 @@ private fun AddressBookFormField(
 }
 
 /**
- * Add or edit one entry. With an [address] it edits that address's entry (or adds it, with
- * [suggestedName] filled in - User Info's "Add to Address Book"); without one the address is
- * typed, pasted or scanned (iOS `AddressBookEntryEditor`).
+ * Add or edit one entry. With an [address] it edits that address's entry (or adds it - User
+ * Info's "Add to Contacts"); without one the address is typed, pasted or scanned (iOS
+ * `AddressBookEntryEditor`). A new entry opens with no name - unless you already named them in
+ * their chat ([presetName]) - and Save needs one; "Use Their Domain Name" fills it in (iOS 413f6d6d).
  */
 @Composable
 fun AddressBookEntryEditor(
     address: String?,
-    suggestedName: String = "",
+    /** The name you gave them in User Info before they were in Contacts. Never their address or
+     *  domain: those are what the empty field and the domain button are for. */
+    presetName: String? = null,
     onDone: (AddressBookEditResult) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -835,7 +855,19 @@ fun AddressBookEntryEditor(
     val existing = remember(entries, effectiveAddress) { book.entry(effectiveAddress) }
     // Filled once, from the saved entry or the suggestion.
     val initial = remember { book.entry(address) }
-    var name by remember { mutableStateOf(initial?.name ?: suggestedName) }
+    var name by remember { mutableStateOf(initial?.name ?: presetName.orEmpty()) }
+    val trimmedName = name.trim()
+    // The opened address's own .kachat name, in full ("alice.kachat"), once looked up.
+    var kachatName by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(address) {
+        if (address == null || !com.kachat.app.services.kachatnames.KachatNamesService.isEnabled) return@LaunchedEffect
+        val registry = com.kachat.app.services.kachatnames.KachatNamesRegistry.shared ?: return@LaunchedEffect
+        val label = registry.cachedIdentity(address)?.label
+            ?: runCatching { registry.identity(address).label }.getOrNull()
+        if (label.isNullOrEmpty()) return@LaunchedEffect
+        val suffix = com.kachat.app.services.NameServiceTLD.KACHAT.suffix
+        kachatName = if (label.lowercase().endsWith(suffix)) label else label + suffix
+    }
     var note by remember { mutableStateOf(initial?.note.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
     var showScanner by remember { mutableStateOf(false) }
@@ -850,14 +882,27 @@ fun AddressBookEntryEditor(
     }
     val context = LocalContext.current
     val selectResolution: (com.kachat.app.services.NameResolution) -> Unit = { resolution ->
-        resolution.address?.let {
+        // A name service's answer must be a valid address on this network (NameResolution drops
+        // others too; checked again here, where it becomes the address used - iOS 83806b3d).
+        resolution.address?.takeIf { KaspaAddress.isValidOnActiveNetwork(it) }?.let {
             resolvedAddress = it
             resolvedName = resolution.display
             selectedTld = resolution.tld
             lookupError = null
-            // the name they're known by, unless one was typed already
-            if (name.isBlank()) name = resolution.display
+            // The name stays as typed: "Use Their Domain Name" offers the domain (iOS 413f6d6d).
         }
+    }
+    // What "Use Their Domain Name" fills in: a typed domain that resolved, else the address's
+    // .kachat name. Saved in full ("alice.kachat"), never the shortened form the hide-endings
+    // setting shows, since the book syncs to Nextcloud and KaPay, where that setting doesn't
+    // apply. Never a .kas domain: a .kas name is cleared from contacts on every load, so it
+    // wouldn't stay (iOS 413f6d6d).
+    val domainSuggestion: String? = run {
+        val tld = selectedTld
+        val shown = resolvedName
+        if (resolvedAddress != null && shown != null && tld != null && tld != com.kachat.app.services.NameServiceTLD.KAS) {
+            if (shown.lowercase().endsWith(tld.suffix)) shown else shown + tld.suffix
+        } else kachatName
     }
     // A typed name resolves on every service, .kachat first; the entry saves the address.
     LaunchedEffect(addressInput) {
@@ -906,8 +951,7 @@ fun AddressBookEntryEditor(
                 trailing = {
                     SheetBarButton(
                         stringResource(R.string.save),
-                        // an empty name saves too: the address goes by its .kachat name or itself
-                        enabled = effectiveAddress.isNotEmpty(),
+                        enabled = effectiveAddress.isNotEmpty() && trimmedName.isNotEmpty(),
                         onClick = {
                             try {
                                 val photo = when {
@@ -980,7 +1024,42 @@ fun AddressBookEntryEditor(
                 }
 
                 SettingsSection(title = stringResource(R.string.name)) {
-                    AddressBookFormField(name, { name = it }, stringResource(R.string.name), capitalization = KeyboardCapitalization.Words)
+                    AddressBookFormField(
+                        name, { name = it }, stringResource(R.string.name), capitalization = KeyboardCapitalization.Words,
+                        trailingIcon = if (name.isEmpty()) null else {
+                            {
+                                IconButton(onClick = { name = "" }) {
+                                    Icon(Icons.Default.Cancel, contentDescription = stringResource(R.string.clear), tint = colors.textSecondary, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        },
+                    )
+                    val suggestion = domainSuggestion
+                    if (suggestion != null && trimmedName != suggestion) {
+                        SettingsDivider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { name = suggestion }
+                                .heightIn(min = 48.dp)
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(14.dp))
+                            val useDomainLabel = stringResource(R.string.use_their_domain_name)
+                            Text(
+                                androidx.compose.ui.text.buildAnnotatedString {
+                                    append(useDomainLabel)
+                                    pushStyle(androidx.compose.ui.text.SpanStyle(color = colors.textSecondary))
+                                    append(" ($suggestion)")
+                                    pop()
+                                },
+                                color = KaspaTeal,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
                 }
 
                 SettingsSection(title = stringResource(R.string.address)) {

@@ -33,12 +33,29 @@ class KnsService @Inject constructor(
     private suspend fun api() = networkService.knsApi.filterNotNull().first()
 
     /** "alice.kas" -> the Kaspa address that owns it, or null if unresolvable/not found. */
-    suspend fun resolve(domain: String): String? {
+    suspend fun resolve(domain: String): String? = resolveChecked(domain).first
+
+    /**
+     * [resolve], also saying whether KNS could be asked at all (iOS 83806b3d
+     * `resolveDomainChecked`): the second value is true for a network error or a non-404 server
+     * error, false for an answer - an owner, or a 404 ("domain has no owner"). An answer for
+     * another asset than the domain asked about is no owner.
+     */
+    suspend fun resolveChecked(domain: String): Pair<String?, Boolean> {
+        val fullDomain = normalizeDomain(domain).lowercase()
         return try {
-            val response = api().resolveDomain(normalizeDomain(domain))
-            if (response.success) response.data?.owner else null
+            val response = api().resolveDomain(fullDomain)
+            val data = response.data
+            val owner = data?.owner
+            if (response.success && owner != null && data?.asset?.lowercase() == fullDomain) owner to false else null to false
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: HttpException) {
+            // The real API's 404 for "domain has no owner" is an answer, not an error.
+            null to (e.code() != 404)
         } catch (e: Exception) {
-            null // Includes the real API's 404 for "domain has no owner" — not an error.
+            Log.w("KnsService", "Domain resolution failed: ${e.javaClass.simpleName}")
+            null to true
         }
     }
 

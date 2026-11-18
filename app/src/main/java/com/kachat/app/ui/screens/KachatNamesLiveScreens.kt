@@ -940,7 +940,7 @@ fun kachatNameBadge(n: NameInfo, graceMs: Long): String? = when (n.status(graceM
 @Composable
 fun kachatNameExpiryLine(n: NameInfo, graceMs: Long): String? = when (n.status(graceMs)) {
     Status.ACTIVE -> stringResource(R.string.kn_expires_on, KachatLive.day(n.expiresAt))
-    Status.GRACE -> stringResource(R.string.kn_grace_ends, KachatLive.day(n.expiresAt + graceMs))
+    Status.GRACE -> stringResource(R.string.kn_grace_ends, KachatLive.day(com.kachat.app.services.kachatnames.KachatNames.Codec.saturatingAdd(n.expiresAt, graceMs)))
     Status.LAPSED -> null
 }
 
@@ -1048,10 +1048,13 @@ fun KachatOwnedNamesList(
     }
     // Your Domains runs on under the dock: the list clears it itself.
     val dockInset = LocalDockInset.current
+    // This wallet's own list, not another address's: only yours offers to get a name (iOS 413f6d6d).
+    val isOwnList = vm != null && walletAddress.lowercase() == vm.actions.myAddress
+    val context = LocalContext.current
     Box(Modifier.fillMaxSize().nestedScroll(pullState.nestedScrollConnection)) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
-                .padding(bottom = dockInset),
+                .padding(bottom = dockInset + if (isOwnList) 72.dp else 0.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when {
@@ -1084,6 +1087,42 @@ fun KachatOwnedNamesList(
             }
         }
         PullToRefreshContainer(state = pullState, modifier = Modifier.align(Alignment.TopCenter))
+        // Your own list ends with Get a .kachat domain, which opens the .kachat names page.
+        if (isOwnList) {
+            val haptic = com.kachat.app.util.rememberHaptics()
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = dockInset)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .clip(CircleShape)
+                    .background(KaspaTeal)
+                    .clickable {
+                        haptic(com.kachat.app.util.IosHaptic.IMPACT_LIGHT)
+                        KachatNamesInfo.open(context)
+                    },
+            ) {
+                Text(stringResource(R.string.get_a_kachat_domain), color = Color.Black, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+/**
+ * What .kachat names are, what they cost and how to claim one: the page on home.kachat.app that
+ * "Get a .kachat name" (Edit Profile) and "Get a .kachat domain" (Your Domains) open. Names are
+ * bought in KaPay, never in this app (iOS 413f6d6d `KachatNamesInfo`).
+ */
+object KachatNamesInfo {
+    const val PAGE_URL = "https://home.kachat.app/kachat/"
+
+    fun open(context: android.content.Context) {
+        runCatching {
+            context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(PAGE_URL)))
+        }
     }
 }
 
@@ -1478,6 +1517,17 @@ fun KachatLiveProfileEditorScreen(
                         DropdownMenuItem(text = { Text(com.kachat.app.models.KachatNameLabel.display(n)) }, onClick = { primary = n; pickPrimary = false })
                     }
                 }
+            }
+            // Get a .kachat name: the page on home.kachat.app about names (iOS 413f6d6d).
+            val pageContext = LocalContext.current
+            SettingsDivider()
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { KachatNamesInfo.open(pageContext) }.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = KaspaTeal, modifier = Modifier.size(20.dp))
+                Text(stringResource(R.string.get_a_kachat_name), color = KaspaTeal)
             }
         }
         // Saves on every network: a profile is a self-send, with no registry behind it (iOS d36fc42).

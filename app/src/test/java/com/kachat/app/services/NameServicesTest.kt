@@ -54,4 +54,18 @@ class NameServicesTest {
         assertEquals(NameServiceTLD.KACHAT, NameServicesClient.primary(withKachat, "bob")?.tld)
         assertEquals(NameServiceTLD.K, NameServicesClient.primary(withKachat, "bob.k")?.tld)
     }
+
+    @Test
+    fun `a service's address answer is validated for the running network`() {
+        // Unit tests never call KaspaNetwork.init, so the running network is mainnet.
+        val key = ByteArray(32) { (it * 7 + 3).toByte() }
+        val mainnet = com.kachat.app.util.KaspaAddress.encode("kaspa", 0x00, key)
+        val testnet = com.kachat.app.util.KaspaAddress.encode("kaspatest", 0x00, key)
+        assertEquals(mainnet, NameResolution.validatedAddress("  ${mainnet.uppercase()} "))
+        assertNull(NameResolution.validatedAddress(testnet))
+        assertNull(NameResolution.validatedAddress(mainnet.dropLast(1)))
+        assertNull(NameResolution.validatedAddress("kaspa:garbage"))
+        assertNull(NameResolution.validatedAddress(""))
+        assertNull(NameResolution.validatedAddress(null))
+    }
 }

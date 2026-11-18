@@ -180,17 +180,21 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             ?: txId.takeIf { it.isNotBlank() }?.let { id ->
                 readOffChainWithRetry({ groupRepository.readChainPayload(id) }) { it != null }
             }
-        // Back-to-back parts read off chain from one group ring once (iOS ca013fc8
-        // `part_push_bursts`, by blinded group id).
+        // Back-to-back pushes from one sender in one group that couldn't be read ring once (iOS
+        // ca013fc8 `part_push_bursts`; the blinded id is per group and sender). A part that was
+        // read goes by its note's tag alone (iOS 83806b3d).
         val burstOwner = "group:${groupId.lowercase()}"
         val read = groupRepository.readGroupMessagePush(payload)
-        if (read is GroupMessagePush.Banner) postGroupBanner(read, txId, burstOwner.takeIf { readOffChain && read.partKey != null })
+        if (read is GroupMessagePush.Banner) postGroupBanner(read, txId)
         // Stores the message, and brings the keys of a group this device has only just heard of.
         // Bounded: syncGroups() is a full catch-up (every group, backfill sends included) and FCM
-        // gives this handler about 20 s. A sync still running at 8 s is left behind and the
-        // generic fallback below posts in time (audit AND-008).
+        // gives this handler about 20 s. A sync still running at 8 s - or at what is left of the
+        // handler's time after the reads above - is left behind and the generic fallback below
+        // posts in time (audit AND-008).
         try {
-            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
+            syncBudgetMs().takeIf { it > 0L }?.let { budget ->
+                kotlinx.coroutines.withTimeoutOrNull(budget) { groupRepository.syncGroups() }
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Push-triggered group sync failed: ${e.message}")
         }
@@ -198,7 +202,7 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         // The catch-up may have just brought the group this message belongs to.
         when (val reread = groupRepository.readGroupMessagePush(payload)) {
             is GroupMessagePush.Banner -> {
-                postGroupBanner(reread, txId, burstOwner.takeIf { readOffChain && reread.partKey != null })
+                postGroupBanner(reread, txId)
                 return
             }
             GroupMessagePush.Silent -> return
@@ -233,7 +237,8 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
         // Read off chain and still unreadable (most often: not on the API yet after every
-        // retry): back-to-back ones in this group ring once, as parts would (iOS ca013fc8).
+        // retry): back-to-back ones from this sender in this group ring once, as parts would
+        // (iOS ca013fc8, 83806b3d).
         val quiet = readOffChain && !notificationHelper.claimPartBurst(burstOwner)
         notificationHelper.showGroup(
             // Prefer the resolved real group id/name: the tap intent then opens the actual thread
@@ -250,22 +255,23 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         )
     }
 
-    /** [burstOwner]: set for a part read off chain, which also joins its group's burst. A later
-     *  part of a long voice note or multi-part photo, or of a burst, is delivered quietly - the
-     *  note already rang (iOS 7c5c22e3 / ca013fc8 `isLaterPartPush`). */
-    private suspend fun postGroupBanner(banner: GroupMessagePush.Banner, txId: String, burstOwner: String? = null) {
+    /** A later part of a long voice note or multi-part photo is delivered quietly - the note
+     *  already rang (iOS 7c5c22e3 `isLaterPartPush`). A part that was read goes by its tag alone,
+     *  never by the burst rule (iOS 83806b3d). */
+    private suspend fun postGroupBanner(banner: GroupMessagePush.Banner, txId: String) {
         notificationHelper.showGroup(
             groupId = banner.groupId,
             title = banner.title,
             text = banner.text,
             dedupeTxId = txId.takeIf { it.isNotBlank() },
-            quiet = isLaterPartPush(banner.partKey, txId, burstOwner),
+            quiet = isLaterPartPush(banner.partKey, txId, burstOwner = null),
         )
     }
 
     /** True when this push is a later part of a note or burst that already rang: a tagged part
-     *  whose note was announced, or a payload-less push that follows another from the same owner
-     *  within a minute. Claims both ledgers, so call it once per push (iOS ca013fc8). */
+     *  whose note was announced, or an unreadable payload-less push that follows another from the
+     *  same owner within a minute. Only one of the two is ever set for a push. Claims its ledger,
+     *  so call it once per push (iOS ca013fc8, 83806b3d). */
     private fun isLaterPartPush(partKey: String?, txId: String, burstOwner: String?): Boolean {
         val firstOfNote = partKey?.let { notificationHelper.claimPartBanner(it, txId) } ?: true
         val firstOfBurst = burstOwner?.let { notificationHelper.claimPartBurst(it) } ?: true
@@ -279,6 +285,14 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      * back to back. With one try every part could come back unreadable and ring as its own "New
      * message". [done] says when a result is final; the last result is returned at the deadline.
      */
+    /** How long a catch-up after the push's own banner may run: [GROUP_SYNC_BUDGET_MS], but never
+     *  past [HANDLER_BUDGET_MS] from the push's arrival, so a fallback banner after it still
+     *  posts while the handler runs. Zero or less: no time for one. */
+    private fun syncBudgetMs(): Long {
+        val left = HANDLER_BUDGET_MS - (System.currentTimeMillis() - pushReceivedAtMs) - FALLBACK_RESERVE_MS
+        return minOf(GROUP_SYNC_BUDGET_MS, left)
+    }
+
     private suspend fun <T> readOffChainWithRetry(read: suspend () -> T?, done: (T?) -> Boolean): T? {
         var attempt = 0
         var result: T? = null
@@ -301,8 +315,10 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
      * wallet key, needing no network, as iOS's extension does (iOS handleGroupPushResolved): being
      * added is only a request, announced once, so nothing for a group you're already in (a new root
      * only rotates its keys) and otherwise "You were invited", whose tap opens Message Requests.
-     * Every other control, and one that can't be read, is "Group update". A root too big for the
-     * push (a long member list) is read off chain first; iOS has only the generic banner for those.
+     * Only that invite announces itself. Everything else a control carries - a key rotation when
+     * members change, a rename or photo, an invite accept or reject, a delete marker - updates the
+     * group quietly, as does one that can't be read: no banner (iOS 83806b3d). A control too big
+     * for the push (a long member list, a group photo) is read off chain first.
      */
     private suspend fun handleGroupControlPush(data: Map<String, String>) {
         val txId = data["tx_id"]?.takeIf { it.isNotBlank() }
@@ -315,46 +331,25 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         val read = groupRepository.readGroupControlPush(payload, data["sender"].orEmpty(), pushSentAtMs(data), txId)
         when (read) {
             is GroupControlPush.Invite -> notificationHelper.showGroupInvite(read.inviteKey, read.groupName, dedupeTxId = txId)
-            GroupControlPush.Update -> postGroupUpdate(data, txId, dedupeTxId = txId)
+            GroupControlPush.Update -> notificationHelper.claimWithoutNotifying(txId)
             GroupControlPush.Quiet, GroupControlPush.Unreadable -> Unit
         }
         // Brings in whatever else it can see. Bounded: a push handler has seconds, not minutes.
         runCatching {
-            kotlinx.coroutines.withTimeoutOrNull(GROUP_SYNC_BUDGET_MS) { groupRepository.syncGroups() }
+            syncBudgetMs().takeIf { it > 0L }?.let { budget ->
+                kotlinx.coroutines.withTimeoutOrNull(budget) { groupRepository.syncGroups() }
+            }
         }
         if (read !is GroupControlPush.Unreadable) return
         // Couldn't be read from here, but the sync may have: an invite it held waits for this
-        // push to announce it, and a root for a group held here only rotated its keys.
+        // push to announce it. Anything else stays quiet; the sync has applied it (iOS 83806b3d).
+        // The txId is not claimed: with no push active the sync's own invite banner can still
+        // follow once the control is readable.
         if (txId != null) {
             groupRepository.inviteHeldByTx(txId)?.let { invite ->
                 notificationHelper.showGroupInvite(invite.inviteKey, invite.groupName, dedupeTxId = txId)
-                return
             }
-            if (groupRepository.wasRootTx(txId)) return
         }
-        // The txId is not claimed here: with no push active the sync's real banner can still
-        // follow this one once the control is readable.
-        postGroupUpdate(data, txId, dedupeTxId = null)
-    }
-
-    /**
-     * The generic control banner (iOS deliverGroupFallback): "Group chat", the sender's name under
-     * it, "Group update". Never the push's own title, which the service sets to the sender's raw
-     * address. There is no group to open, so the tap goes to the Chats list.
-     */
-    private suspend fun postGroupUpdate(data: Map<String, String>, txId: String?, dedupeTxId: String?) {
-        val sender = data["sender"]?.takeIf { it.isNotBlank() }
-        notificationHelper.showGroup(
-            groupId = txId ?: "group",
-            title = getString(R.string.group_chat),
-            text = getString(R.string.group_update),
-            dedupeTxId = dedupeTxId,
-            targetGroupId = null,
-            subtitle = sender?.let { address ->
-                val alias = runCatching { chatRepository.getContact(address)?.alias }.getOrNull()
-                com.kachat.app.models.addressDisplayName(address, alias = alias)
-            },
-        )
     }
 
     /**
@@ -436,13 +431,13 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
 
         val text = plaintext?.let { notificationPreview(it) } ?: fallback
         // A long voice note or multi-part photo is ONE message: the first of its parts to arrive
-        // rings, a later one is delivered quietly (iOS 7c5c22e3). A payload-less push read off
-        // chain that turned out to be a part, or couldn't be read in time, joins its sender's
-        // burst: back-to-back ones ring once (iOS ca013fc8).
+        // rings, a later one is delivered quietly (iOS 7c5c22e3). A payload-less push that
+        // couldn't be read in time joins its sender's burst: back-to-back unreadable ones ring
+        // once (iOS ca013fc8). A part that was read goes by its note's tag alone (iOS 83806b3d).
         val txId = data["tx_id"].orEmpty()
         val partKey = com.kachat.app.util.VoicePartGrouping.partKey(plaintext, sender)
         val readOffChain = pushedPlaintext == null && txId.isNotBlank()
-        val burstOwner = "dm:${sender.lowercase()}".takeIf { readOffChain && (plaintext == null || partKey != null) }
+        val burstOwner = "dm:${sender.lowercase()}".takeIf { readOffChain && plaintext == null }
         notificationHelper.show(
             contactId = sender,
             title = contactTitle(sender, data["title"].orEmpty().ifEmpty { sender }),
@@ -472,7 +467,11 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
                     true
                 } else if (chatRepository.markRequestNotified(sender)) {
                     notificationHelper.showMessageRequest(sender, dedupeTxId = txId)
-                    runCatching { kotlinx.coroutines.withTimeoutOrNull(8_000) { chatRepository.syncInbox() } }
+                    runCatching {
+                        syncBudgetMs().takeIf { it > 0L }?.let { budget ->
+                            kotlinx.coroutines.withTimeoutOrNull(budget) { chatRepository.syncInbox() }
+                        }
+                    }
                     return true
                 } else {
                     true
@@ -563,8 +562,16 @@ class KaChatFirebaseMessagingService : FirebaseMessagingService() {
         private const val CHAIN_READ_BUDGET_MS = 8_000L
 
         /** How long a payload-less push's chain reads keep trying, from the push's arrival (iOS
-         *  ca013fc8 `chainReadDeadline`). */
-        private const val CHAIN_READ_DEADLINE_MS = 20_000L
+         *  ca013fc8 `chainReadDeadline`: 20 s of the extension's 30). FCM gives this handler about
+         *  20 s in all, so the reads stop sooner and leave the banner and a short catch-up their
+         *  time - at 20 s a fallback banner came after the window and could be lost. */
+        private const val CHAIN_READ_DEADLINE_MS = 13_000L
+
+        /** All a push may take, from its arrival: under FCM's ~20 s for onMessageReceived. */
+        private const val HANDLER_BUDGET_MS = 18_000L
+
+        /** Kept back from a catch-up for the fallback banner that may follow it. */
+        private const val FALLBACK_RESERVE_MS = 1_500L
 
         /** The 1:1 push types whose sender can be this wallet itself. */
         private val OWN_SEND_PUSH_TYPES = setOf("contextual", "payment", "handshake")

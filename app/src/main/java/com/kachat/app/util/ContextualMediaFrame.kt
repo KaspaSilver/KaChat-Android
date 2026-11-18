@@ -132,7 +132,7 @@ object ContextualMediaFrame {
 
     /**
      * iOS `MediaFileEnvelope.json`, byte for byte: `type, name, size, mimeType, content` in that
-     * order, only `\` and `"` escaped (no "\/", non-ASCII written as is), so a message that came
+     * order, `\`, `"` and control characters escaped (no "\/", non-ASCII written as is), so a message that came
      * as a frame is the same string as one that came as text. A part tag ([voicePart] on a long
      * voice note's part, [mediaPart] on a multi-part photo's chunk, iOS 7c5c22e3) goes between
      * `mimeType` and `content`, so head-window sniffs ([VoicePartTag.sniff]) see it without
@@ -152,7 +152,28 @@ object ContextualMediaFrame {
         return "{\"type\":\"file\",\"name\":\"${escape(name)}\",\"size\":$size,\"mimeType\":\"${escape(mimeType)}\"$part,\"content\":\"${escape(dataUrlContent)}\"}"
     }
 
-    private fun escape(value: String): String = value.replace("\\", "\\\\").replace("\"", "\\\"")
+    /**
+     * A JSON string body (iOS 83806b3d `MediaFileEnvelope.escape`): `"`, `\` and every control
+     * character, which a received frame's `name` or `mimeType` can carry (the sender wrote them)
+     * and which used to leave invalid JSON, so the message showed as raw text. Still no "\/"
+     * escaping, and a string with none of these (every data URL) comes back as it is, with no
+     * copy of the multi-MB content.
+     */
+    internal fun escape(value: String): String {
+        if (value.none { it < ' ' || it == '"' || it == '\\' }) return value
+        val out = StringBuilder(value.length + 8)
+        for (c in value) {
+            when (c) {
+                '"' -> out.append("\\\"")
+                '\\' -> out.append("\\\\")
+                '\n' -> out.append("\\n")
+                '\r' -> out.append("\\r")
+                '\t' -> out.append("\\t")
+                else -> if (c < ' ') out.append(String.format(java.util.Locale.US, "\\u%04x", c.code)) else out.append(c)
+            }
+        }
+        return out.toString()
+    }
 
     /** The header as a JSON object - strict UTF-8 and strict JSON (one object, nothing after
      *  it), like iOS's JSONSerialization; null for anything else. [parseObject] alike for text. */

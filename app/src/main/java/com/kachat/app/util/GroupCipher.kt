@@ -136,7 +136,8 @@ object GroupCipher {
         // so a malformed frame is unreadable, never garbage text.
         ContextualMediaFrame.envelopeText(plaintext)?.let { return it }
         if (ContextualMediaFrame.startsWithFrameByte(plaintext)) return null
-        return String(plaintext, Charsets.UTF_8)
+        // Not UTF-8: unreadable, as on iOS (GroupCipher invalidPlaintext), never garbled text.
+        return KasiaCipher.strictUtf8(plaintext)
     }
 
     // -------------------------------------------------------------------------

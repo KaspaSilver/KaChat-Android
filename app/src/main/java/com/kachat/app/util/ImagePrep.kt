@@ -32,7 +32,7 @@ object ImagePrep {
 
         val original = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sampleSize })
-        } ?: throw IllegalStateException("Could not read image")
+        }?.let { applyExifOrientation(context, uri, it) } ?: throw IllegalStateException("Could not read image")
 
         // inSampleSize only halves, so the result can still overshoot — clamp exactly to 1400px.
         val scale = MAX_DIMENSION.toFloat() / maxOf(original.width, original.height)
@@ -75,7 +75,8 @@ object ImagePrep {
      * squared), so a small budget skips the big edges. Heavy: call it off the main thread.
      */
     fun prepareJpegForTiers(context: Context, uri: Uri, budgets: Collection<Int>): Map<Int, ByteArray> {
-        val original = decodeOriented(context, uri, TIER_EDGES[0])
+        // JPEG has no alpha: drawn over white first, as iOS's opaque renderer does
+        val original = opaque(decodeOriented(context, uri, TIER_EDGES[0]))
         val originalEdge = maxOf(original.width, original.height)
         val edges = ArrayList<Int>()
         edges.add(minOf(originalEdge, TIER_EDGES[0]))
@@ -178,7 +179,47 @@ object ImagePrep {
         while (bounds.outWidth / (sampleSize * 2) >= maxEdge || bounds.outHeight / (sampleSize * 2) >= maxEdge) sampleSize *= 2
         return resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sampleSize })
-        } ?: throw IllegalStateException("Could not read image")
+        }?.let { applyExifOrientation(context, uri, it) } ?: throw IllegalStateException("Could not read image")
+    }
+
+    /** [bitmap] turned and flipped the way [uri]'s EXIF orientation says (BitmapFactory ignores
+     *  it; ImageDecoder, API 28+, applies it itself): a camera photo was sent sideways on Android
+     *  8. Unchanged when there is none or it can't be read. */
+    private fun applyExifOrientation(context: Context, uri: Uri, bitmap: Bitmap): Bitmap {
+        val orientation = runCatching {
+            context.contentResolver.openInputStream(uri)?.use {
+                android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL)
+            }
+        }.getOrNull() ?: return bitmap
+        val matrix = android.graphics.Matrix()
+        when (orientation) {
+            android.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
+            android.media.ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
+            android.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> { matrix.setRotate(180f); matrix.postScale(-1f, 1f) }
+            android.media.ExifInterface.ORIENTATION_TRANSPOSE -> { matrix.setRotate(90f); matrix.postScale(-1f, 1f) }
+            android.media.ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
+            android.media.ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.setRotate(-90f); matrix.postScale(-1f, 1f) }
+            android.media.ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
+            else -> return bitmap
+        }
+        val turned = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        if (turned !== bitmap) bitmap.recycle()
+        return turned
+    }
+
+    /** [bitmap] drawn over white with no alpha (iOS ImagePrep draws onto white in an opaque
+     *  renderer): JPEG keeps no alpha, and Android wrote a PNG's or screenshot's transparent
+     *  pixels as black. An opaque bitmap is returned as it is. */
+    private fun opaque(bitmap: Bitmap): Bitmap {
+        if (!bitmap.hasAlpha()) return bitmap
+        val flat = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(flat).apply {
+            drawColor(android.graphics.Color.WHITE)
+            drawBitmap(bitmap, 0f, 0f, null)
+        }
+        flat.setHasAlpha(false)
+        bitmap.recycle()
+        return flat
     }
 
     private const val CHAT_MAX_DIMENSION = 1280
@@ -216,7 +257,7 @@ object ImagePrep {
 
         val decoded = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sampleSize })
-        } ?: throw IllegalStateException("Could not read image")
+        }?.let { opaque(applyExifOrientation(context, uri, it)) } ?: throw IllegalStateException("Could not read image")
 
         // inSampleSize only halves, so the result can still overshoot the target — clamp exactly.
         val scale = CHAT_MAX_DIMENSION.toFloat() / maxOf(decoded.width, decoded.height)

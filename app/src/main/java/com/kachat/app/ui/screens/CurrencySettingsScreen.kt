@@ -1,5 +1,6 @@
 package com.kachat.app.ui.screens
 
+import com.kachat.app.ui.theme.mirrorInRtl
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -87,7 +88,7 @@ fun CurrencySettingsScreen(onBack: () -> Unit, walletViewModel: WalletViewModel 
                 title = { Text(stringResource(R.string.currency), color = LocalAppColors.current.textPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBackIosNew, null, tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.ArrowBackIosNew, stringResource(R.string.back), tint = LocalAppColors.current.textPrimary, modifier = Modifier.size(20.dp).mirrorInRtl())
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = LocalAppColors.current.background)

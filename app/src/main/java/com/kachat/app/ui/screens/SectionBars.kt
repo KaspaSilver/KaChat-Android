@@ -45,7 +45,7 @@ internal fun HubSectionTopBar(
                 if (onBack != null && !LocalInHubSection.current) {
                     // iOS 26: the chevron in the label colour on its glass.
                     ToolbarGlassGroup {
-                        ToolbarIconButton(Icons.Filled.ArrowBackIosNew, "Back", onBack, tint = colors.textPrimary, iconSize = 20.dp)
+                        ToolbarIconButton(Icons.Filled.ArrowBackIosNew, androidx.compose.ui.res.stringResource(com.kachat.app.R.string.back), onBack, tint = colors.textPrimary, iconSize = 20.dp)
                     }
                 }
                 ConnectionDotButton(onClick = { ConnectionStatusOverlayState.open() })

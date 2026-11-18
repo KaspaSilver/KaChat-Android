@@ -262,6 +262,14 @@ class NextcloudService @Inject constructor(
     private val _autoBackupEnabled = MutableStateFlow(false)
     val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
 
+    /** Set when a disconnect or account removal couldn't revoke the app password on the server
+     *  (offline, server error): the server's host, for the alert Settings shows (iOS 83806b3d
+     *  `appPasswordRevokeFailure`). Cleared with [clearRevokeFailure]. */
+    private val _appPasswordRevokeFailureHost = MutableStateFlow<String?>(null)
+    val appPasswordRevokeFailureHost: StateFlow<String?> = _appPasswordRevokeFailureHost.asStateFlow()
+
+    fun clearRevokeFailure() { _appPasswordRevokeFailureHost.value = null }
+
     /** The active wallet's address — every credential/settings read and write is scoped to it.
      *  Null (signed out / no wallet yet) presents as disconnected and persists nothing. */
     @Volatile
@@ -520,10 +528,10 @@ class NextcloudService @Inject constructor(
     }
 
     /** Delete Account: the active wallet's app password, revoked while the credentials still exist
-     *  to authenticate with (iOS d063b897). Best effort. */
-    suspend fun revokeAppPassword() {
-        val account = _account.value ?: return
-        withContext(Dispatchers.IO) { revokeAppPassword(account) }
+     *  to authenticate with (iOS d063b897). Best effort; false when the server didn't confirm it. */
+    suspend fun revokeAppPassword(): Boolean {
+        val account = _account.value ?: return true
+        return withContext(Dispatchers.IO) { revokeAppPassword(account) }
     }
 
     /**
@@ -544,8 +552,11 @@ class NextcloudService @Inject constructor(
     }
 
     /** Revokes [account]'s app password on its server (iOS `revokeAppPassword`), so a
-     *  disconnected or deleted wallet leaves nothing that can still log in. Best effort. */
-    private fun revokeAppPassword(account: NextcloudAccount) {
+     *  disconnected or deleted wallet leaves nothing that can still log in. Best effort: the local
+     *  copy goes whatever the server says. True when the server confirmed it (200), or answered
+     *  401 (that password no longer works); otherwise the failure is kept in
+     *  [appPasswordRevokeFailureHost] for Settings to say so (iOS 83806b3d). */
+    private fun revokeAppPassword(account: NextcloudAccount): Boolean {
         try {
             val request = Request.Builder()
                 .url("${account.server.trimEnd('/')}/ocs/v2.php/core/apppassword")
@@ -555,10 +566,18 @@ class NextcloudService @Inject constructor(
                 .build()
             client.newCall(request).execute().use { response ->
                 Log.i("NextcloudService", "App password revoke answered HTTP ${response.code}")
+                if (response.code == 200 || response.code == 401) {
+                    _appPasswordRevokeFailureHost.value = null
+                    return true
+                }
             }
         } catch (e: Exception) {
             Log.w("NextcloudService", "App password revoke failed: ${e.message}")
         }
+        // Removed here, still valid there: the person revokes it in Nextcloud themselves.
+        _appPasswordRevokeFailureHost.value =
+            runCatching { java.net.URI(account.server.trim()).host }.getOrNull()?.takeIf { it.isNotEmpty() } ?: account.server
+        return false
     }
 
     /** Persists the picker's start folder (null/"" = files root). */

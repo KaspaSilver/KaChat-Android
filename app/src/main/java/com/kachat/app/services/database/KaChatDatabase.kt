@@ -45,6 +45,37 @@ abstract class KaChatDatabase : RoomDatabase() {
 
     companion object {
         /**
+         * Delete Account, before its rows are deleted (iOS 83806b3d `GroupStore.destroyLocalStoreFiles`):
+         * every account shares this one file, so it can't be deleted as iOS deletes the account's
+         * store. Instead SQLite overwrites what it deletes from here on (`secure_delete`), so names,
+         * rosters and messages can't be read back from the file's free pages. Set inside a
+         * transaction, which runs on the one connection that writes. Best effort.
+         */
+        fun overwriteDeletedContent(db: KaChatDatabase) {
+            runCatching {
+                val sqlite = db.openHelper.writableDatabase
+                sqlite.beginTransaction()
+                try {
+                    sqlite.query("PRAGMA secure_delete = ON").use { it.moveToFirst() }
+                    sqlite.setTransactionSuccessful()
+                } finally {
+                    sqlite.endTransaction()
+                }
+            }.onFailure { android.util.Log.w("KaChatDatabase", "secure_delete could not be set", it) }
+        }
+
+        /**
+         * Delete Account, after its rows are gone: the write-ahead log, which still holds earlier
+         * copies of the deleted pages, is checkpointed into the file and emptied (iOS deletes the
+         * store's `-wal` and `-shm`). Best effort: a reader holding the log open leaves it as is.
+         */
+        fun emptyWriteAheadLog(db: KaChatDatabase) {
+            runCatching {
+                db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+            }.onFailure { android.util.Log.w("KaChatDatabase", "WAL checkpoint failed", it) }
+        }
+
+        /**
          * True if [table] already has a column named [column]. Used to make the additive
          * `ALTER TABLE ... ADD COLUMN` migrations idempotent: some open-testing devices received a
          * column before its schema version was bumped (Room recreated their DB via

@@ -118,4 +118,36 @@ class KaspaAddressTest {
         assertNull(KaspaAddress.onActiveNetwork("kaspa:notanaddress"))
         assertNull(KaspaAddress.onActiveNetwork(KaspaAddress.encode("kaspa", 0x00, bytes(33))))
     }
+
+    // MARK: - Single case (iOS 83806b3d): compact QR codes write "KASPA:QR..."
+
+    @Test
+    fun `an all-uppercase address is valid, a mixed-case one is not`() {
+        val address = KaspaAddress.encode("kaspa", 0x00, bytes(32))
+        val upper = address.uppercase()
+        assertTrue(KaspaAddress.isValid(upper))
+        assertTrue(KaspaAddress.isValidOnActiveNetwork(upper))
+        assertEquals(KaspaAddress.getScriptPublicKey(address), KaspaAddress.getScriptPublicKey(upper))
+        val mixed = "kaspa:" + address.substringAfter(':').replaceFirstChar { it.uppercaseChar() }
+        assertFalse(KaspaAddress.isValid(mixed))
+    }
+
+    @Test
+    fun `normalizedCase lowercases only an all-uppercase input`() {
+        val address = KaspaAddress.encode("kaspa", 0x00, bytes(32))
+        assertEquals(address, KaspaAddress.normalizedCase(address.uppercase()))
+        assertEquals(address, KaspaAddress.normalizedCase(address))
+        assertEquals("Kaspa:qx", KaspaAddress.normalizedCase("Kaspa:qx"))
+        assertTrue(KaspaAddress.hasAddressPrefix("KASPA:QR"))
+        assertTrue(KaspaAddress.hasAddressPrefix("kaspatest:q"))
+        assertFalse(KaspaAddress.hasAddressPrefix("Kaspa:q"))
+        assertFalse(KaspaAddress.hasAddressPrefix("alice.kas"))
+    }
+
+    @Test
+    fun `no script is built for an unknown prefix`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            KaspaAddress.getScriptPublicKey(KaspaAddress.encode("kaspadev", 0x00, bytes(32)))
+        }
+    }
 }

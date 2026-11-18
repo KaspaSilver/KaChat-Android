@@ -598,7 +598,16 @@ class KachatNamesRegistry @Inject constructor(
         Codec.validate(name)
         (_source.value as? Source.Indexer)?.let { src ->
             val j = fromIndexer(src.base, "/names/$name") { IndexerApi.NameJson.parse(it) }
-            if (j != null) return j.info(::keyOf)?.let { Lookup.Registered(it) } ?: Lookup.Free(name, j.gap?.info)
+            if (j != null) {
+                j.info(::keyOf)?.let { return Lookup.Registered(it) }
+                // Registered, but a record this app can't read (a missing outpoint, an owner it
+                // can't parse): that is not "free". Saying so would offer a taken name and point a
+                // send at nobody, so it's a failed lookup instead (iOS 83806b3d).
+                if (j.registered == true || (j.registered == null && (j.outpoint != null || j.owner != null || j.ownerKey != null))) {
+                    throw KachatNames.Failure("the indexer's record for this name couldn't be read")
+                }
+                return Lookup.Free(name, j.gap?.info)
+            }
         }
         val st = readChainState()
         return st.name(name)?.let { Lookup.Registered(RegistryState.info(it)) }
@@ -719,7 +728,8 @@ class KachatNamesRegistry @Inject constructor(
         while (true) {
             val now = KachatNames.nowMs()
             val next = nextLapse(still, graceMs, now) ?: return
-            delay(next - now + 500)
+            // At most a day per wait: a far-off (or absurd) expiry must not make a huge sleep (iOS 83806b3d).
+            delay(minOf(maxOf(0L, next - now), 86_400_000L) + 500)
             still = held(still, graceMs)
             update(still)
         }
@@ -1644,7 +1654,7 @@ class KachatNamesRegistry @Inject constructor(
 
         /** When the next of [names] lapses (unix ms), null when none is left to lapse ([dropLapsed]). */
         fun nextLapse(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): Long? =
-            names.map { it.expiresAt + graceMs }.filter { it > nowMs }.minOrNull()
+            names.map { Codec.saturatingAdd(it.expiresAt, graceMs) }.filter { it > nowMs }.minOrNull()
 
         /** Expired names still in their grace period, soonest release first (iOS cb3c27d `inGrace`). */
         fun inGracePeriod(names: List<NameInfo>, graceMs: Long, nowMs: Long = KachatNames.nowMs()): List<NameInfo> =

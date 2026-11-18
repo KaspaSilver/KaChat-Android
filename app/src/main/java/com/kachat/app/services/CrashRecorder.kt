@@ -22,17 +22,15 @@ import java.time.format.DateTimeFormatter
  * thread, full stack trace, keeping the newest [MAX_KEPT]) and then hands the throwable to the
  * handler that was there before, so the OS still ends the process exactly as it would have.
  *
- * The files are read by two things: the diagnostics archive (Settings > Diagnostics > Export)
- * bundles them, and [MainActivity] shows a one-time notice on the next launch after a crash
- * with a Share button that sends the newest file straight to a share sheet - the report can
- * reach the developer even from a phone the user cannot connect to a computer.
+ * The diagnostics archive (Settings > Diagnostics > Export) bundles them, so a user can send
+ * them to the developer from there. Nothing pops up after a crash.
  *
  * A Java exception is not the only way a process ends. A native crash (a signal below the
  * Java layer) or the OS killing the process never reaches this handler, and the app just
  * "closes with no pop-up". For those, [noteProcessExits] asks the system on the next launch
  * how the previous process ended - Android keeps that history (reason, a description, and for
- * an ANR the trace) - and writes an abnormal end to the same folder, so it is shared and
- * bundled exactly like a recorded exception.
+ * an ANR the trace) - and writes an abnormal end to the same folder, so it is bundled exactly
+ * like a recorded exception.
  *
  * Nothing sensitive is written: only the exception and where it happened.
  */
@@ -41,7 +39,6 @@ object CrashRecorder {
     private const val DIR = "crashes"
     private const val MAX_KEPT = 5
     private const val PREFS = "kachat_crash_recorder"
-    private const val PREF_UNSEEN = "unseen_crash_file"
     private const val PREF_LAST_EXIT_TS = "last_exit_timestamp"
 
     @Volatile private var installed = false
@@ -91,7 +88,6 @@ object CrashRecorder {
         )
         // Newest MAX_KEPT stay; the rest go.
         crashFiles(context).drop(MAX_KEPT).forEach { runCatching { it.delete() } }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(PREF_UNSEEN, file.name).commit()
         Log.e(TAG, "Recorded crash to ${file.name}", throwable)
     }
 
@@ -121,8 +117,8 @@ object CrashRecorder {
         }
     }
 
-    /** Ends worth a record. The OS reclaiming a backgrounded process for memory is routine and
-     *  goes into the archive only; the rest are the "closes with no pop-up" cases and prompt. */
+    /** Ends worth a record in the diagnostics archive: crashes, ANRs, failed starts and the
+     *  OS killing the process. */
     private val ABNORMAL_EXIT_REASONS = setOf(
         ApplicationExitInfo.REASON_CRASH,
         ApplicationExitInfo.REASON_CRASH_NATIVE,
@@ -132,10 +128,6 @@ object CrashRecorder {
         ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
         ApplicationExitInfo.REASON_SIGNALED,
         ApplicationExitInfo.REASON_DEPENDENCY_DIED,
-    )
-    private val PROMPT_EXIT_REASONS = ABNORMAL_EXIT_REASONS - setOf(
-        ApplicationExitInfo.REASON_LOW_MEMORY,
-        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
     )
 
     // ApplicationExitInfo's getters are API 30. noteProcessExits returns early below R, so this
@@ -199,9 +191,6 @@ object CrashRecorder {
             }
         )
         crashFiles(context).drop(MAX_KEPT).forEach { runCatching { it.delete() } }
-        if (exit.reason in PROMPT_EXIT_REASONS) {
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(PREF_UNSEEN, file.name).apply()
-        }
         Log.e(TAG, "Previous process ended abnormally: $reasonName - recorded to ${file.name}")
     }
 
@@ -209,15 +198,5 @@ object CrashRecorder {
     fun crashFiles(context: Context): List<File> {
         val dir = File(context.filesDir, DIR)
         return dir.listFiles { f -> f.isFile && f.name.startsWith("crash-") }?.sortedByDescending { it.name }.orEmpty()
-    }
-
-    /** The crash file the user has not been told about yet, if any - null once [markSeen] ran. */
-    fun unseenCrash(context: Context): File? {
-        val name = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(PREF_UNSEEN, null) ?: return null
-        return File(File(context.filesDir, DIR), name).takeIf { it.isFile }
-    }
-
-    fun markSeen(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(PREF_UNSEEN).apply()
     }
 }

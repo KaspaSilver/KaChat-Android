@@ -1518,7 +1518,7 @@ fun Modifier.chatHeaderChip(state: ChatHeaderTapBandState): Modifier =
 
 /**
  * The header row over a 1:1, group or public chat thread, as iOS's `chatHeaderTapBand` (1d5a555):
- * taps over the chip and within 24dp either side of it open the info screen - User Info, Group
+ * taps over the chip and within 40dp either side of it (iOS 413f6d6d) open the info screen - User Info, Group
  * Info, Room Info - and taps on the dead space further out jump to the first message.
  *
  * The chip, the back button and the header's actions keep their own taps: a child that handles a
@@ -1538,7 +1538,7 @@ fun Modifier.chatHeaderTapBand(
     this
         .onGloballyPositioned { state.bandLeft = it.positionInRoot().x }
         .pointerInput(state) {
-            val margin = 24.dp.toPx()
+            val margin = 40.dp.toPx()
             detectTapGestures { offset ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 val x = state.bandLeft + offset.x

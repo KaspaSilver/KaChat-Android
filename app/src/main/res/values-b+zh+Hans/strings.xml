@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">KaChat</string>
     <string name="n_12_words">12个词</string>
+    <string name="n_24_words">24 个单词</string>
     <string name="a_kns_inscription_s_commit_transaction">KNS 铭文的提交交易已完成,但揭示从未完成。现在重试以完成它;在您这样做之前,资金是安全锁定的。</string>
     <string name="accept">接受</string>
     <string name="account_name">账户名称</string>
@@ -10,16 +12,36 @@
     <string name="added">额外</string>
     <string name="address">地址</string>
     <string name="address_actions">地址操作</string>
+    <string name="address_copied_short">地址 %1$s 已复制</string>
+    <string name="tap_anywhere_to_copy">轻点任意位置即可复制</string>
     <string name="adjust_network_fee">调整网络手续费</string>
     <string name="admin">管理员</string>
     <string name="amount_kas">金额 (KAS)</string>
     <string name="anyone_with_your_seed_phrase_can">任何拥有你这 12 或 24 个单词的人都能访问你的账户。切勿与任何人分享。</string>
     <string name="back">返回</string>
+    <string name="previous">上一步</string>
     <string name="cancel">取消</string>
+    <string name="app_settings">App 设置</string>
+    <string name="delivery_sent">发送</string>
+    <string name="delivery_sending">正在发送</string>
+    <string name="delivery_failed">失败</string>
+    <string name="delivery_failed_tap_to_retry">失败 · 轻点重试</string>
+    <string name="delivery_needs_attention">需要注意</string>
+    <string name="delivery_failed_retry_accessibility">发送失败。轻点重试。</string>
+    <string name="battery_rationale_title">KaChat 关闭时也能收到通知</string>
+    <string name="battery_rationale_body">有些手机会为了省电而关闭应用，这可能导致你收不到消息通知。</string>
+    <string name="battery_rationale_allow">允许</string>
+    <string name="battery_rationale_allow_detail">让新消息唤醒 KaChat 来通知你。</string>
+    <string name="battery_rationale_not_now_detail">之后可在 设置 > 应用 > KaChat > 电池 中更改。</string>
+    <string name="open_source_licenses">开源许可</string>
+    <string name="screen_lock_required">需要屏幕锁定</string>
     <string name="cancel_photo">取消照片</string>
     <string name="cancel_recording">取消录音</string>
     <string name="cancel_reply">取消回复</string>
     <string name="chats">聊天</string>
+    <string name="share_pick_chat">选择要分享到的聊天</string>
+    <string name="help">帮助</string>
+    <string name="coinbase">Coinbase</string>
     <string name="chatting_address">聊天地址</string>
     <string name="chess_stats">国际象棋战绩</string>
     <string name="choose_avatar">选择头像</string>
@@ -28,6 +50,7 @@
     <string name="clear_search">清除搜索</string>
     <string name="close">关闭</string>
     <string name="confirm">确认</string>
+    <string name="confirm_selection">确认所选项</string>
     <string name="connect_to_a_node">连接到节点</string>
     <string name="connected_only_to_this_node">仅连接到此节点</string>
     <string name="connection_settings">连接设置</string>
@@ -64,7 +87,8 @@
     <string name="import_account">导入账户</string>
     <string name="import_existing_account">导入现有账户</string>
     <string name="incoming_notifications">传入通知</string>
-    <string name="kns_domains">KNS 域名</string>
+    <string name="kns_domains">你的域名</string>
+    <string name="contact_kns_domains">KNS 域名</string>
     <string name="kachat">KaChat</string>
     <string name="kachat_logo">KaChat 徽标</string>
     <string name="kachat_needs_to_connect_to_a">KaChat 需要连接到一个节点。您希望如何连接?</string>
@@ -80,11 +104,16 @@
     <string name="next">下一步</string>
     <string name="no_conversations_yet">暂无会话</string>
     <string name="no_domains_yet">还没有域名。</string>
+    <string name="send_domain">发送域名</string>
+    <string name="asset_id">资产ID</string>
+    <string name="primary_domain">主要域名</string>
+    <string name="set_as_primary">设为主名称</string>
     <string name="no_hidden_addresses">没有隐藏的地址。</string>
     <string name="no_hidden_users_in_this_group">此群组中没有隐藏的用户。</string>
     <string name="no_messages_yet">暂无消息</string>
     <string name="no_saved_addresses">没有已保存的地址</string>
     <string name="no_transactions_yet">暂无交易。</string>
+    <string name="no_utxos">没有 UTXO。</string>
     <string name="not_now">暂不</string>
     <string name="notifications">通知</string>
     <string name="ok">确定</string>
@@ -99,13 +128,16 @@
     <string name="promote_pawn_to">将兵升变为:</string>
     <string name="qr_code">二维码</string>
     <string name="read">已读</string>
+    <string name="receive">接收</string>
     <string name="recipient_address">收款地址</string>
     <string name="remove">移除</string>
     <string name="rename">重命名</string>
     <string name="rename_account">重命名账户</string>
     <string name="rename_address">重命名地址</string>
     <string name="rename_group">重命名群组</string>
+    <string name="rename_utxo">重命名 UTXO</string>
     <string name="resign">认输</string>
+    <string name="chess_cancel_game">取消对局</string>
     <string name="resign_this_game">要认输这局游戏吗?</string>
     <string name="retry">重试</string>
     <string name="retry_inscription_reveal">重试铭文揭示</string>
@@ -137,9 +169,12 @@
     <string name="try_again">重试</string>
     <string name="unhide">取消隐藏</string>
     <string name="unread">未读</string>
+    <string name="use_automatic_selection">使用自动选择</string>
     <string name="use_default">使用默认值</string>
+    <string name="utxos">UTXOs</string>
     <string name="valid_address">有效地址</string>
     <string name="waiting_on_opponent">等待对手</string>
+    <string name="the_recipient_wont_see_your_messages">在对方给你发消息或你向对方发送通信请求之前，对方看不到你的消息。通信请求需要 0.2 KAS，对方接受后会退还给你。发送通信请求会降低你的隐私。</string>
     <string name="host_port_or_grpcs_host">host:port 或 grpcs://host</string>
     <string name="str">–</string>
     <string name="str_2">♟️</string>
@@ -157,6 +192,7 @@
     <string name="bio">简介</string>
     <string name="biometrics_for_account_login">账户登录的生物识别</string>
     <string name="biometrics_for_seed_phrase">12 或 24 个单词的生物识别</string>
+    <string name="biometrics_for_address_private_keys">地址私钥的生物识别</string>
     <string name="camera">相机</string>
     <string name="chat_history">聊天记录</string>
     <string name="clear_connection_pool">清除连接池</string>
@@ -179,6 +215,10 @@
     <string name="kns_profile">KNS 简介</string>
     <string name="kaspa_explorer_api">Kaspa Explorer API</string>
     <string name="kaspa_node">Kaspa 节点</string>
+    <string name="default_recommended">默认（推荐）</string>
+    <string name="automatic_scan">自动扫描</string>
+    <string name="kaspa_node_quick_access_footer">自动扫描会发现并连接到可用的最佳节点。选择特定节点后只会连接该节点，不会回退到其他节点。可在 连接设置 > IP 地址簿 中管理已保存的地址。</string>
+    <string name="node_connections_blocked">此网络上的节点连接似乎被屏蔽了。你仍可通过索引器接收消息，普通付款也仍可通过 REST API 发送，但发送聊天消息需要连接节点。</string>
     <string name="last_sync">上次同步</string>
     <string name="latency">延迟</string>
     <string name="open_chat">打开聊天</string>
@@ -196,9 +236,12 @@
     <string name="save_photo">保存照片</string>
     <string name="security">安全</string>
     <string name="send_handshake">发送通信请求</string>
+    <string name="handshake_sent">通信请求已发送</string>
     <string name="show_fee_estimate">显示手续费估算</string>
     <string name="sound_vibration">声音和振动</string>
     <string name="storage">存储</string>
+    <string name="on_this_device">在此设备上</string>
+    <string name="cloud_storage">云存储</string>
     <string name="submitting_commit_transaction">正在发送提交交易...</string>
     <string name="submitting_reveal_transaction">正在发送揭示交易...</string>
     <string name="support_email">支持邮箱</string>
@@ -233,6 +276,13 @@
     <string name="currency">货币</string>
     <string name="choose_your_currency">选择您的货币</string>
     <string name="select_the_currency_youd_like_prices">选择您希望以哪种货币显示价格。</string>
+    <string name="default_label">默认</string>
+    <string name="continue_label">继续</string>
+    <string name="change_chatting_address">更改聊天地址</string>
+    <string name="choose_your_chatting_address">选择你的聊天地址</string>
+    <string name="scan_further">继续扫描</string>
+    <string name="scanning_addresses">正在扫描第 %1$d 到 %2$d 个地址...</string>
+    <string name="scanned_the_first_addresses">已扫描前 %1$d 个地址。</string>
     <string name="user_info">用户信息</string>
     <!-- Message actions: translation, share, read state (iOS 3eee9e4) -->
     <string name="share">分享</string>
@@ -255,6 +305,7 @@
     <!-- 5.2 name lookups (iOS a0dbc15, 79b6ac8, 9858bd1) -->
     <string name="no_tld_domain_found">未找到 %1$s 域名</string>
     <string name="looking_up_domain">正在查找域名...</string>
+    <string name="looking_up">正在查找...</string>
     <string name="no_domain">无域名</string>
     <string name="other_domains">其他域名</string>
     <string name="not_registered">未注册</string>
@@ -271,6 +322,7 @@
     <string name="not_available_on_this_network">此网络不可用</string>
     <!-- .kachat marketplace and KaChat Stats (iOS b064468, f38cac2, 98354d3, 982966d, b8dd56f) -->
     <string name="km_no_names">还没有 .kachat 名称</string>
+    <string name="kn_manage_in_wallet">在 KaChat Wallet 中购买、续费、出售和转让 .kachat 名称。</string>
     <!-- .kachat setup guide (iOS b000310, 66b152f) -->
     <string name="kg_welcome_body">完整的新手导览：钱包、聊天、付款等。</string>
     <!-- .kachat listing, buy and offer (iOS cd9e10c, 0e50fdf) -->
@@ -309,7 +361,7 @@
     <string name="new_message_request">新的消息请求</string>
     <string name="wants_to_chat_with_you">%1$s 想和你聊天。</string>
     <!-- Welcome Guide: .kachat and Message Requests (iOS 5c15ca0) -->
-    <string name="welcome_fund_chatting_body">建议先准备 50 Kaspa——足够领取一个 .kachat 名称并聊上一阵子。5 Kaspa 大约可发送 2500 条消息。</string>
+    <string name="welcome_fund_chatting_body">5 Kaspa 大约可发送 2500 条消息。</string>
     <!-- Testnet (iOS bdae4b7, 0c1af03, 9858bd1, 0bda85e, af8ec68, f38cac2) -->
     <string name="testnet">测试网</string>
     <string name="testnet_restart_to_testnet">请完全关闭 KaChat 后重新打开，以完成切换到测试网。</string>
@@ -432,7 +484,10 @@
     <string name="qr_chatting_address_subtitle">用于聊天和获取 .kachat 域名。</string>
     <!-- Send Kaspa screens: shared pieces (iOS 4d0324f) -->
     <string name="coin_control">币控</string>
+    <string name="compound_utxos">合并 UTXO</string>
+    <string name="compound_utxos_description">合并此地址的 UTXO，以减少以后发送时所需的输入数量。单笔交易一次能合并的数量有限，因此如果此地址的 UTXO 非常多，请在交易确认后再次点按“合并 UTXO”继续减少。</string>
     <string name="automatic">自动</string>
+    <string name="automatic_clear_selection">自动（清除选择）</string>
     <string name="consolidating_this_address">正在合并此地址</string>
     <string name="invalid_address_format">地址格式无效</string>
     <string name="fee_tier_normal">普通</string>
@@ -443,6 +498,7 @@
     <string name="paste">粘贴</string>
     <string name="scan_qr">扫描 QR</string>
     <string name="network_fee">网络手续费</string>
+    <string name="nextcloud">Nextcloud</string>
     <!-- Send Kaspa: slide to send (iOS afaad34) -->
     <!-- Send Kaspa: send from another spending address (iOS e994235) -->
     <string name="send_from">发送自</string>
@@ -504,6 +560,7 @@
     <string name="dm_notif_sent_file">发送了一个文件</string>
     <!-- Edit KaChat Profile: links that can't be checked don't block saving (iOS 5cac6af) -->
     <string name="kn_save_unchecked_links">暂时无法从这部手机检查部分链接。它们会按输入内容保存，其他人的应用会在可以时加载。</string>
+    <string name="notification_center_wallet_empty">到达你地址的 Kaspa 会显示在这里。</string>
     <!-- Profile bell: .kachat news (iOS 86471dd, 4500ebc) -->
     <!-- .kachat hub tabs: Marketplace, Reclaimable, Activity (iOS 0765ce0) -->
     <!-- .kachat: a released or reclaimed name (iOS f420343) -->
@@ -514,6 +571,10 @@
     <string name="create_wallet_name_title">为你的钱包起个名字</string>
     <string name="create_wallet_name_detail">此名称只保存在这台设备上，用于区分你的钱包。其他人永远看不到它。</string>
     <string name="choose_seed_phrase_length">选择 12 或 24 个单词</string>
+    <string name="notification_center_empty_title">还没有通知</string>
+    <string name="notification_center_clear_all">全部清除</string>
+    <string name="receive_preparing_fresh_address">正在准备一个全新的地址</string>
+    <string name="composer_fee_amount">手续费：%1$s KAS</string>
     <!-- Create Account, step 3: the seed phrase (iOS CreateWalletSeedStep) -->
     <!-- KaPosts: Retry and the Profile title in iOS's own words (shared retry/profile differ in some languages) -->
     <!-- Composer fee pill (iOS feeBubble) -->
@@ -523,10 +584,18 @@
     <string name="qr_point_camera">将相机对准 QR 码</string>
     <string name="qr_camera_access_required">需要相机访问权限</string>
     <string name="qr_enable_camera_access">请在设置中启用相机访问权限以扫描 QR 码。</string>
+    <string name="qr_requesting_camera_access">正在请求相机权限...</string>
+    <string name="no_utxos_found_at_address">此地址上没有找到 UTXO。</string>
+    <string name="node_removed_still_connected">已从地址簿移除。仍与此节点保持连接。</string>
+    <string name="node_address_removed">地址已移除。</string>
     <!-- Signed transaction scanner (iOS MultiFrameQRScannerView) -->
     <!-- Swap Details sheet (iOS SwapView.SwapDetailView) -->
     <!-- In-app toasts (iOS SettingsView.deleteSavedNodeAddress, ChatInfoView.copyProfileFieldValue) -->
     <string name="field_copied_to_clipboard">%1$s 已复制到剪贴板。</string>
+    <string name="reactions_one">1 个回应</string>
+    <string name="reactions_count">%1$d 个回应</string>
+    <string name="reactions_one_person">1 人</string>
+    <string name="reactions_people">%1$d 人</string>
     <!-- Reactions sheet (iOS ActionSheet.swift ReactionsSheet) -->
     <!-- Failed to Send alert (iOS ChatDetailView) -->
     <string name="failed_to_send_title">发送失败</string>
@@ -539,6 +608,7 @@
     <!-- Manage Addresses consolidation failure (iOS ManageAddressesView) -->
     <!-- Swap / chat strings: Android keeps its translations (restored) -->
     <string name="original_message_not_available">原始消息不可用</string>
+    <string name="original_message_fetching">原始消息尚未同步到此设备，正在获取。</string>
     <!-- .kachat sale tile: expiry flag -->
     <!-- .kachat: expired names are available to claim (iOS eea52b2) -->
     <string name="kn_freeing_name">正在为你释放 %1$s...</string>
@@ -607,6 +677,7 @@
     <string name="ab_members_footer">从联系人中选择，或通过 Kaspa 地址或域名添加任何人。</string>
     <string name="ab_members_intro">向群组添加成员。作为群组管理员，由你管理成员。</string>
     <string name="ab_members_empty">还没有成员。从联系人中添加，或在下方通过地址添加。</string>
+    <string name="ab_actions_a11y">添加、导入或导出</string>
     <!-- Address Book import / export (iOS 87b2a0b) -->
     <string name="ab_add_address_sub">用你认得出的名字保存一个 Kaspa 地址。</string>
     <string name="ab_import_file">导入文件</string>
@@ -681,6 +752,7 @@
     <string name="bot_sheet_clears_unread">清除此聊天的未读标记。</string>
     <string name="bot_sheet_notifications_resume">恢复此机器人的通知。</string>
     <string name="bot_sheet_no_notification">不接收此机器人的通知。</string>
+    <string name="bot_sheet_delete_keeps_circle">从此设备删除此聊天的消息。机器人仍保留在该行中。</string>
     <!-- Payment requests (iOS c6851d6, 7c71a98, 1fe8388, 6594936) -->
     <string name="pr_request_payment">请求付款</string>
     <string name="pr_chatting_footer">付款会附带备注，出现在你与付款人的聊天中。</string>
@@ -762,6 +834,22 @@
     <string name="import_chat_history">导入聊天记录</string>
     <string name="export_diagnostics_archive">导出诊断档案</string>
     <string name="wipe_resync_incoming">清除并重新同步接收消息</string>
+    <string name="appearance">外观</string>
+    <string name="appearance_system">跟随系统</string>
+    <string name="appearance_light">浅色</string>
+    <string name="appearance_dark">深色</string>
+    <string name="storage_local_used">已用本地存储：%1$s</string>
+    <string name="storage_on_device_footer">消息在此设备上保留的时长及其占用的空间。先于任何云存储生效。</string>
+    <string name="require_photo_approval_new_contacts">新联系人发来的照片需要批准</string>
+    <string name="quick_reactions">快捷回应</string>
+    <string name="quick_reactions_footer">点按一个表情即可将其替换为其他表情。</string>
+    <string name="reset_to_default">恢复默认</string>
+    <string name="notifications_wallet">钱包</string>
+    <string name="address_activity">地址动态</string>
+    <string name="address_activity_footer">当你的任一支出地址或冷存储地址从外部收到 Kaspa 时通知你。你自己地址之间的转账会被忽略。</string>
+    <string name="explorer_footer">用于生成应用中各处的“查看交易”链接。</string>
+    <string name="verbose_api_logging">详细 API 日志</string>
+    <string name="verbose_api_logging_footer">记录每个索引器请求及完整的连接和耗时详情。正常使用时请保持关闭：失败和缓慢的请求始终会被记录，而大量日志可能导致 Android 丢弃应用的日志消息。</string>
     <string name="your_address">你的地址</string>
     <!-- Quantum-safe (KIP-22) addresses: the shield's two states in Manage Addresses (iOS bba1b1e) -->
     <string name="quantum_safe">抗量子</string>
@@ -819,7 +907,6 @@
     <string name="pr_paid_to">付款至</string>
     <string name="ab_empty_title">还没有联系人</string>
     <string name="settings_title">设置</string>
-    <string name="confirm_sending_kaspa">确认发送 Kaspa</string>
     <string name="confirm_sending_domain">确认发送此域名</string>
     <string name="confirm_deleting_account">确认删除此账户</string>
     <string name="group_invites">群组邀请</string>
@@ -831,7 +918,21 @@
     <string name="group_invite_explainer">只有接受后你才会加入此群组。你的回复会以一笔小额加密交易发送，让群组和你的其他设备知晓。</string>
     <string name="group_invite_notification">你被邀请加入“%1$s”</string>
     <string name="could_not_derive_addresses">无法从这些单词推导出地址，请重试。</string>
+    <string name="set_as_chatting_address">设为聊天地址</string>
+    <string name="current_chatting_address">当前聊天地址</string>
     <string name="this_seed_already_has_conversations">这些单词在当前聊天地址上已有对话。切换后将用新地址重新开始。你现有的对话会留在旧地址上，不会被删除。</string>
+    <string name="switch_action">切换</string>
+    <string name="tap_the_address_to_copy_it">轻点地址即可复制</string>
+    <string name="domains_count">%1$d 个域名</string>
+    <string name="aliases">别名</string>
+    <string name="receiving_alias">接收别名</string>
+    <string name="sending_alias">正在发送别名</string>
+    <string name="alias_copied">别名已复制到剪贴板。</string>
+    <string name="alias_unavailable">别名不可用。</string>
+    <string name="reveal">显示</string>
+    <string name="share_to_kachat">分享到 KaChat</string>
+    <string name="send_to">发送到</string>
+    <string name="couldnt_send_saved_as_draft">无法发送。已在此聊天中保存为草稿。</string>
     <string name="wallet_title">钱包</string>
     <string name="wallet_total_balance">总余额</string>
     <string name="wallet_chatting">聊天</string>
@@ -1067,11 +1168,18 @@
     <string name="group_notif_reacted_emoji_other">%1$s 对一条消息回应了 %2$s</string>
     <string name="sent_amount_kas_memo">已发送 %1$s KAS — %2$s</string>
     <string name="address_number">地址 #%1$d</string>
+    <string name="current">当前</string>
+    <string name="switch_chatting_address_question">要切换聊天地址吗？</string>
     <string name="balance">余额</string>
     <string name="group_info_member_count">%1$d 位成员</string>
+    <string name="group_info_members_count">成员（%1$d）</string>
+    <string name="group_info_refresh_messages">刷新消息</string>
+    <string name="group_info_silent_group_chat">静音群聊</string>
     <string name="group_info_resend_invites_to_all">向所有人重新发送邀请</string>
+    <string name="group_info_remove_photo">移除照片</string>
     <string name="message_action_select">选择</string>
     <string name="reactions_you">你</string>
+    <string name="coins_couldnt_load">无法加载此地址上的币</string>
     <string name="select_all">全选</string>
     <string name="unlock_to_view_your_12_or_24">解锁以查看你的 12 或 24 个单词</string>
     <string name="show">显示</string>
@@ -1157,6 +1265,7 @@
     <string name="one_more_thing_to_know">还有一点需要了解</string>
     <string name="if_you_type_the_wrong_passphrase_nothing">如果输入了错误的密码短语，不会有任何提示。你只是进入了另一个账户，而它看起来是空的。这不是故障，你的资金也没有丢失，只是说明你进错了账户。</string>
     <string name="so_do_you_need_one">那么，你需要它吗？</string>
+    <string name="if_you_are_not_sure_choose_no">如果你不确定，那你就不需要：返回开始页面并点按“创建新账户”，即可创建一个没有密码短语的账户。它仍受你的 12 或 24 个单词保护，以后你也随时可以再创建一个带密码短语的账户。</string>
     <string name="if_you_never_set_one_up_choose">如果你从未设置过，请选择“否”。密码短语是你会特意输入的内容，所以如果你是第一次听说，那你就没有密码短语。</string>
     <string name="my_kachat_profile">我的 KaChat 资料</string>
     <string name="signs_out_of_this_account_wallet_and">退出此账户。钱包和消息数据仍保留在此设备上。</string>
@@ -1292,16 +1401,46 @@
     <string name="nfc_tap_prompt">将卡片平贴在手机背面。</string>
     <string name="copy_link_subtitle">将地址复制到剪贴板。</string>
     <string name="link_menu_title">链接</string>
+    <string name="shared_file_menu_title">共享的文件</string>
     <string name="message_action_select_subtitle">一次选择多条消息。</string>
+    <string name="tap_to_load_preview">轻点加载预览</string>
     <string name="something_went_wrong">出错了</string>
     <string name="chats_new_group_subtitle">与你选择的人创建群组。</string>
     <string name="resync_all_chats">是，所有聊天</string>
-    <string name="screen_lock_required_message">要在 KaChat 中发送 Kaspa、删除账户或查看密钥，请为此手机设置屏幕锁定（设置 &gt; 安全）。</string>
+    <string name="resync_all_chats_subtitle">在本地移除所有收到的消息，然后从区块链重新同步。已发送的消息和账户信息会保留。</string>
+    <string name="resync_select_chats">选择聊天...</string>
+    <string name="resync_select_chats_subtitle">选择要清除并重新同步的聊天。其他内容不受影响。</string>
+    <string name="resync_cancel_subtitle">保持你的消息不变。</string>
+    <string name="screen_lock_required_message">要在 KaChat 中删除账户或查看密钥，请为此手机设置屏幕锁定（设置 &gt; 安全）。</string>
+    <string name="show_password">显示密码</string>
+    <string name="hide_password">隐藏密码</string>
     <string name="unlock_change_seed_phrase_lock">解锁以更改 12 或 24 个单词的生物识别锁定</string>
+    <string name="unlock_change_account_login_lock">解锁以更改账户登录的生物识别锁</string>
+    <string name="unlock_change_private_key_lock">解锁以更改私钥的生物识别锁</string>
+    <string name="nc_server">服务器</string>
+    <string name="nc_server_placeholder">cloud.example.com</string>
+    <string name="nc_username">用户名</string>
+    <string name="nc_app_password">App 密码</string>
+    <string name="nc_use_https">请使用 https。不支持未加密的连接。</string>
+    <string name="nc_app_password_footer">请在 Nextcloud 的 设置 → 安全 → 设备与会话 中创建应用密码，不要使用你的账户密码。KaChat 会将其保存在设备的加密存储中。</string>
+    <string name="nc_connect">连接</string>
+    <string name="nc_connected_account">已连接的账户</string>
+    <string name="nc_start_folder">起始文件夹</string>
+    <string name="nc_automatic_sync">自动同步</string>
+    <string name="nc_auto_sync_one_service">自动同步一次只能使用一个云服务。</string>
+    <string name="nc_last_synced">上次同步</string>
+    <string name="nc_backup_folder">备份文件夹</string>
+    <string name="nc_default_folder">%1$s（默认）</string>
     <string name="nc_back_up_now">立即备份联系人</string>
+    <string name="nc_last_backup">上次备份</string>
+    <string name="nc_no_backup_yet">此服务器上还没有备份。</string>
     <string name="nc_backup_uploaded">联系人已备份。</string>
     <string name="nc_contact_backup">联系人备份</string>
     <string name="nc_contact_backup_footer">这里只加密备份你的联系人。你的消息和群聊可通过助记词恢复。</string>
+    <string name="nc_disconnect">断开连接</string>
+    <string name="nc_disconnect_footer">断开连接会从此设备中删除已保存的应用密码。你的 Nextcloud 服务器上不会有任何更改。</string>
+    <string name="nc_disconnect_title">断开 Nextcloud</string>
+    <string name="nc_disconnect_message">应用密码将从此设备的加密存储中删除。你可以随时重新连接。</string>
     <string name="send_outcome_unknown">这笔发送可能已完成，但网络未确认。再次发送前请先查看余额。</string>
     <string name="swipe_not_confirmed">未确认</string>
     <string name="secure_store_title">KaChat 无法打开你的账户</string>
@@ -1313,6 +1452,9 @@
     <string name="max_capped_compound">一笔交易最多可合并 %1$d 个币，因此会合并最大的 %2$d 个。请再次合并剩下的部分。</string>
     <string name="max_capped_send">最大值是一笔交易能承载的金额：最大的 %1$d 个币。“合并 UTXO”可合并其余的币。</string>
     <string name="couldnt_load_address_balance">无法加载此地址的余额。</string>
+    <plurals name="pasted_words_invalid">
+        <item quantity="other">粘贴的单词中有 %d 个不是有效单词。请检查你复制的内容后重试。</item>
+    </plurals>
     <string name="delivery_not_confirmed">未确认</string>
     <string name="delivery_not_confirmed_accessibility">尚未确认。它仍可能成功。</string>
     <string name="send_fee_changed">网络费用现在为 %1$s KAS，高于确认页面显示的金额。未发送任何内容：请查看新的费用后再次滑动。</string>
@@ -1322,6 +1464,7 @@
     <string name="passphrase_search_unfinished">此账户其他地址上的余额搜索未完成，因此导入将使用地址 #0。</string>
     <string name="search_again">重新搜索</string>
     <string name="skip_search_import_address_0">跳过搜索：导入到地址 #0</string>
+    <string name="archive_not_encrypted">此文件不是加密的 KaChat 存档，因此无法导入。</string>
     <string name="a_post_on_kapost">KaPost 上的帖子</string>
     <string name="tap_to_open_it_in_kapost">轻点以在 KaPost 中打开。</string>
     <string name="shared_a_kapost">分享了一条 KaPost 帖子</string>
@@ -1388,4 +1531,93 @@
     <string name="photo_quality_low">低</string>
     <string name="receiving_n_of_m">正在接收… %1$d/%2$d</string>
     <string name="encoding_ellipsis">正在编码…</string>
+    <string name="audio_ready">音频已就绪</string>
+    <string name="this_only_deletes_the_message_recipient">这只会从此设备删除该消息。对方仍保留自己的副本，加密的交易会永久保留在 Kaspa 区块链上，任何人都能看到，但没有你的密钥就无法读取。此操作无法撤销。</string>
+    <string name="message_copied_to_clipboard">消息已复制到剪贴板。</string>
+    <string name="edited_mark">已编辑</string>
+    <string name="chess_invite_sent">已发送国际象棋邀请</string>
+    <string name="chess_invited_you">邀请你下一盘国际象棋</string>
+    <string name="more_reactions">更多回应</string>
+    <string name="confirm_changes">确认更改</string>
+    <string name="uploading_avatar">正在上传头像...</string>
+    <string name="uploading_banner">正在上传横幅...</string>
+    <string name="profile_field_removed">%1$s（已移除）</string>
+    <string name="create_group">创建群组</string>
+    <string name="create_group_fee_estimate">预计网络手续费 ≈ %1$s %2$s，共 %3$d 笔交易。</string>
+    <string name="create_chat">创建聊天</string>
+    <string name="add_to_group">添加到群组</string>
+    <string name="edit_name">编辑名称</string>
+    <string name="domain_label">领域</string>
+    <string name="primary_badge">主要</string>
+    <string name="notification_mode_off">关闭</string>
+    <string name="notification_mode_no_sound">静音</string>
+    <string name="notification_mode_sound">声音</string>
+    <string name="notification_mode_default">默认（%1$s）</string>
+    <string name="domain_transfer_sending">正在发送 %1$s</string>
+    <string name="domain_transfer_footer">域名转移需要两笔交易，所以要花一点时间。完成前请保持 App 打开。</string>
+    <string name="domain_transfer_stage_preparing">正在准备转让</string>
+    <string name="domain_transfer_stage_fee">正在计算手续费</string>
+    <string name="domain_transfer_stage_commit">正在发送提交交易</string>
+    <string name="domain_transfer_stage_reveal">正在发送揭示交易</string>
+    <string name="domain_transfer_stage_verifying">正在确认新所有者</string>
+    <string name="domain_transfer_stage_working">处理中</string>
+    <string name="checking_address_n">正在检查地址 #%1$d</string>
+    <string name="n_found_so_far">目前已找到 %1$d 个</string>
+    <string name="no_addresses_with_balance_or_domain_yet">还没有有余额或域名的地址</string>
+    <string name="checks_the_first_thousand_addresses">无论中间有无空档，都会检查前一千个地址，之后只要还能找到就继续检查。</string>
+    <string name="first_sync_all_set">一切就绪</string>
+    <string name="first_sync_up_to_date">你的聊天和历史记录都是最新的。</string>
+    <string name="first_sync_setting_up">正在设置你的账户</string>
+    <string name="first_sync_downloading_footer">正在下载此账户在链上的全部内容。只有这一次需要这么久。</string>
+    <string name="first_sync_continue_anyway">仍然继续</string>
+    <string name="nc_use_all_files">使用所有文件</string>
+    <string name="nc_use_this_folder">使用此文件夹</string>
+    <string name="nc_no_subfolders">没有子文件夹。</string>
+    <string name="nc_could_not_load_file">无法加载此文件。</string>
+    <string name="voice_message_unavailable">语音消息不可用</string>
+    <string name="tap_to_retry">轻点重试</string>
+    <string name="loading_ellipsis">正在加载…</string>
+    <string name="file_no_longer_shared">此文件已不再共享</string>
+    <string name="react_title">回应</string>
+    <string name="no_emoji_match_that">没有匹配的表情符号。</string>
+    <string name="choose_emoji">选择表情符号</string>
+    <string name="whats_cached">缓存了什么</string>
+    <string name="clear_all_cache">清除所有缓存</string>
+    <string name="fund_your_chatting_address_to_start">给聊天地址充值，开始聊天</string>
+    <string name="copied_to_clipboard">已复制到剪贴板</string>
+    <string name="welcome_guide">欢迎指南</string>
+    <string name="chess_notif_invite">♟️ 邀请你下一盘国际象棋</string>
+    <string name="chess_notif_accepted">♟️ 接受了你的国际象棋对局</string>
+    <string name="chess_notif_declined">♟️ 拒绝了你的国际象棋对局</string>
+    <string name="chess_notif_move">♟️ 走了 %1$s → %2$s</string>
+    <string name="chess_notif_move_generic">♟️ 走了一步棋</string>
+    <string name="chess_notif_lost_on_time">♟️ 超时判负</string>
+    <string name="chess_notif_resigned">♟️ 在国际象棋对局中认输</string>
+    <string name="fee_label">费用</string>
+    <plurals name="kns_profile_changes_count">
+        <item quantity="other">%d 项更改。每项都会作为单独的链上交易从你的聊天地址提交：</item>
+    </plurals>
+    <plurals name="create_group_and_invite">
+        <item quantity="other">要创建“%1$s”并邀请 %2$d 位成员吗？</item>
+    </plurals>
+    <string name="nc_revoke_failed_title">无法删除应用密码</string>
+    <string name="nc_revoke_failed_message">KaChat 无法从 %1$s 删除其应用密码。它已从此手机删除，但仍可在那里登录：请在 Nextcloud 的“设置 &gt; 安全 &gt; 设备与会话”中删除它。</string>
+    <string name="fee_too_high">手续费过高</string>
+    <string name="a_message_fee_can_be_at_most_1_kas">消息手续费最多为 1 KAS。</string>
+    <string name="use_a_high_fee">使用高手续费？</string>
+    <string name="use_it">使用</string>
+    <string name="message_fee_much_more_than_network_needs">%1$s KAS 远高于网络发送一条消息所需的费用。</string>
+    <string name="tap_retry_on_the_voice_message_to_send_the_rest">点击语音消息上的“重试”以发送其余部分。</string>
+    <string name="tap_retry_on_the_photo_to_send_the_rest">点击照片上的“重试”以发送其余部分。</string>
+    <string name="payment_notice_fee_from_chatting_address">你的聊天地址还会支付 %1$s KAS，用于告知 %2$s 这笔付款。</string>
+    <string name="recording_failed_please_try_again">录音失败，请重试。</string>
+    <string name="message_needs_too_many_coins">这条消息在一笔交易中需要的币太多。请在你的聊天地址上使用 Compound UTXOs，然后重试。</string>
+    <string name="use_their_domain_name">使用对方的域名</string>
+    <string name="show_request_as_qr">以二维码显示请求</string>
+    <string name="pr_qr_scan_to_pay_in_kapay">用手机相机扫描，即可在 KaPay 中付款，所有信息都已填好。</string>
+    <string name="pr_qr_scan_to_pay_in_kachat">用手机相机扫描，即可在 KaChat 中付款，所有信息都已填好。</string>
+    <string name="get_a_kachat_domain">获取 .kachat 域名</string>
+    <string name="set_as_name">设为名称</string>
+    <string name="their_name">对方名称</string>
+    <string name="get_a_kachat_name">获取 .kachat 名称</string>
 </resources>
